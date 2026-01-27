@@ -1,13 +1,58 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { SetupScreen } from '@/components/auth/SetupScreen';
+import { LoginScreen } from '@/components/auth/LoginScreen';
+import { SignupScreen } from '@/components/auth/SignupScreen';
+import { useAuth } from '@/contexts/AuthContext';
+import { checkSystemInitialized } from '@/lib/auth';
+
+type AuthView = 'loading' | 'setup' | 'login' | 'signup';
 
 const Index = () => {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+  const [view, setView] = useState<AuthView>('loading');
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (user) {
+      navigate('/dashboard');
+      return;
+    }
+
+    // Check if system is initialized
+    checkSystemInitialized().then((initialized) => {
+      setView(initialized ? 'login' : 'setup');
+    });
+  }, [user, isLoading, navigate]);
+
+  if (view === 'loading' || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-secondary/20 to-background">
+        <div className="animate-pulse-soft text-muted-foreground">Loading...</div>
       </div>
-    </div>
+    );
+  }
+
+  if (view === 'setup') {
+    return <SetupScreen onComplete={() => navigate('/dashboard')} />;
+  }
+
+  if (view === 'signup') {
+    return (
+      <SignupScreen 
+        onSignup={() => navigate('/dashboard')} 
+        onBackToLogin={() => setView('login')} 
+      />
+    );
+  }
+
+  return (
+    <LoginScreen 
+      onLogin={() => navigate('/dashboard')} 
+      onSignupClick={() => setView('signup')} 
+    />
   );
 };
 
