@@ -1,25 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Plus, MoreHorizontal, GripVertical, Settings2 } from 'lucide-react';
+import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { KanbanCard } from '@/components/orders/KanbanCard';
-import { AddOrderDialog } from '@/components/orders/AddOrderDialog';
+import { BoardTable } from '@/components/orders/BoardTable';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface BoardGroup {
   id: string;
@@ -33,24 +28,41 @@ interface BoardRow {
   group_id: string;
   position: number;
   cells: Record<string, any>;
+  created_at?: string;
 }
 
 interface BoardColumn {
   id: string;
   name: string;
   type: string;
+  options?: any;
   position: number;
+}
+
+interface Client {
+  id: string;
+  name: string;
+}
+
+interface Employee {
+  id: string;
+  name: string;
+  avatar_color: string;
 }
 
 export default function Orders() {
   const [groups, setGroups] = useState<BoardGroup[]>([]);
   const [columns, setColumns] = useState<BoardColumn[]>([]);
   const [rows, setRows] = useState<BoardRow[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [addOrderOpen, setAddOrderOpen] = useState(false);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [draggedRow, setDraggedRow] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [addGroupDialogOpen, setAddGroupDialogOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupColor, setNewGroupColor] = useState('#22c55e');
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchData();
@@ -58,44 +70,32 @@ export default function Orders() {
 
   const fetchData = async () => {
     try {
-      // Fetch groups
-      const { data: groupsData, error: groupsError } = await supabase
-        .from('board_groups')
-        .select('*')
-        .order('position');
-      
-      if (groupsError) throw groupsError;
-      setGroups(groupsData || []);
+      // Fetch all data in parallel
+      const [groupsRes, columnsRes, rowsRes, clientsRes, employeesRes] = await Promise.all([
+        supabase.from('board_groups').select('*').order('position'),
+        supabase.from('board_columns').select('*').order('position'),
+        supabase.from('board_rows').select('*, board_cells(*)').order('position'),
+        supabase.from('clients').select('id, name').order('name'),
+        supabase.from('employees').select('id, name, avatar_color').order('name'),
+      ]);
 
-      // Fetch columns
-      const { data: columnsData, error: columnsError } = await supabase
-        .from('board_columns')
-        .select('*')
-        .order('position');
-      
-      if (columnsError) throw columnsError;
-      setColumns(columnsData || []);
+      if (groupsRes.error) throw groupsRes.error;
+      if (columnsRes.error) throw columnsRes.error;
+      if (rowsRes.error) throw rowsRes.error;
 
-      // Fetch rows with cells
-      const { data: rowsData, error: rowsError } = await supabase
-        .from('board_rows')
-        .select(`
-          *,
-          board_cells (*)
-        `)
-        .order('position');
-      
-      if (rowsError) throw rowsError;
-      
+      setGroups(groupsRes.data || []);
+      setColumns(columnsRes.data || []);
+      setClients(clientsRes.data || []);
+      setEmployees(employeesRes.data || []);
+
       // Transform rows to include cells as a map
-      const transformedRows = (rowsData || []).map((row: any) => ({
+      const transformedRows = (rowsRes.data || []).map((row: any) => ({
         ...row,
         cells: (row.board_cells || []).reduce((acc: any, cell: any) => {
           acc[cell.column_id] = cell.value;
           return acc;
         }, {}),
       }));
-      
       setRows(transformedRows);
     } catch (error: any) {
       toast({
@@ -108,39 +108,110 @@ export default function Orders() {
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, rowId: string) => {
-    setDraggedRow(rowId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetGroupId: string) => {
-    e.preventDefault();
-    
-    if (!draggedRow) return;
-
+  const handleAddRow = async (groupId: string) => {
     try {
-      const { error } = await supabase
+      // Get max position in group
+      const groupRows = rows.filter(r => r.group_id === groupId);
+      const maxPosition = groupRows.length > 0 
+        ? Math.max(...groupRows.map(r => r.position)) + 1 
+        : 0;
+
+      const { data: newRow, error } = await supabase
         .from('board_rows')
-        .update({ group_id: targetGroupId })
-        .eq('id', draggedRow);
+        .insert({
+          group_id: groupId,
+          position: maxPosition,
+          created_by: user?.id,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setRows(prev => 
-        prev.map(row => 
-          row.id === draggedRow ? { ...row, group_id: targetGroupId } : row
-        )
-      );
-
+      setRows(prev => [...prev, { ...newRow, cells: {} }]);
+      toast({ title: 'New order added' });
+    } catch (error: any) {
       toast({
-        title: 'Order moved',
-        description: 'Order has been moved to the new stage.',
+        title: 'Error',
+        description: error.message || 'Failed to add order.',
+        variant: 'destructive',
       });
+    }
+  };
+
+  const handleUpdateCell = async (rowId: string, columnId: string, value: any) => {
+    try {
+      // Check if cell exists
+      const { data: existingCell } = await supabase
+        .from('board_cells')
+        .select('id')
+        .eq('row_id', rowId)
+        .eq('column_id', columnId)
+        .maybeSingle();
+
+      if (existingCell) {
+        await supabase
+          .from('board_cells')
+          .update({ value })
+          .eq('id', existingCell.id);
+      } else {
+        await supabase
+          .from('board_cells')
+          .insert({ row_id: rowId, column_id: columnId, value });
+      }
+
+      // Update local state
+      setRows(prev => prev.map(row => {
+        if (row.id === rowId) {
+          return {
+            ...row,
+            cells: { ...row.cells, [columnId]: value }
+          };
+        }
+        return row;
+      }));
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update cell.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteRow = async (rowId: string) => {
+    try {
+      // Delete cells first
+      await supabase.from('board_cells').delete().eq('row_id', rowId);
+      // Then delete row
+      await supabase.from('board_rows').delete().eq('id', rowId);
+
+      setRows(prev => prev.filter(row => row.id !== rowId));
+      toast({ title: 'Order deleted' });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete order.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleMoveRow = async (rowId: string, targetGroupId: string) => {
+    try {
+      await supabase
+        .from('board_rows')
+        .update({ group_id: targetGroupId })
+        .eq('id', rowId);
+
+      setRows(prev => prev.map(row => {
+        if (row.id === rowId) {
+          return { ...row, group_id: targetGroupId };
+        }
+        return row;
+      }));
+
+      toast({ title: 'Order moved' });
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -148,23 +219,53 @@ export default function Orders() {
         variant: 'destructive',
       });
     }
-
-    setDraggedRow(null);
   };
 
-  const handleAddOrder = (groupId: string) => {
-    setSelectedGroupId(groupId);
-    setAddOrderOpen(true);
+  const handleAddGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return;
+
+    try {
+      const maxPosition = groups.length > 0 
+        ? Math.max(...groups.map(g => g.position)) + 1 
+        : 0;
+
+      const { data: newGroup, error } = await supabase
+        .from('board_groups')
+        .insert({
+          name: newGroupName.trim(),
+          color: newGroupColor,
+          position: maxPosition,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setGroups(prev => [...prev, newGroup]);
+      setAddGroupDialogOpen(false);
+      setNewGroupName('');
+      setNewGroupColor('#22c55e');
+      toast({ title: 'Group added' });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to add group.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getRowsForGroup = (groupId: string) => {
-    return rows.filter(row => row.group_id === groupId);
-  };
-
-  const getColumnValue = (row: BoardRow, columnName: string) => {
-    const column = columns.find(c => c.name === columnName);
-    if (!column) return null;
-    return row.cells[column.id];
+    return rows
+      .filter(row => row.group_id === groupId)
+      .filter(row => {
+        if (!searchQuery) return true;
+        // Search across all cell values
+        return Object.values(row.cells).some(value => 
+          String(value).toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      });
   };
 
   if (isLoading) {
@@ -179,101 +280,148 @@ export default function Orders() {
 
   return (
     <AppLayout>
-      <div className="p-6">
+      <div className="p-6 max-w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-display font-bold text-foreground">B2B Orders</h1>
             <p className="text-muted-foreground">Manage your order pipeline</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              <Settings2 className="w-4 h-4 mr-2" />
-              Configure Board
-            </Button>
-          </div>
         </div>
 
-        {/* Kanban Board */}
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {groups.map((group) => (
-            <div
-              key={group.id}
-              className="kanban-column flex-shrink-0 w-80"
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, group.id)}
-            >
-              {/* Column Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: group.color }}
-                  />
-                  <h3 className="font-semibold text-foreground">{group.name}</h3>
-                  <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded-full">
-                    {getRowsForGroup(group.id).length}
-                  </span>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-popover">
-                    <DropdownMenuItem>Edit Stage</DropdownMenuItem>
-                    <DropdownMenuItem>Change Color</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">Delete Stage</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+        {/* Tabs */}
+        <Tabs defaultValue="board" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="board" className="gap-2">
+                <LayoutGrid className="w-4 h-4" />
+                Board
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Analytics
+              </TabsTrigger>
+            </TabsList>
 
-              {/* Cards */}
-              <div className="space-y-2 min-h-[300px]">
-                {getRowsForGroup(group.id).map((row) => (
-                  <KanbanCard
-                    key={row.id}
-                    row={row}
-                    columns={columns}
-                    onDragStart={(e) => handleDragStart(e, row.id)}
-                    isDragging={draggedRow === row.id}
-                  />
-                ))}
-              </div>
+            <div className="flex items-center gap-4">
+              <TabsList>
+                <TabsTrigger value="employees" className="gap-2">
+                  <Users className="w-4 h-4" />
+                  Employees
+                </TabsTrigger>
+                <TabsTrigger value="overtime" className="gap-2">
+                  <Clock className="w-4 h-4" />
+                  Overtime
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </div>
 
-              {/* Add Button */}
+          <TabsContent value="board" className="space-y-4">
+            {/* Search */}
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search orders..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Board Tables */}
+            <div className="overflow-x-auto">
+              {groups.map((group) => (
+                <BoardTable
+                  key={group.id}
+                  group={group}
+                  columns={columns}
+                  rows={getRowsForGroup(group.id)}
+                  clients={clients}
+                  employees={employees}
+                  onAddRow={handleAddRow}
+                  onUpdateCell={handleUpdateCell}
+                  onDeleteRow={handleDeleteRow}
+                  onMoveRow={handleMoveRow}
+                  allGroups={groups}
+                />
+              ))}
+
+              {/* Add New Group */}
               <Button
                 variant="ghost"
-                className="w-full mt-2 border-2 border-dashed border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
-                onClick={() => handleAddOrder(group.id)}
+                className="w-full border-2 border-dashed border-border/50 text-muted-foreground hover:text-foreground hover:border-border py-6"
+                onClick={() => setAddGroupDialogOpen(true)}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add Order
+                Add New Group
               </Button>
             </div>
-          ))}
+          </TabsContent>
 
-          {/* Add Column */}
-          <div className="flex-shrink-0 w-80">
-            <Button
-              variant="ghost"
-              className="w-full h-12 border-2 border-dashed border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Stage
-            </Button>
-          </div>
-        </div>
+          <TabsContent value="analytics">
+            <div className="text-center py-12 text-muted-foreground">
+              Analytics coming soon...
+            </div>
+          </TabsContent>
+
+          <TabsContent value="employees">
+            <div className="text-center py-12 text-muted-foreground">
+              Navigate to the Employees section from the sidebar.
+            </div>
+          </TabsContent>
+
+          <TabsContent value="overtime">
+            <div className="text-center py-12 text-muted-foreground">
+              Navigate to the Overtime section from the sidebar.
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
-      <AddOrderDialog
-        open={addOrderOpen}
-        onOpenChange={setAddOrderOpen}
-        groupId={selectedGroupId}
-        columns={columns}
-        onSuccess={fetchData}
-      />
+      {/* Add Group Dialog */}
+      <Dialog open={addGroupDialogOpen} onOpenChange={setAddGroupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-display">Add New Group</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddGroup} className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Group Name *</Label>
+              <Input
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="e.g., In Progress"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="color"
+                  value={newGroupColor}
+                  onChange={(e) => setNewGroupColor(e.target.value)}
+                  className="w-16 h-10 p-1"
+                />
+                <Input
+                  value={newGroupColor}
+                  onChange={(e) => setNewGroupColor(e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setAddGroupDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Add Group</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
