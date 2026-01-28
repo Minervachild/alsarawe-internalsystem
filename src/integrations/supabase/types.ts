@@ -358,6 +358,7 @@ export type Database = {
           item_id: string
           notes: string | null
           quantity: number
+          reason: string | null
           type: string
         }
         Insert: {
@@ -366,6 +367,7 @@ export type Database = {
           item_id: string
           notes?: string | null
           quantity: number
+          reason?: string | null
           type: string
         }
         Update: {
@@ -374,6 +376,7 @@ export type Database = {
           item_id?: string
           notes?: string | null
           quantity?: number
+          reason?: string | null
           type?: string
         }
         Relationships: [

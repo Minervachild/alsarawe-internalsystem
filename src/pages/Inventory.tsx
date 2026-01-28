@@ -63,7 +63,17 @@ export default function Inventory() {
   });
   const [categoryFormData, setCategoryFormData] = useState({ name: '', color: '#8B4513' });
   const [movementQuantity, setMovementQuantity] = useState(0);
+  const [movementReason, setMovementReason] = useState('');
+  const [movementNotes, setMovementNotes] = useState('');
   const { toast } = useToast();
+
+  const stockOutReasons = [
+    { value: 'order', label: 'Used for Order (Spent)' },
+    { value: 'waste', label: 'Waste / Spoilage' },
+    { value: 'sample', label: 'Sample / Tasting' },
+    { value: 'adjustment', label: 'Inventory Adjustment' },
+    { value: 'other', label: 'Other' },
+  ];
 
   useEffect(() => {
     fetchData();
@@ -149,11 +159,13 @@ export default function Inventory() {
         return;
       }
 
-      // Record movement
+      // Record movement with reason for stock out
       await supabase.from('inventory_movements').insert({
         item_id: selectedItemForMovement.id,
         type: movementType,
         quantity: movementQuantity,
+        reason: movementType === 'out' ? movementReason : null,
+        notes: movementNotes || null,
       });
 
       // Update stock
@@ -166,6 +178,8 @@ export default function Inventory() {
       setMovementDialogOpen(false);
       setSelectedItemForMovement(null);
       setMovementQuantity(0);
+      setMovementReason('');
+      setMovementNotes('');
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -187,6 +201,8 @@ export default function Inventory() {
     setSelectedItemForMovement(item);
     setMovementType(type);
     setMovementQuantity(0);
+    setMovementReason('');
+    setMovementNotes('');
     setMovementDialogOpen(true);
   };
 
@@ -475,7 +491,7 @@ export default function Inventory() {
               {selectedItemForMovement?.name} - Current: {selectedItemForMovement?.current_stock} {selectedItemForMovement?.unit}
             </p>
             <div className="space-y-2">
-              <Label>Quantity</Label>
+              <Label>Quantity *</Label>
               <Input
                 type="number"
                 value={movementQuantity}
@@ -484,9 +500,43 @@ export default function Inventory() {
                 required
               />
             </div>
+            {movementType === 'out' && (
+              <div className="space-y-2">
+                <Label>Reason *</Label>
+                <Select
+                  value={movementReason}
+                  onValueChange={setMovementReason}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select reason for stock out" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    {stockOutReasons.map((reason) => (
+                      <SelectItem key={reason.value} value={reason.value}>
+                        {reason.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Notes (optional)</Label>
+              <Input
+                value={movementNotes}
+                onChange={(e) => setMovementNotes(e.target.value)}
+                placeholder={movementType === 'out' ? 'e.g., Order #123, expired batch' : 'e.g., New shipment from supplier'}
+              />
+            </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setMovementDialogOpen(false)}>Cancel</Button>
-              <Button type="submit">{movementType === 'in' ? 'Add' : 'Remove'} Stock</Button>
+              <Button 
+                type="submit"
+                disabled={movementType === 'out' && !movementReason}
+              >
+                {movementType === 'in' ? 'Add' : 'Remove'} Stock
+              </Button>
             </div>
           </form>
         </DialogContent>
