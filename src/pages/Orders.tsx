@@ -221,6 +221,36 @@ export default function Orders() {
     }
   };
 
+  const handleAddColumnOption = async (columnId: string, newOption: string) => {
+    try {
+      const column = columns.find(c => c.id === columnId);
+      if (!column) return;
+
+      const currentOptions = Array.isArray(column.options) ? column.options : [];
+      const updatedOptions = [...currentOptions, newOption];
+
+      await supabase
+        .from('board_columns')
+        .update({ options: updatedOptions })
+        .eq('id', columnId);
+
+      setColumns(prev => prev.map(col => {
+        if (col.id === columnId) {
+          return { ...col, options: updatedOptions };
+        }
+        return col;
+      }));
+
+      toast({ title: `Added "${newOption}" to options` });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to add option.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleAddGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGroupName.trim()) return;
@@ -346,6 +376,7 @@ export default function Orders() {
                   onDeleteRow={handleDeleteRow}
                   onMoveRow={handleMoveRow}
                   allGroups={groups}
+                  onAddColumnOption={handleAddColumnOption}
                 />
               ))}
 
