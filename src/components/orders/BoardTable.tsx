@@ -33,6 +33,14 @@ interface BoardGroup {
   position: number;
 }
 
+// Column visibility by group name
+const GROUP_COLUMN_VISIBILITY: Record<string, string[]> = {
+  'New': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment', 'Order Type', 'Location'],
+  'Preparing': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment', 'Phase'],
+  'Ready': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment', 'Shipping Method'],
+  'Shipped': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment'],
+};
+
 interface BoardTableProps {
   group: BoardGroup;
   columns: BoardColumn[];
@@ -44,6 +52,7 @@ interface BoardTableProps {
   onDeleteRow: (rowId: string) => void;
   onMoveRow: (rowId: string, targetGroupId: string) => void;
   allGroups: BoardGroup[];
+  onAddColumnOption?: (columnId: string, newOption: string) => void;
 }
 
 export function BoardTable({
@@ -57,6 +66,7 @@ export function BoardTable({
   onDeleteRow,
   onMoveRow,
   allGroups,
+  onAddColumnOption,
 }: BoardTableProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
@@ -100,7 +110,12 @@ export function BoardTable({
     setDraggedRowId(null);
   };
 
-  const visibleColumns = columns.filter(col => col.type !== 'files').slice(0, 8);
+  // Get columns visible for this group
+  const groupVisibleColumns = GROUP_COLUMN_VISIBILITY[group.name] || [];
+  const visibleColumns = columns
+    .filter(col => col.type !== 'files')
+    .filter(col => groupVisibleColumns.length === 0 || groupVisibleColumns.includes(col.name));
+  
   const avgCycle = calculateAverageCycle();
 
   return (
@@ -185,6 +200,7 @@ export function BoardTable({
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               isDragging={draggedRowId === row.id}
+              onAddColumnOption={onAddColumnOption}
             />
           ))}
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GripVertical, MoreHorizontal, Trash2, ArrowRight } from 'lucide-react';
+import { GripVertical, MoreHorizontal, Trash2, ArrowRight, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,6 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
@@ -55,6 +60,7 @@ interface BoardTableRowProps {
   onDragStart: (e: React.DragEvent, rowId: string) => void;
   onDragEnd: () => void;
   isDragging: boolean;
+  onAddColumnOption?: (columnId: string, newOption: string) => void;
 }
 
 export function BoardTableRow({
@@ -69,8 +75,11 @@ export function BoardTableRow({
   onDragStart,
   onDragEnd,
   isDragging,
+  onAddColumnOption,
 }: BoardTableRowProps) {
   const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [newOptionValue, setNewOptionValue] = useState('');
+  const [addingOptionForColumn, setAddingOptionForColumn] = useState<string | null>(null);
 
   const getCellValue = (columnId: string) => {
     return row.cells[columnId];
@@ -151,42 +160,90 @@ export function BoardTableRow({
         );
         const displayValue = typeof selectedOption === 'string' ? selectedOption : selectedOption?.label || value;
         const optionColor = typeof selectedOption === 'object' ? selectedOption?.color : null;
+        const isLocationColumn = column.name === 'Location';
         
         return (
-          <Select
-            value={value || ''}
-            onValueChange={(val) => onUpdateCell(row.id, column.id, val)}
-          >
-            <SelectTrigger className="h-7 text-sm border-0 bg-transparent hover:bg-muted/50">
-              {value ? (
-                <span 
-                  className="px-2 py-0.5 rounded text-xs font-medium text-white"
-                  style={{ backgroundColor: optionColor || getStatusColor(value) }}
-                >
-                  {displayValue}
-                </span>
-              ) : (
-                <span className="text-muted-foreground text-sm">—</span>
-              )}
-            </SelectTrigger>
-            <SelectContent className="bg-popover">
-              {options.map((opt: any) => {
-                const optValue = typeof opt === 'string' ? opt : opt.value;
-                const optLabel = typeof opt === 'string' ? opt : opt.label;
-                const color = typeof opt === 'object' ? opt.color : null;
-                return (
-                  <SelectItem key={optValue} value={optValue}>
-                    <span 
-                      className="px-2 py-0.5 rounded text-xs font-medium text-white"
-                      style={{ backgroundColor: color || getStatusColor(optValue) }}
-                    >
-                      {optLabel}
+          <div className="flex items-center gap-1">
+            <Select
+              value={value || ''}
+              onValueChange={(val) => {
+                if (val === '__add_new__') {
+                  setAddingOptionForColumn(column.id);
+                } else {
+                  onUpdateCell(row.id, column.id, val);
+                }
+              }}
+            >
+              <SelectTrigger className="h-7 text-sm border-0 bg-transparent hover:bg-muted/50">
+                {value ? (
+                  <span 
+                    className="px-2 py-0.5 rounded text-xs font-medium text-white"
+                    style={{ backgroundColor: optionColor || getStatusColor(value) }}
+                  >
+                    {displayValue}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground text-sm">—</span>
+                )}
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                {options.map((opt: any) => {
+                  const optValue = typeof opt === 'string' ? opt : opt.value;
+                  const optLabel = typeof opt === 'string' ? opt : opt.label;
+                  const color = typeof opt === 'object' ? opt.color : null;
+                  return (
+                    <SelectItem key={optValue} value={optValue}>
+                      <span 
+                        className="px-2 py-0.5 rounded text-xs font-medium text-white"
+                        style={{ backgroundColor: color || getStatusColor(optValue) }}
+                      >
+                        {optLabel}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+                {isLocationColumn && (
+                  <SelectItem value="__add_new__">
+                    <span className="flex items-center gap-1 text-muted-foreground">
+                      <Plus className="w-3 h-3" />
+                      Add new city
                     </span>
                   </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+                )}
+              </SelectContent>
+            </Select>
+            {addingOptionForColumn === column.id && (
+              <Popover open onOpenChange={(open) => !open && setAddingOptionForColumn(null)}>
+                <PopoverTrigger asChild>
+                  <span />
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-2" align="start">
+                  <div className="flex flex-col gap-2">
+                    <Input
+                      placeholder="City name..."
+                      value={newOptionValue}
+                      onChange={(e) => setNewOptionValue(e.target.value)}
+                      autoFocus
+                      className="h-8"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (newOptionValue.trim() && onAddColumnOption) {
+                          onAddColumnOption(column.id, newOptionValue.trim());
+                          onUpdateCell(row.id, column.id, newOptionValue.trim());
+                          setNewOptionValue('');
+                          setAddingOptionForColumn(null);
+                        }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
         );
 
       case 'date':
@@ -396,18 +453,29 @@ export function BoardTableRow({
 // Helper functions
 function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
+    // Payment statuses
     'Paid': '#22c55e',
+    'Partially Paid': '#f59e0b',
     'Not Paid': '#ef4444',
-    'Pending': '#f59e0b',
+    // Priority
     'High': '#ef4444',
     'Medium': '#f59e0b',
     'Low': '#22c55e',
-    'Riyadh': '#22c55e',
-    'Jeddah': '#3b82f6',
-    'Inhouse Delivery': '#22c55e',
+    // Phase
+    'Green Beans': '#84cc16',
+    'Roasting': '#f97316',
+    'Packaging': '#8b5cf6',
+    // Order Type
     'Sarawe Packaging': '#8b5cf6',
     'White Label': '#06b6d4',
-    'Grinding': '#f59e0b',
+    'Customer Packaging': '#ec4899',
+    // Shipping Method
+    'Picked up by customer': '#22c55e',
+    'Delivered by us': '#3b82f6',
+    'Third-party courier': '#f59e0b',
+    // Location placeholders
+    'Riyadh': '#22c55e',
+    'Jeddah': '#3b82f6',
   };
   return colors[status] || '#6b7280';
 }
