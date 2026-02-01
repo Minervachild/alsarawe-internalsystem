@@ -251,6 +251,36 @@ export default function Orders() {
     }
   };
 
+  const handleAddEmployee = async (name: string): Promise<{ id: string; name: string; avatar_color: string } | null> => {
+    try {
+      // Generate a random avatar color
+      const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+      const { data: newEmployee, error } = await supabase
+        .from('employees')
+        .insert({
+          name: name.trim(),
+          avatar_color: randomColor,
+        })
+        .select('id, name, avatar_color')
+        .single();
+
+      if (error) throw error;
+
+      setEmployees(prev => [...prev, newEmployee]);
+      toast({ title: `Added employee: ${name}` });
+      return newEmployee;
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to add employee.',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
   const handleAddGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGroupName.trim()) return;
@@ -377,6 +407,7 @@ export default function Orders() {
                   onMoveRow={handleMoveRow}
                   allGroups={groups}
                   onAddColumnOption={handleAddColumnOption}
+                  onAddEmployee={handleAddEmployee}
                 />
               ))}
 
