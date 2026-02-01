@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { GripVertical, MoreHorizontal, Trash2, ArrowRight, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { ItemsEditor } from './ItemsEditor';
+import { PersonSelector } from './PersonSelector';
 
 interface BoardColumn {
   id: string;
@@ -48,11 +50,17 @@ interface BoardGroup {
   position: number;
 }
 
+interface Employee {
+  id: string;
+  name: string;
+  avatar_color: string;
+}
+
 interface BoardTableRowProps {
   row: BoardRow;
   columns: BoardColumn[];
   clients: { id: string; name: string }[];
-  employees: { id: string; name: string; avatar_color: string }[];
+  employees: Employee[];
   onUpdateCell: (rowId: string, columnId: string, value: any) => void;
   onDeleteRow: (rowId: string) => void;
   onMoveRow: (rowId: string, targetGroupId: string) => void;
@@ -61,9 +69,10 @@ interface BoardTableRowProps {
   onDragEnd: () => void;
   isDragging: boolean;
   onAddColumnOption?: (columnId: string, newOption: string) => void;
+  onAddEmployee?: (name: string) => Promise<Employee | null>;
 }
 
-export function BoardTableRow({
+export const BoardTableRow = memo(function BoardTableRow({
   row,
   columns,
   clients,
@@ -76,6 +85,7 @@ export function BoardTableRow({
   onDragEnd,
   isDragging,
   onAddColumnOption,
+  onAddEmployee,
 }: BoardTableRowProps) {
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [newOptionValue, setNewOptionValue] = useState('');
@@ -292,49 +302,13 @@ export function BoardTableRow({
         );
 
       case 'person':
-        const assignedEmployees = Array.isArray(value) ? value : value ? [value] : [];
         return (
-          <div className="flex items-center gap-1">
-            {assignedEmployees.length > 0 ? (
-              assignedEmployees.map((empId: string, idx: number) => {
-                const emp = employees.find(e => e.id === empId || e.name === empId);
-                if (!emp) return null;
-                return (
-                  <span
-                    key={idx}
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-white"
-                    style={{ backgroundColor: emp.avatar_color || '#8B4513' }}
-                    title={emp.name}
-                  >
-                    {emp.name.substring(0, 2).toUpperCase()}
-                  </span>
-                );
-              })
-            ) : (
-              <Select
-                onValueChange={(val) => onUpdateCell(row.id, column.id, val)}
-              >
-                <SelectTrigger className="h-7 text-sm border-0 bg-transparent hover:bg-muted/50 w-auto">
-                  <span className="text-muted-foreground">Assign</span>
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.name}>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium text-white"
-                          style={{ backgroundColor: emp.avatar_color || '#8B4513' }}
-                        >
-                          {emp.name.substring(0, 2).toUpperCase()}
-                        </span>
-                        {emp.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+          <PersonSelector
+            value={value}
+            employees={employees}
+            onChange={(val) => onUpdateCell(row.id, column.id, val)}
+            onAddEmployee={onAddEmployee}
+          />
         );
 
       case 'relation':
@@ -365,12 +339,10 @@ export function BoardTableRow({
 
       case 'items_qty':
         return (
-          <span 
-            className="text-sm text-muted-foreground cursor-pointer hover:text-foreground"
-            onClick={() => handleCellClick(column.id, column.type)}
-          >
-            {value ? JSON.stringify(value) : 'Click to add items'}
-          </span>
+          <ItemsEditor
+            value={value}
+            onChange={(items) => onUpdateCell(row.id, column.id, items)}
+          />
         );
 
       default:
@@ -448,7 +420,7 @@ export function BoardTableRow({
       </div>
     </div>
   );
-}
+});
 
 // Helper functions
 function getStatusColor(status: string): string {

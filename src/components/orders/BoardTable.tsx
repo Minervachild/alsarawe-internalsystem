@@ -41,18 +41,25 @@ const GROUP_COLUMN_VISIBILITY: Record<string, string[]> = {
   'Shipped': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment'],
 };
 
+interface Employee {
+  id: string;
+  name: string;
+  avatar_color: string;
+}
+
 interface BoardTableProps {
   group: BoardGroup;
   columns: BoardColumn[];
   rows: BoardRow[];
   clients: { id: string; name: string }[];
-  employees: { id: string; name: string; avatar_color: string }[];
+  employees: Employee[];
   onAddRow: (groupId: string) => void;
   onUpdateCell: (rowId: string, columnId: string, value: any) => void;
   onDeleteRow: (rowId: string) => void;
   onMoveRow: (rowId: string, targetGroupId: string) => void;
   allGroups: BoardGroup[];
   onAddColumnOption?: (columnId: string, newOption: string) => void;
+  onAddEmployee?: (name: string) => Promise<Employee | null>;
 }
 
 export function BoardTable({
@@ -67,6 +74,7 @@ export function BoardTable({
   onMoveRow,
   allGroups,
   onAddColumnOption,
+  onAddEmployee,
 }: BoardTableProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
@@ -201,6 +209,7 @@ export function BoardTable({
               onDragEnd={handleDragEnd}
               isDragging={draggedRowId === row.id}
               onAddColumnOption={onAddColumnOption}
+              onAddEmployee={onAddEmployee}
             />
           ))}
 
