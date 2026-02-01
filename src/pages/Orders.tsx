@@ -281,6 +281,41 @@ export default function Orders() {
     }
   };
 
+  const handleReorderColumns = async (fromIndex: number, toIndex: number) => {
+    try {
+      const newColumns = [...columns];
+      const [movedColumn] = newColumns.splice(fromIndex, 1);
+      newColumns.splice(toIndex, 0, movedColumn);
+
+      // Update positions
+      const updates = newColumns.map((col, idx) => ({
+        id: col.id,
+        position: idx,
+      }));
+
+      // Update local state immediately for responsiveness
+      setColumns(newColumns.map((col, idx) => ({ ...col, position: idx })));
+
+      // Update in database
+      for (const update of updates) {
+        await supabase
+          .from('board_columns')
+          .update({ position: update.position })
+          .eq('id', update.id);
+      }
+
+      toast({ title: 'Column order updated' });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to reorder columns.',
+        variant: 'destructive',
+      });
+      // Refetch to restore correct order
+      fetchData();
+    }
+  };
+
   const handleAddGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGroupName.trim()) return;
@@ -408,6 +443,7 @@ export default function Orders() {
                   allGroups={groups}
                   onAddColumnOption={handleAddColumnOption}
                   onAddEmployee={handleAddEmployee}
+                  onReorderColumns={handleReorderColumns}
                 />
               ))}
 

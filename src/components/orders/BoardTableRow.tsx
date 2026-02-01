@@ -27,6 +27,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { ItemsEditor } from './ItemsEditor';
 import { PersonSelector } from './PersonSelector';
+import { DeliveryProofUploader } from './DeliveryProofUploader';
 
 interface BoardColumn {
   id: string;
@@ -342,6 +343,15 @@ export const BoardTableRow = memo(function BoardTableRow({
           <ItemsEditor
             value={value}
             onChange={(items) => onUpdateCell(row.id, column.id, items)}
+          />
+        );
+
+      case 'files':
+        return (
+          <DeliveryProofUploader
+            value={value}
+            onChange={(urls) => onUpdateCell(row.id, column.id, urls)}
+            rowId={row.id}
           />
         );
 

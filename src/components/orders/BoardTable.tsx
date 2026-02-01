@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, GripVertical, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, MoreHorizontal, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -8,7 +8,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { BoardTableRow } from './BoardTableRow';
+import { DraggableColumnHeader } from './DraggableColumnHeader';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface BoardColumn {
   id: string;
@@ -38,7 +40,7 @@ const GROUP_COLUMN_VISIBILITY: Record<string, string[]> = {
   'New': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment', 'Order Type', 'Location'],
   'Preparing': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment', 'Phase'],
   'Ready': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment', 'Shipping Method'],
-  'Shipped': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment'],
+  'Shipped': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment', 'Delivery Proof'],
 };
 
 interface Employee {
@@ -60,6 +62,7 @@ interface BoardTableProps {
   allGroups: BoardGroup[];
   onAddColumnOption?: (columnId: string, newOption: string) => void;
   onAddEmployee?: (name: string) => Promise<Employee | null>;
+  onReorderColumns?: (fromIndex: number, toIndex: number) => void;
 }
 
 export function BoardTable({
@@ -75,8 +78,10 @@ export function BoardTable({
   allGroups,
   onAddColumnOption,
   onAddEmployee,
+  onReorderColumns,
 }: BoardTableProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { toast } = useToast();
   const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
 
   // Calculate average cycle time (days since creation for rows in this group)
@@ -109,6 +114,24 @@ export function BoardTable({
     e.preventDefault();
     const rowId = e.dataTransfer.getData('text/plain');
     if (rowId && rowId !== draggedRowId) {
+      // Check if moving to Shipped group - require delivery proof
+      if (group.name === 'Shipped') {
+        const row = rows.find(r => r.id === rowId);
+        // Find the delivery proof column
+        const deliveryProofCol = columns.find(c => c.name === 'Delivery Proof');
+        if (deliveryProofCol) {
+          const proof = row?.cells[deliveryProofCol.id];
+          if (!proof || (Array.isArray(proof) && proof.length === 0)) {
+            toast({
+              title: 'Delivery Proof Required',
+              description: 'Please upload a delivery authentication document before moving to Shipped.',
+              variant: 'destructive',
+            });
+            setDraggedRowId(null);
+            return;
+          }
+        }
+      }
       onMoveRow(rowId, group.id);
     }
     setDraggedRowId(null);
@@ -118,10 +141,20 @@ export function BoardTable({
     setDraggedRowId(null);
   };
 
-  // Get columns visible for this group
+  const handleColumnReorder = (fromIndex: number, toIndex: number) => {
+    if (onReorderColumns) {
+      // Map from visible column index to actual column index
+      const actualFromIndex = columns.findIndex(c => c.id === visibleColumns[fromIndex]?.id);
+      const actualToIndex = columns.findIndex(c => c.id === visibleColumns[toIndex]?.id);
+      if (actualFromIndex !== -1 && actualToIndex !== -1) {
+        onReorderColumns(actualFromIndex, actualToIndex);
+      }
+    }
+  };
+
+  // Get columns visible for this group (including files column for Shipped)
   const groupVisibleColumns = GROUP_COLUMN_VISIBILITY[group.name] || [];
   const visibleColumns = columns
-    .filter(col => col.type !== 'files')
     .filter(col => groupVisibleColumns.length === 0 || groupVisibleColumns.includes(col.name));
   
   const avgCycle = calculateAverageCycle();
@@ -182,11 +215,13 @@ export function BoardTable({
             }}
           >
             <div className="p-2" /> {/* Drag handle column */}
-            {visibleColumns.map((column) => (
-              <div key={column.id} className="p-2 flex items-center gap-1 truncate">
-                <ColumnIcon type={column.type} />
-                <span className="truncate">{column.name}</span>
-              </div>
+            {visibleColumns.map((column, index) => (
+              <DraggableColumnHeader
+                key={column.id}
+                column={column}
+                index={index}
+                onReorder={handleColumnReorder}
+              />
             ))}
             <div className="p-2 flex items-center justify-center">
               <Plus className="w-4 h-4 cursor-pointer hover:text-foreground" />
