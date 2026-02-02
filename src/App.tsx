@@ -14,6 +14,8 @@ import Overtime from "./pages/Overtime";
 import Accounts from "./pages/Accounts";
 import Users from "./pages/Users";
 import SettingsPage from "./pages/Settings";
+import DailyDuties from "./pages/DailyDuties";
+import QualityCheck from "./pages/QualityCheck";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +51,8 @@ function AppRoutes() {
       <Route path="/accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+      <Route path="/daily-duties" element={<ProtectedRoute><DailyDuties /></ProtectedRoute>} />
+      <Route path="/quality-check" element={<ProtectedRoute><QualityCheck /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
