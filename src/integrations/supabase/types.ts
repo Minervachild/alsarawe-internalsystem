@@ -370,6 +370,9 @@ export type Database = {
           orders_finished: number | null
           phone: string | null
           role: string | null
+          shift_end: string | null
+          shift_start: string | null
+          shift_type: string | null
           updated_at: string | null
         }
         Insert: {
@@ -384,6 +387,9 @@ export type Database = {
           orders_finished?: number | null
           phone?: string | null
           role?: string | null
+          shift_end?: string | null
+          shift_start?: string | null
+          shift_type?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -398,6 +404,9 @@ export type Database = {
           orders_finished?: number | null
           phone?: string | null
           role?: string | null
+          shift_end?: string | null
+          shift_start?: string | null
+          shift_type?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -635,6 +644,59 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      shift_attendance: {
+        Row: {
+          check_in_time: string | null
+          check_out_time: string | null
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          is_on_time: boolean | null
+          notes: string | null
+          scheduled_end: string
+          scheduled_start: string
+          shift_type: string
+          updated_at: string
+        }
+        Insert: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          date?: string
+          employee_id: string
+          id?: string
+          is_on_time?: boolean | null
+          notes?: string | null
+          scheduled_end: string
+          scheduled_start: string
+          shift_type: string
+          updated_at?: string
+        }
+        Update: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          is_on_time?: boolean | null
+          notes?: string | null
+          scheduled_end?: string
+          scheduled_start?: string
+          shift_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

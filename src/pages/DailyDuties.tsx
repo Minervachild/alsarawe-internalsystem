@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { CheckSquare, Plus, Trash2, Edit2, GripVertical, ChevronDown, ChevronRight, Play, Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { CheckSquare, Plus, Trash2, Edit2, GripVertical, ChevronDown, ChevronRight, Play, Star, AlertTriangle, CheckCircle2, Clock, Calendar } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +28,8 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ShiftCheckInDialog } from '@/components/dailyduties/ShiftCheckInDialog';
+import { AttendanceHistory } from '@/components/dailyduties/AttendanceHistory';
 
 interface DutyCategory {
   id: string;
@@ -65,8 +69,12 @@ export default function DailyDuties() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState('duties');
   
-  // Check-in mode
+  // Shift check-in dialog
+  const [isShiftCheckInOpen, setIsShiftCheckInOpen] = useState(false);
+  
+  // Check-in mode (duty rating)
   const [isCheckInMode, setIsCheckInMode] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [currentDutyIndex, setCurrentDutyIndex] = useState(0);
@@ -113,6 +121,50 @@ export default function DailyDuties() {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle category drag and drop
+  const handleCategoryDragEnd = async (result: DropResult) => {
+    if (!result.destination) return;
+    
+    const sourceIndex = result.source.index;
+    const destIndex = result.destination.index;
+    
+    if (sourceIndex === destIndex) return;
+
+    const reorderedCategories = Array.from(categories);
+    const [removed] = reorderedCategories.splice(sourceIndex, 1);
+    reorderedCategories.splice(destIndex, 0, removed);
+
+    // Update positions
+    const updatedCategories = reorderedCategories.map((cat, index) => ({
+      ...cat,
+      position: index,
+    }));
+
+    setCategories(updatedCategories);
+
+    // Save to database
+    try {
+      const updates = updatedCategories.map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        color: cat.color,
+        position: cat.position,
+      }));
+
+      for (const update of updates) {
+        await supabase
+          .from('duty_categories')
+          .update({ position: update.position })
+          .eq('id', update.id);
+      }
+
+      toast({ title: 'Order saved' });
+    } catch (error: any) {
+      toast({ title: 'Error saving order', description: error.message, variant: 'destructive' });
+      fetchData(); // Revert on error
     }
   };
 
@@ -470,178 +522,239 @@ export default function DailyDuties() {
     );
   }
 
-  // Management View
+  // Management View with Tabs
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 max-w-[1000px] mx-auto">
-        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+      <div className="p-6 lg:p-8 max-w-[1200px] mx-auto">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground tracking-tight">Daily Check-In Duties</h1>
-            <p className="text-muted-foreground mt-1">Manage duty categories and start shift check-ins</p>
+            <h1 className="text-2xl font-semibold text-foreground tracking-tight">Daily Check-In</h1>
+            <p className="text-muted-foreground mt-1">Manage duties, shift attendance, and view history</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Dialog open={isCategoryDialogOpen} onOpenChange={(open) => {
-              setIsCategoryDialogOpen(open);
-              if (!open) { setEditingCategory(null); setNewCategoryName(''); }
-            }}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="rounded-xl">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Category
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="rounded-2xl">
-                <DialogHeader>
-                  <DialogTitle>{editingCategory ? 'Edit Category' : 'Add Duty Category'}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label>Category Name</Label>
-                    <Input
-                      placeholder="e.g., Cleaning & Hygiene"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      className="rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Color</Label>
-                    <div className="flex gap-2 flex-wrap">
-                      {CATEGORY_COLORS.map((color) => (
-                        <button
-                          key={color}
-                          className={`w-8 h-8 rounded-full transition-all ${newCategoryColor === color ? 'ring-2 ring-offset-2 ring-primary scale-110' : ''}`}
-                          style={{ backgroundColor: color }}
-                          onClick={() => setNewCategoryColor(color)}
-                          type="button"
-                        />
-                      ))}
+          <Button onClick={() => setIsShiftCheckInOpen(true)} className="rounded-xl gap-2">
+            <Clock className="w-4 h-4" />
+            Shift Check-In
+          </Button>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="rounded-xl">
+            <TabsTrigger value="duties" className="rounded-lg gap-2">
+              <CheckSquare className="w-4 h-4" />
+              Duties
+            </TabsTrigger>
+            <TabsTrigger value="history" className="rounded-lg gap-2">
+              <Calendar className="w-4 h-4" />
+              History
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="duties" className="space-y-6">
+            {/* Start Duty Check-in Card */}
+            {allDuties.length > 0 && (
+              <div className="card-premium p-6 bg-gradient-to-r from-primary/5 to-accent/5">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Play className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">Start Duty Check-in</h3>
+                      <p className="text-sm text-muted-foreground">Rate all {allDuties.length} duties with notes</p>
                     </div>
                   </div>
-                  <Button onClick={editingCategory ? handleUpdateCategory : handleAddCategory} className="w-full rounded-xl" disabled={!newCategoryName.trim()}>
-                    {editingCategory ? 'Update Category' : 'Add Category'}
+                  <div className="flex items-center gap-3">
+                    <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                      <SelectTrigger className="w-[200px] rounded-xl">
+                        <SelectValue placeholder="Select employee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees.map(emp => (
+                          <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={startCheckIn} className="rounded-xl btn-premium">
+                      <Play className="w-4 h-4 mr-2" />
+                      Start
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Category Management Header */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">Drag categories to reorder priority</p>
+              <Dialog open={isCategoryDialogOpen} onOpenChange={(open) => {
+                setIsCategoryDialogOpen(open);
+                if (!open) { setEditingCategory(null); setNewCategoryName(''); }
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="rounded-xl">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Category
                   </Button>
+                </DialogTrigger>
+                <DialogContent className="rounded-2xl">
+                  <DialogHeader>
+                    <DialogTitle>{editingCategory ? 'Edit Category' : 'Add Duty Category'}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                      <Label>Category Name</Label>
+                      <Input
+                        placeholder="e.g., Cleaning & Hygiene"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        className="rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Color</Label>
+                      <div className="flex gap-2 flex-wrap">
+                        {CATEGORY_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            className={`w-8 h-8 rounded-full transition-all ${newCategoryColor === color ? 'ring-2 ring-offset-2 ring-primary scale-110' : ''}`}
+                            style={{ backgroundColor: color }}
+                            onClick={() => setNewCategoryColor(color)}
+                            type="button"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <Button onClick={editingCategory ? handleUpdateCategory : handleAddCategory} className="w-full rounded-xl" disabled={!newCategoryName.trim()}>
+                      {editingCategory ? 'Update Category' : 'Add Category'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {/* Draggable Categories List */}
+            <DragDropContext onDragEnd={handleCategoryDragEnd}>
+              <Droppable droppableId="categories">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
+                    {categories.length === 0 ? (
+                      <div className="card-premium p-12 text-center">
+                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                          <CheckSquare className="w-8 h-8 text-primary" />
+                        </div>
+                        <h2 className="text-xl font-semibold mb-2">No Categories Yet</h2>
+                        <p className="text-muted-foreground">Create duty categories to organize your daily checklists.</p>
+                      </div>
+                    ) : (
+                      categories.map((category, index) => {
+                        const categoryDuties = duties.filter(d => d.category_id === category.id);
+                        const isExpanded = expandedCategories.has(category.id);
+
+                        return (
+                          <Draggable key={category.id} draggableId={category.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                className={`card-premium overflow-hidden ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary' : ''}`}
+                              >
+                                <Collapsible open={isExpanded}>
+                                  <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                      <div
+                                        {...provided.dragHandleProps}
+                                        className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
+                                      >
+                                        <GripVertical className="w-5 h-5 text-muted-foreground" />
+                                      </div>
+                                      <CollapsibleTrigger asChild>
+                                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => toggleCategory(category.id)}>
+                                          {isExpanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
+                                          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
+                                          <h3 className="font-semibold text-foreground">{category.name}</h3>
+                                          <span className="text-sm text-muted-foreground">({categoryDuties.length} {categoryDuties.length === 1 ? 'duty' : 'duties'})</span>
+                                        </div>
+                                      </CollapsibleTrigger>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openAddDuty(category.id)}><Plus className="w-4 h-4" /></Button>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEditCategory(category)}><Edit2 className="w-4 h-4" /></Button>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" onClick={() => handleDeleteCategory(category.id)}><Trash2 className="w-4 h-4" /></Button>
+                                    </div>
+                                  </div>
+                                  <CollapsibleContent>
+                                    <div className="border-t border-border/40">
+                                      {categoryDuties.length === 0 ? (
+                                        <div className="p-6 text-center text-muted-foreground">
+                                          No duties in this category yet.
+                                          <Button variant="link" className="px-1" onClick={() => openAddDuty(category.id)}>Add one</Button>
+                                        </div>
+                                      ) : (
+                                        <div className="divide-y divide-border/40">
+                                          {categoryDuties.map((duty) => (
+                                            <div key={duty.id} className="flex items-center justify-between p-4 hover:bg-muted/20">
+                                              <div className="flex items-center gap-3">
+                                                <GripVertical className="w-4 h-4 text-muted-foreground/50" />
+                                                <div>
+                                                  <p className="font-medium text-foreground">{duty.title}</p>
+                                                  {duty.description && <p className="text-sm text-muted-foreground">{duty.description}</p>}
+                                                </div>
+                                              </div>
+                                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" onClick={() => handleDeleteDuty(duty.id)}><Trash2 className="w-4 h-4" /></Button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })
+                    )}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+
+            {/* Add Duty Dialog */}
+            <Dialog open={isDutyDialogOpen} onOpenChange={setIsDutyDialogOpen}>
+              <DialogContent className="rounded-2xl">
+                <DialogHeader><DialogTitle>Add Duty</DialogTitle></DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label>Duty Title</Label>
+                    <Input placeholder="e.g., Clean espresso machine" value={newDutyTitle} onChange={(e) => setNewDutyTitle(e.target.value)} className="rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description (optional)</Label>
+                    <Input placeholder="Additional details..." value={newDutyDescription} onChange={(e) => setNewDutyDescription(e.target.value)} className="rounded-xl" />
+                  </div>
+                  <Button onClick={handleAddDuty} className="w-full rounded-xl" disabled={!newDutyTitle.trim()}>Add Duty</Button>
                 </div>
               </DialogContent>
             </Dialog>
-          </div>
-        </div>
+          </TabsContent>
 
-        {/* Start Check-in Card */}
-        {allDuties.length > 0 && (
-          <div className="card-premium p-6 mb-6 bg-gradient-to-r from-primary/5 to-accent/5">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Play className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Start Shift Check-in</h3>
-                  <p className="text-sm text-muted-foreground">Rate all {allDuties.length} duties with notes</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                  <SelectTrigger className="w-[200px] rounded-xl">
-                    <SelectValue placeholder="Select employee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {employees.map(emp => (
-                      <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={startCheckIn} className="rounded-xl btn-premium">
-                  <Play className="w-4 h-4 mr-2" />
-                  Start
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+          <TabsContent value="history">
+            <AttendanceHistory />
+          </TabsContent>
+        </Tabs>
 
-        {/* Categories List */}
-        <div className="space-y-4">
-          {categories.length === 0 ? (
-            <div className="card-premium p-12 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <CheckSquare className="w-8 h-8 text-primary" />
-              </div>
-              <h2 className="text-xl font-semibold mb-2">No Categories Yet</h2>
-              <p className="text-muted-foreground">Create duty categories to organize your daily checklists.</p>
-            </div>
-          ) : (
-            categories.map((category) => {
-              const categoryDuties = duties.filter(d => d.category_id === category.id);
-              const isExpanded = expandedCategories.has(category.id);
-
-              return (
-                <Collapsible key={category.id} open={isExpanded}>
-                  <div className="card-premium overflow-hidden">
-                    <CollapsibleTrigger asChild>
-                      <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => toggleCategory(category.id)}>
-                        <div className="flex items-center gap-3">
-                          {isExpanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
-                          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
-                          <h3 className="font-semibold text-foreground">{category.name}</h3>
-                          <span className="text-sm text-muted-foreground">({categoryDuties.length} {categoryDuties.length === 1 ? 'duty' : 'duties'})</span>
-                        </div>
-                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openAddDuty(category.id)}><Plus className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEditCategory(category)}><Edit2 className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" onClick={() => handleDeleteCategory(category.id)}><Trash2 className="w-4 h-4" /></Button>
-                        </div>
-                      </div>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="border-t border-border/40">
-                        {categoryDuties.length === 0 ? (
-                          <div className="p-6 text-center text-muted-foreground">
-                            No duties in this category yet.
-                            <Button variant="link" className="px-1" onClick={() => openAddDuty(category.id)}>Add one</Button>
-                          </div>
-                        ) : (
-                          <div className="divide-y divide-border/40">
-                            {categoryDuties.map((duty) => (
-                              <div key={duty.id} className="flex items-center justify-between p-4 hover:bg-muted/20">
-                                <div className="flex items-center gap-3">
-                                  <GripVertical className="w-4 h-4 text-muted-foreground/50" />
-                                  <div>
-                                    <p className="font-medium text-foreground">{duty.title}</p>
-                                    {duty.description && <p className="text-sm text-muted-foreground">{duty.description}</p>}
-                                  </div>
-                                </div>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" onClick={() => handleDeleteDuty(duty.id)}><Trash2 className="w-4 h-4" /></Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </CollapsibleContent>
-                  </div>
-                </Collapsible>
-              );
-            })
-          )}
-        </div>
-
-        {/* Add Duty Dialog */}
-        <Dialog open={isDutyDialogOpen} onOpenChange={setIsDutyDialogOpen}>
-          <DialogContent className="rounded-2xl">
-            <DialogHeader><DialogTitle>Add Duty</DialogTitle></DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Duty Title</Label>
-                <Input placeholder="e.g., Clean espresso machine" value={newDutyTitle} onChange={(e) => setNewDutyTitle(e.target.value)} className="rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <Label>Description (optional)</Label>
-                <Input placeholder="Additional details..." value={newDutyDescription} onChange={(e) => setNewDutyDescription(e.target.value)} className="rounded-xl" />
-              </div>
-              <Button onClick={handleAddDuty} className="w-full rounded-xl" disabled={!newDutyTitle.trim()}>Add Duty</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Shift Check-In Dialog */}
+        <ShiftCheckInDialog
+          open={isShiftCheckInOpen}
+          onOpenChange={setIsShiftCheckInOpen}
+          onSuccess={() => {
+            // Refresh if on history tab
+            if (activeTab === 'history') {
+              // The AttendanceHistory component will refetch on mount
+            }
+          }}
+        />
       </div>
     </AppLayout>
   );
