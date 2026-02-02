@@ -244,6 +244,113 @@ export type Database = {
         }
         Relationships: []
       }
+      duties: {
+        Row: {
+          category_id: string
+          created_at: string
+          description: string | null
+          id: string
+          position: number
+          role: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          position?: number
+          role?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          position?: number
+          role?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duties_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "duty_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      duty_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      duty_completions: {
+        Row: {
+          completed_at: string
+          duty_id: string
+          employee_id: string | null
+          id: string
+          notes: string | null
+        }
+        Insert: {
+          completed_at?: string
+          duty_id: string
+          employee_id?: string | null
+          id?: string
+          notes?: string | null
+        }
+        Update: {
+          completed_at?: string
+          duty_id?: string
+          employee_id?: string | null
+          id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duty_completions_duty_id_fkey"
+            columns: ["duty_id"]
+            isOneToOne: false
+            referencedRelation: "duties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duty_completions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           active_days: number | null
