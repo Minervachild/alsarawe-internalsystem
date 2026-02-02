@@ -10,7 +10,9 @@ import {
   Clock,
   KeyRound,
   UserCircle,
-  Settings
+  Settings,
+  CheckSquare,
+  ClipboardCheck
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -54,17 +56,17 @@ const workspaces = [
     color: '#EF4444',
   },
   {
-    title: 'Accounts',
-    description: 'Credential manager',
-    icon: KeyRound,
-    href: '/accounts',
+    title: 'Daily Duties',
+    description: 'Check-in tasks',
+    icon: CheckSquare,
+    href: '/daily-duties',
     color: '#06B6D4',
   },
   {
-    title: 'Users',
-    description: 'Access control',
-    icon: UserCircle,
-    href: '/users',
+    title: 'Quality Check',
+    description: 'Weekly inspections',
+    icon: ClipboardCheck,
+    href: '/quality-check',
     color: '#EC4899',
   },
   {
@@ -77,24 +79,24 @@ const workspaces = [
 ];
 
 export default function Dashboard() {
-  const { profile, isAdmin } = useAuth();
+  const { profile } = useAuth();
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
         {/* Welcome Section */}
-        <div className="mb-8 animate-fade-in">
-          <h1 className="text-3xl font-display font-bold text-foreground">
-            Welcome back, {profile?.username}!
+        <div className="mb-10 animate-fade-in">
+          <h1 className="text-3xl lg:text-4xl font-semibold text-foreground tracking-tight">
+            Welcome back, {profile?.username}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-2 text-lg">
             Here's what's happening with your roastery today.
           </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+          <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}>
             <StatCard
               title="Total Revenue"
               value="$24,532"
@@ -103,7 +105,7 @@ export default function Dashboard() {
               trend={{ value: 12, isPositive: true }}
             />
           </div>
-          <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <StatCard
               title="Active Orders"
               value="18"
@@ -112,7 +114,7 @@ export default function Dashboard() {
               trend={{ value: 5, isPositive: true }}
             />
           </div>
-          <div className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
+          <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
             <StatCard
               title="Inventory Status"
               value="89%"
@@ -120,7 +122,7 @@ export default function Dashboard() {
               icon={Box}
             />
           </div>
-          <div className="animate-slide-up" style={{ animationDelay: '0.4s' }}>
+          <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
             <StatCard
               title="Active Clients"
               value="42"
@@ -131,14 +133,14 @@ export default function Dashboard() {
         </div>
 
         {/* Workspaces */}
-        <div className="mb-8">
-          <h2 className="text-xl font-display font-semibold mb-4">Workspaces</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
+        <div className="mb-10">
+          <h2 className="section-header mb-5">Workspaces</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {workspaces.map((workspace, index) => (
               <div
                 key={workspace.title}
                 className="animate-slide-up"
-                style={{ animationDelay: `${0.1 + index * 0.05}s` }}
+                style={{ animationDelay: `${0.05 + index * 0.03}s` }}
               >
                 <WorkspaceCard {...workspace} />
               </div>
@@ -148,21 +150,21 @@ export default function Dashboard() {
 
         {/* Recent Activity */}
         <div>
-          <h2 className="text-xl font-display font-semibold mb-4">Recent Activity</h2>
-          <div className="bg-card rounded-xl border border-border/50 p-6">
-            <div className="space-y-4">
+          <h2 className="section-header mb-5">Recent Activity</h2>
+          <div className="card-premium p-6">
+            <div className="space-y-1">
               {[
                 { action: 'New order added', detail: 'Coffee Express - 50kg Ethiopian', time: '2 min ago' },
                 { action: 'Order shipped', detail: 'Brew Masters - 30kg Colombian', time: '1 hour ago' },
                 { action: 'Payment received', detail: 'Roast House - $1,250', time: '3 hours ago' },
                 { action: 'Inventory updated', detail: 'Brazilian Santos restocked', time: '5 hours ago' },
               ].map((activity, index) => (
-                <div key={index} className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
+                <div key={index} className="flex items-center justify-between py-4 border-b border-border/40 last:border-0">
                   <div>
                     <p className="font-medium text-foreground">{activity.action}</p>
-                    <p className="text-sm text-muted-foreground">{activity.detail}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{activity.detail}</p>
                   </div>
-                  <span className="text-xs text-muted-foreground">{activity.time}</span>
+                  <span className="text-sm text-muted-foreground">{activity.time}</span>
                 </div>
               ))}
             </div>

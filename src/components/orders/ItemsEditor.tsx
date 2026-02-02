@@ -79,12 +79,11 @@ export function ItemsEditor({ value, onChange }: ItemsEditorProps) {
       <PopoverTrigger asChild>
         <div className="flex items-center gap-1 cursor-pointer min-w-0 flex-wrap">
           {items.length > 0 ? (
-            <div className="flex items-center gap-1 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
               {items.map((item, idx) => (
                 <span
                   key={idx}
-                  className="px-2 py-0.5 rounded text-xs font-medium text-white truncate max-w-[120px]"
-                  style={{ backgroundColor: item.color || ITEM_COLORS[idx % ITEM_COLORS.length] }}
+                  className="px-2 py-0.5 rounded-md text-xs font-medium bg-muted text-foreground truncate max-w-[120px]"
                   title={`${item.name} - ${item.qty} ${item.unit || 'kg'}`}
                 >
                   {item.name} {item.qty}{item.unit || 'kg'}
