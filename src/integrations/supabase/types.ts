@@ -319,6 +319,8 @@ export type Database = {
           employee_id: string | null
           id: string
           notes: string | null
+          rating: number | null
+          reason: string | null
         }
         Insert: {
           completed_at?: string
@@ -326,6 +328,8 @@ export type Database = {
           employee_id?: string | null
           id?: string
           notes?: string | null
+          rating?: number | null
+          reason?: string | null
         }
         Update: {
           completed_at?: string
@@ -333,6 +337,8 @@ export type Database = {
           employee_id?: string | null
           id?: string
           notes?: string | null
+          rating?: number | null
+          reason?: string | null
         }
         Relationships: [
           {
