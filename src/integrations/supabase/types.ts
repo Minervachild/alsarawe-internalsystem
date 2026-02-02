@@ -434,30 +434,36 @@ export type Database = {
       }
       inventory_items: {
         Row: {
+          avg_days_to_refill: number | null
           category_id: string | null
           created_at: string | null
           current_stock: number | null
           id: string
+          last_refill_date: string | null
           min_threshold: number | null
           name: string
           unit: string | null
           updated_at: string | null
         }
         Insert: {
+          avg_days_to_refill?: number | null
           category_id?: string | null
           created_at?: string | null
           current_stock?: number | null
           id?: string
+          last_refill_date?: string | null
           min_threshold?: number | null
           name: string
           unit?: string | null
           updated_at?: string | null
         }
         Update: {
+          avg_days_to_refill?: number | null
           category_id?: string | null
           created_at?: string | null
           current_stock?: number | null
           id?: string
+          last_refill_date?: string | null
           min_threshold?: number | null
           name?: string
           unit?: string | null
@@ -475,31 +481,43 @@ export type Database = {
       }
       inventory_movements: {
         Row: {
+          consumption_date: string | null
           created_at: string | null
           id: string
           item_id: string
           notes: string | null
           quantity: number
           reason: string | null
+          total_price: number | null
           type: string
+          unit_price: number | null
+          vat_rate: number | null
         }
         Insert: {
+          consumption_date?: string | null
           created_at?: string | null
           id?: string
           item_id: string
           notes?: string | null
           quantity: number
           reason?: string | null
+          total_price?: number | null
           type: string
+          unit_price?: number | null
+          vat_rate?: number | null
         }
         Update: {
+          consumption_date?: string | null
           created_at?: string | null
           id?: string
           item_id?: string
           notes?: string | null
           quantity?: number
           reason?: string | null
+          total_price?: number | null
           type?: string
+          unit_price?: number | null
+          vat_rate?: number | null
         }
         Relationships: [
           {
