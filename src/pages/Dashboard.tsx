@@ -7,8 +7,6 @@ import {
   UserCog,
   Building2,
   Clock,
-  KeyRound,
-  UserCircle,
   Settings,
   CheckSquare,
   ClipboardCheck
@@ -17,6 +15,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { WorkspaceCard } from '@/components/dashboard/WorkspaceCard';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const workspaces = [
   {
@@ -80,6 +80,71 @@ const workspaces = [
 export default function Dashboard() {
   const { profile } = useAuth();
 
+  // Fetch active orders count (rows not in completed/delivered groups)
+  const { data: activeOrdersCount = 0 } = useQuery({
+    queryKey: ['dashboard-active-orders'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('board_rows')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  // Fetch clients count
+  const { data: clientsCount = 0 } = useQuery({
+    queryKey: ['dashboard-clients'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  // Fetch inventory status (percentage of items above threshold)
+  const { data: inventoryStatus = 0 } = useQuery({
+    queryKey: ['dashboard-inventory'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select('current_stock, min_threshold');
+      
+      if (error) throw error;
+      if (!data || data.length === 0) return 0;
+      
+      const healthyItems = data.filter(
+        item => (item.current_stock || 0) > (item.min_threshold || 0)
+      ).length;
+      
+      return Math.round((healthyItems / data.length) * 100);
+    },
+  });
+
+  // Fetch recent activity (last 4 inventory movements or duty completions)
+  const { data: recentActivity = [] } = useQuery({
+    queryKey: ['dashboard-activity'],
+    queryFn: async () => {
+      const { data: movements, error } = await supabase
+        .from('inventory_movements')
+        .select('id, type, quantity, created_at, item_id, inventory_items(name)')
+        .order('created_at', { ascending: false })
+        .limit(4);
+      
+      if (error) throw error;
+      
+      return (movements || []).map(m => ({
+        action: m.type === 'in' ? 'Stock added' : 'Stock removed',
+        detail: `${m.inventory_items?.name || 'Unknown item'} - ${m.quantity} units`,
+        time: formatRelativeTime(new Date(m.created_at || '')),
+      }));
+    },
+  });
+
   return (
     <AppLayout>
       <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
@@ -98,24 +163,22 @@ export default function Dashboard() {
           <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}>
             <StatCard
               title="Total Revenue"
-              value="﷼24,532"
+              value="﷼0"
               subtitle="This month"
-              trend={{ value: 12, isPositive: true }}
             />
           </div>
           <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <StatCard
               title="Active Orders"
-              value="18"
+              value={activeOrdersCount}
               subtitle="In pipeline"
               icon={Package}
-              trend={{ value: 5, isPositive: true }}
             />
           </div>
           <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
             <StatCard
               title="Inventory Status"
-              value="89%"
+              value={`${inventoryStatus}%`}
               subtitle="Stock levels"
               icon={Box}
             />
@@ -123,7 +186,7 @@ export default function Dashboard() {
           <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
             <StatCard
               title="Active Clients"
-              value="42"
+              value={clientsCount}
               subtitle="B2B customers"
               icon={Users}
             />
@@ -151,24 +214,38 @@ export default function Dashboard() {
           <h2 className="section-header mb-5">Recent Activity</h2>
           <div className="card-premium p-6">
             <div className="space-y-1">
-              {[
-                { action: 'New order added', detail: 'Coffee Express - 50kg Ethiopian', time: '2 min ago' },
-                { action: 'Order shipped', detail: 'Brew Masters - 30kg Colombian', time: '1 hour ago' },
-                { action: 'Payment received', detail: 'Roast House - $1,250', time: '3 hours ago' },
-                { action: 'Inventory updated', detail: 'Brazilian Santos restocked', time: '5 hours ago' },
-              ].map((activity, index) => (
-                <div key={index} className="flex items-center justify-between py-4 border-b border-border/40 last:border-0">
-                  <div>
-                    <p className="font-medium text-foreground">{activity.action}</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">{activity.detail}</p>
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity, index) => (
+                  <div key={index} className="flex items-center justify-between py-4 border-b border-border/40 last:border-0">
+                    <div>
+                      <p className="font-medium text-foreground">{activity.action}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">{activity.detail}</p>
+                    </div>
+                    <span className="text-sm text-muted-foreground">{activity.time}</span>
                   </div>
-                  <span className="text-sm text-muted-foreground">{activity.time}</span>
+                ))
+              ) : (
+                <div className="py-8 text-center text-muted-foreground">
+                  No recent activity
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
       </div>
     </AppLayout>
   );
+}
+
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
 }
