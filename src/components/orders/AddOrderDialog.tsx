@@ -98,6 +98,23 @@ export function AddOrderDialog({ open, onOpenChange, groupId, columns, onSuccess
         if (cellsError) throw cellsError;
       }
 
+      // Get client name for notification
+      const clientColumn = columns.find(c => c.type === 'relation' || c.name.toLowerCase().includes('client'));
+      const clientName = clientColumn ? formData[clientColumn.id] : 'Unknown';
+
+      // Create notification for all users
+      const { data: allProfiles } = await supabase.from('profiles').select('id');
+      if (allProfiles && allProfiles.length > 0) {
+        const notifications = allProfiles.map(profile => ({
+          user_id: profile.id,
+          title: 'New B2B Order',
+          message: `New order from ${clientName} has been added.`,
+          is_read: false,
+        }));
+        
+        await supabase.from('notifications').insert(notifications);
+      }
+
       toast({
         title: 'Order created',
         description: 'New order has been added to the board.',
