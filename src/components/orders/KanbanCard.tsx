@@ -1,4 +1,4 @@
-import { GripVertical, Calendar, User, DollarSign } from 'lucide-react';
+import { GripVertical, Calendar, User } from 'lucide-react';
 
 interface BoardColumn {
   id: string;
@@ -69,7 +69,7 @@ export function KanbanCard({ row, columns, onDragStart, isDragging }: KanbanCard
           <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
             {total && (
               <div className="flex items-center gap-1">
-                <DollarSign className="w-3 h-3" />
+                <span className="text-xs font-medium">﷼</span>
                 <span>{total}</span>
               </div>
             )}
