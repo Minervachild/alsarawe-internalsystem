@@ -1,5 +1,4 @@
 import { 
-  DollarSign, 
   Package, 
   Box, 
   Users, 
@@ -99,9 +98,8 @@ export default function Dashboard() {
           <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}>
             <StatCard
               title="Total Revenue"
-              value="$24,532"
+              value="﷼24,532"
               subtitle="This month"
-              icon={DollarSign}
               trend={{ value: 12, isPositive: true }}
             />
           </div>

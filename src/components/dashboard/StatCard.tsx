@@ -4,7 +4,7 @@ interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   trend?: {
     value: number;
     isPositive: boolean;
@@ -31,7 +31,11 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend }: StatCard
           )}
         </div>
         <div className="w-12 h-12 rounded-xl bg-primary/8 flex items-center justify-center group-hover:bg-primary/12 transition-colors">
-          <Icon className="w-6 h-6 text-primary" />
+          {Icon ? (
+            <Icon className="w-6 h-6 text-primary" />
+          ) : (
+            <span className="text-xl font-bold text-primary">﷼</span>
+          )}
         </div>
       </div>
     </div>
