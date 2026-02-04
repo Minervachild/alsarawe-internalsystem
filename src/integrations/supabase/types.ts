@@ -369,6 +369,7 @@ export type Database = {
           orders_added: number | null
           orders_finished: number | null
           phone: string | null
+          profile_id: string | null
           role: string | null
           shift_end: string | null
           shift_start: string | null
@@ -386,6 +387,7 @@ export type Database = {
           orders_added?: number | null
           orders_finished?: number | null
           phone?: string | null
+          profile_id?: string | null
           role?: string | null
           shift_end?: string | null
           shift_start?: string | null
@@ -403,13 +405,22 @@ export type Database = {
           orders_added?: number | null
           orders_finished?: number | null
           phone?: string | null
+          profile_id?: string | null
           role?: string | null
           shift_end?: string | null
           shift_start?: string | null
           shift_type?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "employees_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory_categories: {
         Row: {
