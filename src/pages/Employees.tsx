@@ -49,7 +49,6 @@ interface Employee {
 interface LinkedProfile {
   id: string;
   username: string;
-  passcode: string;
   user_id: string;
 }
 
@@ -100,9 +99,10 @@ export default function Employees() {
         .map((e: Employee) => e.profile_id);
       
       if (profileIds.length > 0) {
+        // Use profiles_public view to avoid exposing sensitive data
         const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, username, passcode, user_id')
+          .from('profiles_public')
+          .select('id, username, user_id')
           .in('id', profileIds);
 
         const profilesMap: Record<string, LinkedProfile> = {};
@@ -370,10 +370,10 @@ export default function Employees() {
                             ) : (
                               <>
                                 <DropdownMenuItem disabled className="text-muted-foreground">
-                                  <KeyRound className="w-4 h-4 mr-2" />
-                                  Passcode: {profile?.passcode}
+                                  <Shield className="w-4 h-4 mr-2" />
+                                  Account: {profile?.username}
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
+                                <DropdownMenuItem
                                   onClick={() => {
                                     setEmployeeToRevoke(employee);
                                     setRevokeDialogOpen(true);

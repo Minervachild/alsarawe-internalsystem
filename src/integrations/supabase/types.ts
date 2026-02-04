@@ -420,6 +420,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "employees_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       inventory_categories: {
@@ -747,7 +754,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_public: {
+        Row: {
+          avatar_color: string | null
+          can_edit_columns: boolean | null
+          can_manage_users: boolean | null
+          can_view_reports: boolean | null
+          id: string | null
+          user_id: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_color?: string | null
+          can_edit_columns?: boolean | null
+          can_manage_users?: boolean | null
+          can_view_reports?: boolean | null
+          id?: string | null
+          user_id?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_color?: string | null
+          can_edit_columns?: boolean | null
+          can_manage_users?: boolean | null
+          can_view_reports?: boolean | null
+          id?: string | null
+          user_id?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {

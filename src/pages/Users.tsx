@@ -39,8 +39,9 @@ export default function Users() {
 
   const fetchUsers = async () => {
     try {
+      // Use profiles_public view for non-sensitive data display
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select('*')
         .order('username');
       
