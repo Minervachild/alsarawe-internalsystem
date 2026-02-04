@@ -20,17 +20,15 @@ export interface UserRole {
 }
 
 export async function checkSystemInitialized(): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .limit(1);
+  // Use the secure RPC function instead of querying profiles directly
+  const { data, error } = await supabase.rpc('is_system_initialized');
   
   if (error) {
     console.error('Error checking system initialization:', error);
     return false;
   }
   
-  return data && data.length > 0;
+  return data === true;
 }
 
 export async function signUp(username: string, email: string | null, passcode: string, isAdmin: boolean = false) {
