@@ -366,6 +366,7 @@ export type Database = {
           hourly_rate: number | null
           id: string
           name: string
+          off_day_rate: number | null
           orders_added: number | null
           orders_finished: number | null
           phone: string | null
@@ -384,6 +385,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           name: string
+          off_day_rate?: number | null
           orders_added?: number | null
           orders_finished?: number | null
           phone?: string | null
@@ -402,6 +404,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           name?: string
+          off_day_rate?: number | null
           orders_added?: number | null
           orders_finished?: number | null
           phone?: string | null

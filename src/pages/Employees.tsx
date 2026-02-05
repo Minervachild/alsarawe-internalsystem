@@ -40,6 +40,7 @@ interface Employee {
   phone: string | null;
   role: string | null;
   hourly_rate: number;
+  off_day_rate: number | null;
   avatar_color: string;
   orders_added: number;
   orders_finished: number;
@@ -74,6 +75,7 @@ export default function Employees() {
     phone: '', 
     role: '', 
     hourly_rate: 0,
+    off_day_rate: 0,
     avatar_color: '#8B4513' 
   });
   const { toast } = useToast();
@@ -178,6 +180,7 @@ export default function Employees() {
       phone: '', 
       role: '', 
       hourly_rate: 0,
+      off_day_rate: 0,
       avatar_color: getRandomColor() 
     });
   };
@@ -195,6 +198,7 @@ export default function Employees() {
       phone: employee.phone || '',
       role: employee.role || '',
       hourly_rate: employee.hourly_rate,
+      off_day_rate: employee.off_day_rate || 0,
       avatar_color: employee.avatar_color,
     });
     setDialogOpen(true);
@@ -500,14 +504,23 @@ export default function Employees() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Avatar Color</Label>
+                <Label>Off-Day Rate (﷼)</Label>
                 <Input
-                  type="color"
-                  value={formData.avatar_color}
-                  onChange={(e) => setFormData(prev => ({ ...prev, avatar_color: e.target.value }))}
-                  className="h-10 p-1"
+                  type="number"
+                  value={formData.off_day_rate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, off_day_rate: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Avatar Color</Label>
+              <Input
+                type="color"
+                value={formData.avatar_color}
+                onChange={(e) => setFormData(prev => ({ ...prev, avatar_color: e.target.value }))}
+                className="h-10 p-1"
+              />
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
