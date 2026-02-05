@@ -355,6 +355,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "duty_completions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       employees: {
@@ -613,6 +620,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "overtime_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -735,6 +749,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "shift_attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -757,6 +778,69 @@ export type Database = {
       }
     }
     Views: {
+      employees_public: {
+        Row: {
+          active_days: number | null
+          avatar_color: string | null
+          created_at: string | null
+          id: string | null
+          name: string | null
+          orders_added: number | null
+          orders_finished: number | null
+          profile_id: string | null
+          role: string | null
+          shift_end: string | null
+          shift_start: string | null
+          shift_type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active_days?: number | null
+          avatar_color?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          orders_added?: number | null
+          orders_finished?: number | null
+          profile_id?: string | null
+          role?: string | null
+          shift_end?: string | null
+          shift_start?: string | null
+          shift_type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active_days?: number | null
+          avatar_color?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          orders_added?: number | null
+          orders_finished?: number | null
+          profile_id?: string | null
+          role?: string | null
+          shift_end?: string | null
+          shift_start?: string | null
+          shift_type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles_public: {
         Row: {
           avatar_color: string | null
