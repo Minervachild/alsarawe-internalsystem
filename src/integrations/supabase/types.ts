@@ -786,6 +786,13 @@ export type Database = {
       }
     }
     Functions: {
+      authenticate_with_passcode: {
+        Args: { _passcode: string }
+        Returns: {
+          user_id: string
+          username: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

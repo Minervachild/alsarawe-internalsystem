@@ -62,30 +62,29 @@ export function ShiftCheckInDialog({ open, onOpenChange, onSuccess }: ShiftCheck
     
     setIsLoading(true);
     try {
-      // Find profile by passcode
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('user_id, username')
-        .eq('passcode', code.toUpperCase())
-        .maybeSingle();
+      // Use secure RPC function to verify passcode - prevents client-side data exposure
+      const { data: rpcData, error } = await supabase
+        .rpc('authenticate_with_passcode', { _passcode: code.toUpperCase() });
 
       if (error) throw error;
-      if (!profile) {
+      if (!rpcData || rpcData.length === 0) {
         toast({ title: 'Invalid Passcode', description: 'Please try again.', variant: 'destructive' });
         setPasscode('');
         return;
       }
 
+      const username = rpcData[0].username;
+
       // Find matching employee by name
       const { data: emp, error: empError } = await supabase
         .from('employees')
         .select('id, name, shift_type, shift_start, shift_end')
-        .ilike('name', `%${profile.username}%`)
+        .ilike('name', `%${username}%`)
         .maybeSingle();
 
       if (empError) throw empError;
       if (!emp) {
-        toast({ title: 'No Employee Found', description: `No employee record found matching "${profile.username}".`, variant: 'destructive' });
+        toast({ title: 'No Employee Found', description: `No employee record found matching "${username}".`, variant: 'destructive' });
         setPasscode('');
         return;
       }
