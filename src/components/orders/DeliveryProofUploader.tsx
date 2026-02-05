@@ -66,11 +66,13 @@ export function DeliveryProofUploader({ value, onChange, rowId }: DeliveryProofU
           throw uploadError;
         }
 
-        const { data: { publicUrl } } = supabase.storage
+        // Use signed URLs since bucket is now private
+        const { data: signedUrlData, error: urlError } = await supabase.storage
           .from('delivery-proofs')
-          .getPublicUrl(fileName);
+          .createSignedUrl(fileName, 86400); // 24 hour expiry
 
-        newUrls.push(publicUrl);
+        if (urlError) throw urlError;
+        newUrls.push(signedUrlData.signedUrl);
       }
 
       if (newUrls.length > 0) {

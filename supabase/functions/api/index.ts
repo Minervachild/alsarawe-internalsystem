@@ -5,6 +5,52 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
 };
 
+// Input validation helpers
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+function validateOrderInput(body: any): { valid: boolean; error?: string } {
+  if (body.group_id && !isValidUUID(body.group_id)) {
+    return { valid: false, error: 'Invalid group_id format' };
+  }
+  if (body.cells && !Array.isArray(body.cells)) {
+    return { valid: false, error: 'cells must be an array' };
+  }
+  if (body.cells) {
+    for (const cell of body.cells) {
+      if (!cell.column_id || !isValidUUID(cell.column_id)) {
+        return { valid: false, error: 'Invalid column_id in cells' };
+      }
+    }
+  }
+  return { valid: true };
+}
+
+function validateOvertimeInput(body: any): { valid: boolean; error?: string } {
+  if (body.employee_id && !isValidUUID(body.employee_id)) {
+    return { valid: false, error: 'Invalid employee_id format' };
+  }
+  if (body.hours !== undefined && (typeof body.hours !== 'number' || body.hours < 0 || body.hours > 24)) {
+    return { valid: false, error: 'hours must be a number between 0 and 24' };
+  }
+  if (body.amount !== undefined && (typeof body.amount !== 'number' || body.amount < 0)) {
+    return { valid: false, error: 'amount must be a non-negative number' };
+  }
+  return { valid: true };
+}
+
+function validateAttendanceInput(body: any): { valid: boolean; error?: string } {
+  if (body.employee_id && !isValidUUID(body.employee_id)) {
+    return { valid: false, error: 'Invalid employee_id format' };
+  }
+  if (body.shift_type && typeof body.shift_type !== 'string') {
+    return { valid: false, error: 'shift_type must be a string' };
+  }
+  return { valid: true };
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -27,7 +73,7 @@ Deno.serve(async (req) => {
   // Validate API key against profiles
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('id, username')
+    .select('id, username, user_id')
     .eq('api_key', apiKey)
     .maybeSingle();
 
@@ -37,6 +83,15 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+
+  // Get user role for authorization checks
+  const { data: userRole } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', profile.user_id)
+    .single();
+
+  const isAdmin = userRole?.role === 'admin';
 
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/').filter(Boolean);
@@ -93,6 +148,16 @@ Deno.serve(async (req) => {
 
       if (req.method === 'POST') {
         const body = await req.json();
+        
+        // Validate input
+        const validation = validateOrderInput(body);
+        if (!validation.valid) {
+          return new Response(JSON.stringify({ error: validation.error }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
         const { group_id, cells } = body;
 
         if (!group_id) {
@@ -214,6 +279,16 @@ Deno.serve(async (req) => {
 
       if (req.method === 'POST') {
         const body = await req.json();
+        
+        // Validate input
+        const validation = validateOvertimeInput(body);
+        if (!validation.valid) {
+          return new Response(JSON.stringify({ error: validation.error }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
         const { employee_id, date, hours, amount, is_paid } = body;
 
         if (!employee_id || hours === undefined || amount === undefined) {
@@ -244,8 +319,30 @@ Deno.serve(async (req) => {
       }
 
       if (req.method === 'PATCH' && action) {
+        // Only admins can update overtime records via API
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
         const overtimeId = action;
+        if (!isValidUUID(overtimeId)) {
+          return new Response(JSON.stringify({ error: 'Invalid overtime ID format' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
         const body = await req.json();
+        const validation = validateOvertimeInput(body);
+        if (!validation.valid) {
+          return new Response(JSON.stringify({ error: validation.error }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
 
         const { error } = await supabase
           .from('overtime')
@@ -297,6 +394,16 @@ Deno.serve(async (req) => {
 
       if (req.method === 'POST') {
         const body = await req.json();
+        
+        // Validate input
+        const validation = validateAttendanceInput(body);
+        if (!validation.valid) {
+          return new Response(JSON.stringify({ error: validation.error }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
         const { employee_id, shift_type, scheduled_start, scheduled_end, check_in_time, date } = body;
 
         if (!employee_id || !shift_type) {
@@ -336,8 +443,30 @@ Deno.serve(async (req) => {
       }
 
       if (req.method === 'PATCH' && action) {
+        // Only admins can update attendance records via API
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
         const attendanceId = action;
+        if (!isValidUUID(attendanceId)) {
+          return new Response(JSON.stringify({ error: 'Invalid attendance ID format' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
         const body = await req.json();
+        const validation = validateAttendanceInput(body);
+        if (!validation.valid) {
+          return new Response(JSON.stringify({ error: validation.error }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
 
         const { error } = await supabase
           .from('shift_attendance')
@@ -354,9 +483,14 @@ Deno.serve(async (req) => {
 
     // ===== EMPLOYEES (read-only for reference) =====
     if (resource === 'employees' && req.method === 'GET') {
+      // Only admins can see hourly_rate (sensitive data)
+      const selectFields = isAdmin 
+        ? 'id, name, role, hourly_rate, shift_type, shift_start, shift_end'
+        : 'id, name, role, shift_type, shift_start, shift_end';
+      
       const { data, error } = await supabase
         .from('employees')
-        .select('id, name, role, hourly_rate, shift_type, shift_start, shift_end')
+        .select(selectFields)
         .order('name');
 
       if (error) throw error;
