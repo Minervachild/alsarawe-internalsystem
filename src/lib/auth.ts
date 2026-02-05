@@ -5,12 +5,12 @@ export interface UserProfile {
   user_id: string;
   username: string;
   email: string | null;
-  passcode: string;
+  // passcode and api_key intentionally excluded from client-side type
+  // to prevent accidental exposure in browser memory
   avatar_color: string;
   can_edit_columns: boolean;
   can_view_reports: boolean;
   can_manage_users: boolean;
-  api_key: string | null;
 }
 
 export interface UserRole {
@@ -126,9 +126,10 @@ export async function getCurrentProfile(): Promise<UserProfile | null> {
     return null;
   }
 
+  // Only select necessary fields - exclude sensitive data (passcode, api_key) from browser memory
   const { data: profiles, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, user_id, username, email, avatar_color, can_edit_columns, can_view_reports, can_manage_users')
     .eq('user_id', user.id)
     .limit(1);
 
