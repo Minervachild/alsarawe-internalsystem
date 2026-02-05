@@ -82,35 +82,34 @@ export async function signUp(username: string, email: string | null, passcode: s
 }
 
 export async function signIn(passcode: string) {
-  // Find user by passcode
-  const { data: profiles, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('passcode', passcode.toUpperCase())
-    .limit(1);
+  // Use secure RPC function to verify passcode - prevents client-side data exposure
+  const { data, error: rpcError } = await supabase
+    .rpc('authenticate_with_passcode', { _passcode: passcode.toUpperCase() });
 
-  if (profileError) {
-    throw profileError;
+  if (rpcError) {
+    throw rpcError;
   }
 
-  if (!profiles || profiles.length === 0) {
+  if (!data || data.length === 0) {
     throw new Error('Invalid passcode');
   }
 
-  const profile = profiles[0];
-  const fakeEmail = `${profile.username.toLowerCase().replace(/\s+/g, '_')}@roastery.local`;
+  const username = data[0].username;
+  const fakeEmail = `${username.toLowerCase().replace(/\s+/g, '_')}@roastery.local`;
 
   // Sign in with Supabase auth
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: fakeEmail,
     password: passcode.toUpperCase(),
   });
 
-  if (error) {
-    throw error;
+  if (authError) {
+    throw authError;
   }
 
-  return { user: data.user, profile };
+  // Fetch the full profile after successful authentication
+  const profile = await getCurrentProfile();
+  return { user: authData.user, profile };
 }
 
 export async function signOut() {
