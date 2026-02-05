@@ -87,14 +87,15 @@ export default function SettingsPage() {
         const fileExt = logoFile.name.split('.').pop();
         const fileName = `logo-${Date.now()}.${fileExt}`;
         
-        const { error: uploadError, data: uploadData } = await supabase.storage
-          .from('delivery-proofs')
+        // Use dedicated public-assets bucket for logos (public is okay for branding)
+        const { error: uploadError } = await supabase.storage
+          .from('public-assets')
           .upload(`logos/${fileName}`, logoFile);
 
         if (uploadError) throw uploadError;
 
         const { data: urlData } = supabase.storage
-          .from('delivery-proofs')
+          .from('public-assets')
           .getPublicUrl(`logos/${fileName}`);
 
         logoUrl = urlData.publicUrl;

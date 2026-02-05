@@ -50,10 +50,20 @@ export function CreateUserAccountDialog({
   const { toast } = useToast();
 
   const generatePasscode = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const passcode = Array.from({ length: 6 }, () =>
-      chars[Math.floor(Math.random() * chars.length)]
-    ).join('');
+    // Generate 8-character passcode with guaranteed mix of letters and numbers
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    const all = letters + numbers;
+    
+    // Ensure at least 2 letters and 2 numbers
+    const passcode = [
+      letters[Math.floor(Math.random() * letters.length)],
+      letters[Math.floor(Math.random() * letters.length)],
+      numbers[Math.floor(Math.random() * numbers.length)],
+      numbers[Math.floor(Math.random() * numbers.length)],
+      ...Array.from({ length: 4 }, () => all[Math.floor(Math.random() * all.length)])
+    ].sort(() => Math.random() - 0.5).join('');
+    
     setFormData((prev) => ({ ...prev, passcode }));
   };
 
@@ -70,8 +80,23 @@ export function CreateUserAccountDialog({
       return;
     }
     
-    if (formData.passcode.length < 4) {
-      toast({ title: 'Error', description: 'Passcode must be at least 4 characters.', variant: 'destructive' });
+    // Stronger passcode validation
+    if (formData.passcode.length < 6) {
+      toast({ title: 'Error', description: 'Passcode must be at least 6 characters.', variant: 'destructive' });
+      return;
+    }
+    
+    const hasLetter = /[A-Z]/.test(formData.passcode.toUpperCase());
+    const hasNumber = /\d/.test(formData.passcode);
+    if (!hasLetter || !hasNumber) {
+      toast({ title: 'Error', description: 'Passcode must contain both letters and numbers.', variant: 'destructive' });
+      return;
+    }
+    
+    // Reject repeating characters (e.g., AAAA, 1111)
+    const hasRepeatingChars = /(.)\1{2,}/.test(formData.passcode);
+    if (hasRepeatingChars) {
+      toast({ title: 'Error', description: 'Passcode cannot have 3+ repeating characters.', variant: 'destructive' });
       return;
     }
 
@@ -201,10 +226,10 @@ export function CreateUserAccountDialog({
                   type={showPasscode ? 'text' : 'password'}
                   value={formData.passcode}
                   onChange={(e) => setFormData((prev) => ({ ...prev, passcode: e.target.value.toUpperCase() }))}
-                  placeholder="Enter passcode (min 4 chars)"
+                  placeholder="Enter passcode (min 6 chars)"
                   className="pr-10 font-mono tracking-widest"
                   required
-                  minLength={4}
+                  minLength={6}
                 />
                 <Button
                   type="button"
