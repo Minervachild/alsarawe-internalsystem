@@ -18,7 +18,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-const workspaces = [
+interface WorkspaceItem {
+  title: string;
+  description: string;
+  icon: typeof ClipboardList;
+  href: string;
+  color: string;
+  adminOnly?: boolean;
+}
+
+const workspaces: WorkspaceItem[] = [
   {
     title: 'B2B Orders',
     description: 'Kanban board',
@@ -39,6 +48,7 @@ const workspaces = [
     icon: UserCog,
     href: '/employees',
     color: '#8B5CF6',
+    adminOnly: true,
   },
   {
     title: 'Clients',
@@ -78,7 +88,7 @@ const workspaces = [
 ];
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
 
   // Fetch active orders count (rows not in completed/delivered groups)
   const { data: activeOrdersCount = 0 } = useQuery({
@@ -197,7 +207,7 @@ export default function Dashboard() {
         <div className="mb-10">
           <h2 className="section-header mb-5">Workspaces</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {workspaces.map((workspace, index) => (
+            {workspaces.filter(w => !w.adminOnly || isAdmin).map((workspace, index) => (
               <div
                 key={workspace.title}
                 className="animate-slide-up"

@@ -103,69 +103,34 @@ export function CreateUserAccountDialog({
     setIsLoading(true);
 
     try {
-      const passcodeUpper = formData.passcode.toUpperCase();
-      const fakeEmail = `${formData.username.toLowerCase().replace(/\s+/g, '_')}@roastery.local`;
+      // Call edge function to create account server-side (no session disruption)
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user-account`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            username: formData.username,
+            passcode: formData.passcode.toUpperCase(),
+            role: formData.role,
+            can_edit_columns: formData.role === 'admin' || formData.can_edit_columns,
+            can_view_reports: formData.role === 'admin' || formData.can_view_reports,
+            can_manage_users: formData.role === 'admin' || formData.can_manage_users,
+            employeeId,
+          }),
+        }
+      );
 
-      // Check if passcode already exists
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('passcode', passcodeUpper)
-        .maybeSingle();
-
-      if (existingProfile) {
-        toast({ title: 'Error', description: 'This passcode is already in use.', variant: 'destructive' });
-        setIsLoading(false);
-        return;
-      }
-
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: fakeEmail,
-        password: passcodeUpper,
-      });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Failed to create user');
-
-      // Create profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: authData.user.id,
-          username: formData.username,
-          passcode: passcodeUpper,
-          avatar_color: getRandomColor(),
-          can_edit_columns: formData.role === 'admin' || formData.can_edit_columns,
-          can_view_reports: formData.role === 'admin' || formData.can_view_reports,
-          can_manage_users: formData.role === 'admin' || formData.can_manage_users,
-        })
-        .select('id')
-        .single();
-
-      if (profileError) throw profileError;
-
-      // Create role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: formData.role,
-        });
-
-      if (roleError) throw roleError;
-
-      // Link profile to employee
-      const { error: linkError } = await supabase
-        .from('employees')
-        .update({ profile_id: profileData.id })
-        .eq('id', employeeId);
-
-      if (linkError) throw linkError;
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to create account');
 
       toast({ 
         title: 'User account created', 
-        description: `Account for ${formData.username} created with passcode: ${passcodeUpper}` 
+        description: `Account for ${formData.username} created with passcode: ${result.passcode}` 
       });
       
       onOpenChange(false);

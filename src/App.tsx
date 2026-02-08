@@ -38,6 +38,28 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading, isAdmin } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse-soft text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -45,11 +67,11 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-      <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
+      <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />
       <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
       <Route path="/overtime" element={<ProtectedRoute><Overtime /></ProtectedRoute>} />
       <Route path="/accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
-      <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+      <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/daily-duties" element={<ProtectedRoute><DailyDuties /></ProtectedRoute>} />
       <Route path="/quality-check" element={<ProtectedRoute><QualityCheck /></ProtectedRoute>} />
