@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Calendar, DollarSign, Check, Clock, Filter } from 'lucide-react';
+import { Plus, DollarSign, Check, Clock, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,7 @@ import {
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Employee {
   id: string;
@@ -38,6 +39,7 @@ interface OvertimeEntry {
 }
 
 export default function Overtime() {
+  const { isAdmin } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [entries, setEntries] = useState<OvertimeEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,12 +58,20 @@ export default function Overtime() {
 
   const fetchData = async () => {
     try {
+      // RLS handles visibility: admins see all employees, users see only their own
       const { data: employeesData } = await supabase
         .from('employees')
         .select('id, name, hourly_rate, avatar_color')
         .order('name');
-      setEmployees(employeesData || []);
+      const empList = employeesData || [];
+      setEmployees(empList);
 
+      // Auto-select employee for non-admin users (they only get their own record)
+      if (!isAdmin && empList.length === 1 && !formData.employee_id) {
+        setFormData(prev => ({ ...prev, employee_id: empList[0].id }));
+      }
+
+      // RLS handles visibility: admins see all overtime, users see only their own
       const { data: entriesData } = await supabase
         .from('overtime')
         .select('*, employees(id, name, hourly_rate, avatar_color)')
@@ -96,7 +106,11 @@ export default function Overtime() {
       if (error) throw error;
       toast({ title: 'Overtime entry added' });
       setDialogOpen(false);
-      setFormData({ employee_id: '', hours: 0, date: new Date().toISOString().split('T')[0] });
+      setFormData(prev => ({ 
+        ...prev,
+        hours: 0, 
+        date: new Date().toISOString().split('T')[0] 
+      }));
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -126,7 +140,9 @@ export default function Overtime() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-display font-bold text-foreground">Overtime Tracker</h1>
-            <p className="text-muted-foreground">Track extra hours and payments</p>
+            <p className="text-muted-foreground">
+              {isAdmin ? 'Track extra hours and payments' : 'Submit your overtime hours'}
+            </p>
           </div>
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
@@ -171,21 +187,23 @@ export default function Overtime() {
           </div>
         </div>
 
-        {/* Filter */}
-        <div className="flex items-center gap-4 mb-6">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by employee" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover">
-              <SelectItem value="all">All Employees</SelectItem>
-              {employees.map((emp) => (
-                <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Filter - only for admins */}
+        {isAdmin && (
+          <div className="flex items-center gap-4 mb-6">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by employee" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="all">All Employees</SelectItem>
+                {employees.map((emp) => (
+                  <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Entries List */}
         {isLoading ? (
@@ -200,28 +218,34 @@ export default function Overtime() {
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Employee</th>
+                    {isAdmin && (
+                      <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Employee</th>
+                    )}
                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Date</th>
                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Hours</th>
                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Amount</th>
                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Action</th>
+                    {isAdmin && (
+                      <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Action</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredEntries.map((entry) => (
                     <tr key={entry.id} className="border-t border-border/50">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-primary-foreground"
-                            style={{ backgroundColor: entry.employee?.avatar_color || '#8B4513' }}
-                          >
-                            {entry.employee?.name.slice(0, 2).toUpperCase()}
+                      {isAdmin && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-primary-foreground"
+                              style={{ backgroundColor: entry.employee?.avatar_color || '#8B4513' }}
+                            >
+                              {entry.employee?.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <span className="font-medium">{entry.employee?.name}</span>
                           </div>
-                          <span className="font-medium">{entry.employee?.name}</span>
-                        </div>
-                      </td>
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-sm">{new Date(entry.date).toLocaleDateString()}</td>
                       <td className="px-4 py-3 text-sm">{entry.hours}h</td>
                       <td className="px-4 py-3 text-sm font-medium">${entry.amount.toFixed(2)}</td>
@@ -230,13 +254,15 @@ export default function Overtime() {
                           {entry.is_paid ? 'Paid' : 'Pending'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        {!entry.is_paid && (
-                          <Button size="sm" variant="outline" onClick={() => markAsPaid(entry.id)}>
-                            Mark Paid
-                          </Button>
-                        )}
-                      </td>
+                      {isAdmin && (
+                        <td className="px-4 py-3 text-right">
+                          {!entry.is_paid && (
+                            <Button size="sm" variant="outline" onClick={() => markAsPaid(entry.id)}>
+                              Mark Paid
+                            </Button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -253,24 +279,35 @@ export default function Overtime() {
             <DialogTitle className="font-display">Add Overtime Entry</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label>Employee *</Label>
-              <Select
-                value={formData.employee_id}
-                onValueChange={(val) => setFormData(prev => ({ ...prev, employee_id: val }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      {emp.name} (${emp.hourly_rate}/hr)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {isAdmin ? (
+              <div className="space-y-2">
+                <Label>Employee *</Label>
+                <Select
+                  value={formData.employee_id}
+                  onValueChange={(val) => setFormData(prev => ({ ...prev, employee_id: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.name} (${emp.hourly_rate}/hr)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              employees.length > 0 && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Employee: <span className="font-semibold text-foreground">{employees[0]?.name}</span>
+                    {' '}(${employees[0]?.hourly_rate}/hr)
+                  </p>
+                </div>
+              )
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Hours *</Label>
