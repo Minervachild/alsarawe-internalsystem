@@ -674,6 +674,194 @@ export type Database = {
         }
         Relationships: []
       }
+      quality_criteria: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          name: string
+          position: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          name: string
+          position?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          name?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_criteria_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "quality_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_items: {
+        Row: {
+          created_at: string
+          cycle_days: number
+          id: string
+          name: string
+          position: number
+          section_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cycle_days?: number
+          id?: string
+          name: string
+          position?: number
+          section_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cycle_days?: number
+          id?: string
+          name?: string
+          position?: number
+          section_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_items_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "quality_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_review_ratings: {
+        Row: {
+          created_at: string
+          criteria_id: string
+          id: string
+          note: string | null
+          rating: number
+          review_id: string
+        }
+        Insert: {
+          created_at?: string
+          criteria_id: string
+          id?: string
+          note?: string | null
+          rating?: number
+          review_id: string
+        }
+        Update: {
+          created_at?: string
+          criteria_id?: string
+          id?: string
+          note?: string | null
+          rating?: number
+          review_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_review_ratings_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "quality_criteria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_review_ratings_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "quality_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          improvement_target: string | null
+          item_id: string
+          notes: string | null
+          performed_at: string
+          performed_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          improvement_target?: string | null
+          item_id: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          improvement_target?: string | null
+          item_id?: string
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_reviews_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "quality_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_reviews_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_reviews_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "employees_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_sections: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       saved_items: {
         Row: {
           color: string | null
