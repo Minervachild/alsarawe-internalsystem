@@ -1,15 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Mail, Phone, MoreHorizontal, Pencil, Trash2, UserPlus, UserX, KeyRound, Shield } from 'lucide-react';
+import { Plus, Search, Mail, Phone, MoreHorizontal, Pencil, Trash2, UserPlus, UserX, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { AddEmployeeDialog } from '@/components/employees/AddEmployeeDialog';
 import { CreateUserAccountDialog } from '@/components/employees/CreateUserAccountDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -69,15 +63,6 @@ export default function Employees() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
   const [employeeToRevoke, setEmployeeToRevoke] = useState<Employee | null>(null);
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    email: '', 
-    phone: '', 
-    role: '', 
-    hourly_rate: 0,
-    off_day_rate: 0,
-    avatar_color: '#8B4513' 
-  });
   const { toast } = useToast();
   const { isAdmin } = useAuth();
 
@@ -101,7 +86,6 @@ export default function Employees() {
         .map((e: Employee) => e.profile_id);
       
       if (profileIds.length > 0) {
-        // Use profiles_public view to avoid exposing sensitive data
         const { data: profilesData } = await supabase
           .from('profiles_public')
           .select('id, username, user_id')
@@ -139,71 +123,6 @@ export default function Employees() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      if (editingEmployee) {
-        const { error } = await supabase
-          .from('employees')
-          .update(formData)
-          .eq('id', editingEmployee.id);
-        
-        if (error) throw error;
-        toast({ title: 'Employee updated' });
-      } else {
-        const { error } = await supabase
-          .from('employees')
-          .insert(formData);
-        
-        if (error) throw error;
-        toast({ title: 'Employee added' });
-      }
-
-      setDialogOpen(false);
-      setEditingEmployee(null);
-      resetForm();
-      fetchEmployees();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({ 
-      name: '', 
-      email: '', 
-      phone: '', 
-      role: '', 
-      hourly_rate: 0,
-      off_day_rate: 0,
-      avatar_color: getRandomColor() 
-    });
-  };
-
-  const getRandomColor = () => {
-    const colors = ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#D2691E', '#B8860B', '#DAA520'];
-    return colors[Math.floor(Math.random() * colors.length)];
-  };
-
-  const handleEdit = (employee: Employee) => {
-    setEditingEmployee(employee);
-    setFormData({
-      name: employee.name,
-      email: employee.email || '',
-      phone: employee.phone || '',
-      role: employee.role || '',
-      hourly_rate: employee.hourly_rate,
-      off_day_rate: employee.off_day_rate || 0,
-      avatar_color: employee.avatar_color,
-    });
-    setDialogOpen(true);
-  };
-
   const handleDelete = async (id: string) => {
     try {
       const { error } = await supabase.from('employees').delete().eq('id', id);
@@ -219,11 +138,6 @@ export default function Employees() {
     }
   };
 
-  const handleCreateAccount = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setCreateAccountDialogOpen(true);
-  };
-
   const handleRevokeAccess = async () => {
     if (!employeeToRevoke?.profile_id) return;
 
@@ -231,20 +145,16 @@ export default function Employees() {
       const profile = profiles[employeeToRevoke.profile_id];
       if (!profile) throw new Error('Profile not found');
 
-      // Remove profile link from employee
       const { error: unlinkError } = await supabase
         .from('employees')
         .update({ profile_id: null })
         .eq('id', employeeToRevoke.id);
-
       if (unlinkError) throw unlinkError;
 
-      // Delete the profile (will cascade to roles)
       const { error: deleteError } = await supabase
         .from('profiles')
         .delete()
         .eq('id', employeeToRevoke.profile_id);
-
       if (deleteError) throw deleteError;
 
       toast({ title: 'Access revoked', description: `${employeeToRevoke.name}'s account has been removed.` });
@@ -294,14 +204,15 @@ export default function Employees() {
             <h1 className="text-2xl font-display font-bold text-foreground">Employees</h1>
             <p className="text-muted-foreground">Manage your team and their system access</p>
           </div>
-          <Button onClick={() => {
-            setEditingEmployee(null);
-            resetForm();
-            setDialogOpen(true);
-          }}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Employee
-          </Button>
+          {isAdmin && (
+            <Button onClick={() => {
+              setEditingEmployee(null);
+              setDialogOpen(true);
+            }}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Employee
+            </Button>
+          )}
         </div>
 
         {/* Search */}
@@ -320,7 +231,7 @@ export default function Employees() {
           <div className="text-center py-12 text-muted-foreground">Loading...</div>
         ) : filteredEmployees.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            No employees found. Add your first team member!
+            No employees found. {isAdmin ? 'Add your first team member!' : ''}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -351,57 +262,61 @@ export default function Employees() {
                         )}
                       </div>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-popover">
-                        <DropdownMenuItem onClick={() => handleEdit(employee)}>
-                          <Pencil className="w-4 h-4 mr-2" />
-                          Edit Employee
-                        </DropdownMenuItem>
-                        
-                        {isAdmin && (
-                          <>
-                            <DropdownMenuSeparator />
-                            {!hasAccount ? (
-                              <DropdownMenuItem onClick={() => handleCreateAccount(employee)}>
-                                <UserPlus className="w-4 h-4 mr-2" />
-                                Create User Account
+                    {isAdmin && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-popover">
+                          <DropdownMenuItem onClick={() => {
+                            setEditingEmployee(employee);
+                            setDialogOpen(true);
+                          }}>
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Edit Employee
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuSeparator />
+                          {!hasAccount ? (
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedEmployee(employee);
+                              setCreateAccountDialogOpen(true);
+                            }}>
+                              <UserPlus className="w-4 h-4 mr-2" />
+                              Create User Account
+                            </DropdownMenuItem>
+                          ) : (
+                            <>
+                              <DropdownMenuItem disabled className="text-muted-foreground">
+                                <Shield className="w-4 h-4 mr-2" />
+                                Account: {profile?.username}
                               </DropdownMenuItem>
-                            ) : (
-                              <>
-                                <DropdownMenuItem disabled className="text-muted-foreground">
-                                  <Shield className="w-4 h-4 mr-2" />
-                                  Account: {profile?.username}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setEmployeeToRevoke(employee);
-                                    setRevokeDialogOpen(true);
-                                  }}
-                                  className="text-destructive"
-                                >
-                                  <UserX className="w-4 h-4 mr-2" />
-                                  Revoke Access
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </>
-                        )}
-                        
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={() => handleDelete(employee.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Employee
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setEmployeeToRevoke(employee);
+                                  setRevokeDialogOpen(true);
+                                }}
+                                className="text-destructive"
+                              >
+                                <UserX className="w-4 h-4 mr-2" />
+                                Revoke Access
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => handleDelete(employee.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Employee
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
 
                   {/* Account Status */}
@@ -449,92 +364,14 @@ export default function Employees() {
       </div>
 
       {/* Add/Edit Employee Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="font-display">
-              {editingEmployee ? 'Edit Employee' : 'Add Employee'}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label>Name *</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Full name"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Input
-                value={formData.role}
-                onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                placeholder="e.g. Barista, Manager"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="email@example.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="+1 234 567 890"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Hourly Rate (﷼)</Label>
-                <Input
-                  type="number"
-                  value={formData.hourly_rate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, hourly_rate: parseFloat(e.target.value) || 0 }))}
-                  placeholder="0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Off-Day Rate (﷼)</Label>
-                <Input
-                  type="number"
-                  value={formData.off_day_rate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, off_day_rate: parseFloat(e.target.value) || 0 }))}
-                  placeholder="0"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Avatar Color</Label>
-              <Input
-                type="color"
-                value={formData.avatar_color}
-                onChange={(e) => setFormData(prev => ({ ...prev, avatar_color: e.target.value }))}
-                className="h-10 p-1"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                {editingEmployee ? 'Update' : 'Add'} Employee
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AddEmployeeDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        editingEmployee={editingEmployee}
+        onSuccess={fetchEmployees}
+      />
 
-      {/* Create User Account Dialog */}
+      {/* Create User Account Dialog (for existing employees) */}
       {selectedEmployee && (
         <CreateUserAccountDialog
           open={createAccountDialogOpen}

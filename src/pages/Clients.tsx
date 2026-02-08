@@ -18,6 +18,7 @@ import {
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Client {
   id: string;
@@ -34,6 +35,7 @@ export default function Clients() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({ name: '', phone: '', location: '' });
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     fetchClients();
@@ -132,14 +134,16 @@ export default function Clients() {
             <h1 className="text-2xl font-display font-bold text-foreground">Clients</h1>
             <p className="text-muted-foreground">Manage your B2B customers</p>
           </div>
-          <Button onClick={() => {
-            setEditingClient(null);
-            setFormData({ name: '', phone: '', location: '' });
-            setDialogOpen(true);
-          }}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Client
-          </Button>
+          {isAdmin && (
+            <Button onClick={() => {
+              setEditingClient(null);
+              setFormData({ name: '', phone: '', location: '' });
+              setDialogOpen(true);
+            }}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Client
+            </Button>
+          )}
         </div>
 
         {/* Search */}
@@ -175,26 +179,28 @@ export default function Clients() {
                       <h3 className="font-semibold text-foreground">{client.name}</h3>
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-popover">
-                      <DropdownMenuItem onClick={() => handleEdit(client)}>
-                        <Pencil className="w-4 h-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleDelete(client.id)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {isAdmin && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-popover">
+                        <DropdownMenuItem onClick={() => handleEdit(client)}>
+                          <Pencil className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDelete(client.id)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
 
                 <div className="mt-4 space-y-2">
