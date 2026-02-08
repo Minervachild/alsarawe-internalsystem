@@ -184,7 +184,10 @@ export function AttendanceHistory() {
                 return (
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">
-                      {format(new Date(record.date), 'EEE, MMM d')}
+                      {(() => {
+                        const [year, month, day] = record.date.split('-').map(Number);
+                        return format(new Date(year, month - 1, day), 'EEE, MMM d');
+                      })()}
                     </TableCell>
                     <TableCell>{record.employee_name}</TableCell>
                     <TableCell>

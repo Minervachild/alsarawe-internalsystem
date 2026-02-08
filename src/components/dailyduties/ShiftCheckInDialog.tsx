@@ -73,18 +73,48 @@ export function ShiftCheckInDialog({ open, onOpenChange, onSuccess }: ShiftCheck
         return;
       }
 
+      const userId = rpcData[0].user_id;
       const username = rpcData[0].username;
 
-      // Find matching employee by name
-      const { data: emp, error: empError } = await supabase
-        .from('employees')
-        .select('id, name, shift_type, shift_start, shift_end')
-        .ilike('name', `%${username}%`)
+      // First try to find employee by profile_id linkage (most reliable)
+      let emp: Employee | null = null;
+
+      const { data: profile } = await supabase
+        .from('profiles_public')
+        .select('id')
+        .eq('user_id', userId)
         .maybeSingle();
 
-      if (empError) throw empError;
+      if (profile) {
+        const { data: linkedEmp } = await supabase
+          .from('employees')
+          .select('id, name, shift_type, shift_start, shift_end')
+          .eq('profile_id', profile.id)
+          .maybeSingle();
+        emp = linkedEmp;
+      }
+
+      // Fallback: try exact name match, then partial match
       if (!emp) {
-        toast({ title: 'No Employee Found', description: `No employee record found matching "${username}".`, variant: 'destructive' });
+        const { data: exactEmp } = await supabase
+          .from('employees')
+          .select('id, name, shift_type, shift_start, shift_end')
+          .ilike('name', username)
+          .maybeSingle();
+        emp = exactEmp;
+      }
+
+      if (!emp) {
+        const { data: partialEmp } = await supabase
+          .from('employees')
+          .select('id, name, shift_type, shift_start, shift_end')
+          .ilike('name', `%${username}%`)
+          .maybeSingle();
+        emp = partialEmp;
+      }
+
+      if (!emp) {
+        toast({ title: 'No Employee Found', description: `No employee record linked to "${username}". Ask your admin to link your profile to an employee.`, variant: 'destructive' });
         setPasscode('');
         return;
       }
