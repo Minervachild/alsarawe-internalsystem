@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Settings2, PlusCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +14,7 @@ export default function Sales() {
   const { user, isAdmin, profile } = useAuth();
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [registerOpen, setRegisterOpen] = useState(false);
 
   useEffect(() => {
     if (user && profile) {
@@ -21,7 +24,6 @@ export default function Sales() {
 
   const fetchEmployeeId = async () => {
     try {
-      // Find employee linked to current user's profile
       const { data } = await supabase
         .from('employees')
         .select('id')
@@ -61,7 +63,7 @@ export default function Sales() {
     );
   }
 
-  // Admin view: dashboard + branch management + template
+  // Admin view: dashboard + branch management + register dialog
   return (
     <AppLayout>
       <div className="p-6 max-w-full">
@@ -70,15 +72,25 @@ export default function Sales() {
             <h1 className="text-2xl font-semibold text-foreground">Registering Sales</h1>
             <p className="text-muted-foreground">Review submissions and manage branches</p>
           </div>
+          <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-1.5">
+                <PlusCircle className="w-4 h-4" />
+                Register Sale
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Register Sale</DialogTitle>
+              </DialogHeader>
+              <SalesForm employeeId={employeeId} onSuccess={() => setRegisterOpen(false)} />
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Tabs defaultValue="dashboard" className="space-y-4">
           <TabsList>
             <TabsTrigger value="dashboard">Sales Dashboard</TabsTrigger>
-            <TabsTrigger value="register" className="gap-1.5">
-              <PlusCircle className="w-3.5 h-3.5" />
-              Register Sale
-            </TabsTrigger>
             <TabsTrigger value="branches" className="gap-1.5">
               <Settings2 className="w-3.5 h-3.5" />
               Branches
@@ -87,10 +99,6 @@ export default function Sales() {
 
           <TabsContent value="dashboard">
             <SalesDashboard />
-          </TabsContent>
-
-          <TabsContent value="register">
-            <SalesForm employeeId={employeeId} />
           </TabsContent>
 
           <TabsContent value="branches">
