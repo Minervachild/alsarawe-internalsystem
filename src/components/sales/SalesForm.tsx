@@ -19,6 +19,11 @@ interface Branch {
   name: string;
 }
 
+interface Employee {
+  id: string;
+  name: string;
+}
+
 interface SalesFormProps {
   employeeId: string | null;
   onSuccess?: () => void;
@@ -26,6 +31,7 @@ interface SalesFormProps {
 
 export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -38,6 +44,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [shift, setShift] = useState('');
   const [branchId, setBranchId] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [cashAmount, setCashAmount] = useState('');
   const [cardAmount, setCardAmount] = useState('');
   const [transactionCount, setTransactionCount] = useState('');
@@ -45,10 +52,16 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
   useEffect(() => {
     if (isAdmin) {
       fetchAllBranches();
+      fetchAllEmployees();
     } else {
       fetchAssignedBranches();
     }
   }, [employeeId, isAdmin]);
+
+  const fetchAllEmployees = async () => {
+    const { data } = await supabase.from('employees').select('id, name');
+    if (data) setEmployees(data);
+  };
 
   const fetchAllBranches = async () => {
     const { data } = await supabase.from('branches').select('id, name');
@@ -101,6 +114,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
   };
 
   const isFormValid = () => {
+    const hasEmployee = isAdmin ? selectedEmployeeId : employeeId;
     return (
       date &&
       shift &&
@@ -109,7 +123,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
       cardAmount &&
       transactionCount &&
       proofImageUrl &&
-      (employeeId || isAdmin)
+      hasEmployee
     );
   };
 
@@ -117,7 +131,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
     e.preventDefault();
     if (!isFormValid() || !user) return;
 
-    const effectiveEmployeeId = employeeId || user.id;
+    const effectiveEmployeeId = isAdmin ? selectedEmployeeId : employeeId!;
     setIsSubmitting(true);
     try {
       const { error } = await supabase.from('sales_entries').insert({
@@ -166,6 +180,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
             setCashAmount('');
             setCardAmount('');
             setTransactionCount('');
+            setSelectedEmployeeId('');
             setProofImageUrl(null);
             setProofFileName(null);
           }}
@@ -245,6 +260,25 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Employee (admin only) */}
+          {isAdmin && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Employee *</Label>
+              <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} required>
+                <SelectTrigger className="input-premium">
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Cash Sales */}
           <div className="space-y-2">
