@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Search } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -38,7 +38,7 @@ export function ItemsEditor({ value, onChange }: ItemsEditorProps) {
   const [newItemQty, setNewItemQty] = useState('');
   const [newItemColor, setNewItemColor] = useState(ITEM_COLORS[0]);
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  
 
   const items: ItemEntry[] = Array.isArray(value) ? value : [];
   const totalQty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
@@ -91,7 +91,6 @@ export function ItemsEditor({ value, onChange }: ItemsEditorProps) {
     await saveItemIfNew(newItem.name, newItemColor);
     setNewItemName('');
     setNewItemQty('');
-    setShowSuggestions(false);
     const currentIndex = ITEM_COLORS.indexOf(newItemColor);
     setNewItemColor(ITEM_COLORS[(currentIndex + 1) % ITEM_COLORS.length]);
   };
@@ -101,7 +100,7 @@ export function ItemsEditor({ value, onChange }: ItemsEditorProps) {
     if (saved.color) {
       setNewItemColor(saved.color);
     }
-    setShowSuggestions(false);
+    
   };
 
   const handleRemoveItem = (index: number) => {
@@ -205,64 +204,57 @@ export function ItemsEditor({ value, onChange }: ItemsEditorProps) {
             ))}
           </div>
 
-          {/* Add new item form */}
-          <div className="relative">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  placeholder="Item name (e.g. Costa Rican)"
-                  value={newItemName}
-                  onChange={(e) => {
-                    setNewItemName(e.target.value);
-                    setShowSuggestions(e.target.value.length > 0);
-                  }}
-                  onFocus={() => setShowSuggestions(true)}
-                  onKeyDown={handleKeyDown}
-                  className="h-8 text-sm"
-                />
-                {/* Saved items dropdown */}
-                {showSuggestions && filteredSavedItems.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-popover border border-border rounded-md shadow-md max-h-32 overflow-y-auto">
-                    {filteredSavedItems.map((si) => (
-                      <button
-                        key={si.id}
-                        type="button"
-                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center gap-2"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          handleSelectSavedItem(si);
-                        }}
-                      >
-                        <span
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: si.color || '#6b7280' }}
-                        />
-                        {si.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+          {/* Saved items quick-pick */}
+          {filteredSavedItems.length > 0 && (
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground font-medium">Saved Items</span>
+              <div className="flex flex-wrap gap-1.5">
+                {filteredSavedItems.map((si) => (
+                  <button
+                    key={si.id}
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border border-border hover:bg-accent transition-colors"
+                    onClick={() => handleSelectSavedItem(si)}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: si.color || '#6b7280' }}
+                    />
+                    {si.name}
+                  </button>
+                ))}
               </div>
-              <Input
-                placeholder="Qty"
-                type="number"
-                min="0"
-                step="0.5"
-                value={newItemQty}
-                onChange={(e) => setNewItemQty(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="h-8 text-sm w-20"
-              />
-              <Button
-                size="sm"
-                className="h-8 px-2"
-                onClick={handleAddItem}
-                disabled={!newItemName.trim() || !newItemQty}
-                style={{ backgroundColor: newItemColor }}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
             </div>
+          )}
+
+          {/* Add new item form */}
+          <div className="flex gap-2">
+            <Input
+              placeholder={filteredSavedItems.length > 0 ? "Or type new item..." : "Item name"}
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="h-8 text-sm flex-1"
+            />
+            <Input
+              placeholder="Qty"
+              type="number"
+              min="0"
+              step="0.5"
+              value={newItemQty}
+              onChange={(e) => setNewItemQty(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="h-8 text-sm w-20"
+            />
+            <Button
+              size="sm"
+              className="h-8 px-2"
+              onClick={handleAddItem}
+              disabled={!newItemName.trim() || !newItemQty}
+              style={{ backgroundColor: newItemColor }}
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </PopoverContent>
