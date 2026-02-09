@@ -30,7 +30,7 @@ export function SalesForm({ employeeId }: SalesFormProps) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [proofImageUrl, setProofImageUrl] = useState<string | null>(null);
   const [proofFileName, setProofFileName] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
 
   // Form fields
@@ -42,8 +42,17 @@ export function SalesForm({ employeeId }: SalesFormProps) {
   const [transactionCount, setTransactionCount] = useState('');
 
   useEffect(() => {
-    fetchAssignedBranches();
-  }, [employeeId]);
+    if (isAdmin) {
+      fetchAllBranches();
+    } else {
+      fetchAssignedBranches();
+    }
+  }, [employeeId, isAdmin]);
+
+  const fetchAllBranches = async () => {
+    const { data } = await supabase.from('branches').select('id, name');
+    if (data) setBranches(data);
+  };
 
   const fetchAssignedBranches = async () => {
     if (!employeeId) return;
@@ -99,21 +108,22 @@ export function SalesForm({ employeeId }: SalesFormProps) {
       cardAmount &&
       transactionCount &&
       proofImageUrl &&
-      employeeId
+      (employeeId || isAdmin)
     );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid() || !user || !employeeId) return;
+    if (!isFormValid() || !user) return;
 
+    const effectiveEmployeeId = employeeId || user.id;
     setIsSubmitting(true);
     try {
       const { error } = await supabase.from('sales_entries').insert({
         date,
         shift,
         branch_id: branchId,
-        employee_id: employeeId,
+        employee_id: effectiveEmployeeId,
         submitted_by: user.id,
         cash_amount: parseFloat(cashAmount),
         card_amount: parseFloat(cardAmount),
@@ -164,7 +174,7 @@ export function SalesForm({ employeeId }: SalesFormProps) {
     );
   }
 
-  if (!employeeId) {
+  if (!employeeId && !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="text-muted-foreground text-center">
@@ -174,7 +184,7 @@ export function SalesForm({ employeeId }: SalesFormProps) {
     );
   }
 
-  if (branches.length === 0) {
+  if (branches.length === 0 && !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="text-muted-foreground text-center">
