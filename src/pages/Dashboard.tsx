@@ -9,7 +9,8 @@ import {
   Clock,
   Settings,
   CheckSquare,
-  ClipboardCheck
+  ClipboardCheck,
+  Receipt
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -77,6 +78,13 @@ const workspaces: WorkspaceItem[] = [
     icon: ClipboardCheck,
     href: '/quality-check',
     color: '#EC4899',
+  },
+  {
+    title: 'Registering Sales',
+    description: 'Daily sales tracking',
+    icon: Receipt,
+    href: '/sales',
+    color: '#14B8A6',
   },
   {
     title: 'Settings',

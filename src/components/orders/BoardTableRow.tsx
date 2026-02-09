@@ -437,7 +437,7 @@ function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
     // Payment statuses
     'Paid': '#22c55e',
-    'Partially Paid': '#f59e0b',
+    'Partially Paid': '#3b82f6',
     'Not Paid': '#ef4444',
     // Priority
     'High': '#ef4444',

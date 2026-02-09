@@ -220,6 +220,91 @@ export type Database = {
           },
         ]
       }
+      bot_register_templates: {
+        Row: {
+          id: string
+          template_text: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          template_text: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          template_text?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      branch_assignments: {
+        Row: {
+          branch_id: string
+          created_at: string
+          employee_id: string
+          id: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          employee_id: string
+          id?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_assignments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      branches: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string | null
@@ -864,6 +949,70 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      sales_entries: {
+        Row: {
+          branch_id: string
+          card_amount: number
+          cash_amount: number
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          proof_image_url: string
+          shift: string
+          submitted_by: string
+          transaction_count: number
+        }
+        Insert: {
+          branch_id: string
+          card_amount: number
+          cash_amount: number
+          created_at?: string
+          date: string
+          employee_id: string
+          id?: string
+          proof_image_url: string
+          shift: string
+          submitted_by: string
+          transaction_count: number
+        }
+        Update: {
+          branch_id?: string
+          card_amount?: number
+          cash_amount?: number
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          proof_image_url?: string
+          shift?: string
+          submitted_by?: string
+          transaction_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_entries_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       saved_items: {
         Row: {
