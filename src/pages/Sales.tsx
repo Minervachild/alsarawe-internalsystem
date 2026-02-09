@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings2 } from 'lucide-react';
+import { Settings2, PlusCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -75,6 +75,10 @@ export default function Sales() {
         <Tabs defaultValue="dashboard" className="space-y-4">
           <TabsList>
             <TabsTrigger value="dashboard">Sales Dashboard</TabsTrigger>
+            <TabsTrigger value="register" className="gap-1.5">
+              <PlusCircle className="w-3.5 h-3.5" />
+              Register Sale
+            </TabsTrigger>
             <TabsTrigger value="branches" className="gap-1.5">
               <Settings2 className="w-3.5 h-3.5" />
               Branches
@@ -83,6 +87,10 @@ export default function Sales() {
 
           <TabsContent value="dashboard">
             <SalesDashboard />
+          </TabsContent>
+
+          <TabsContent value="register">
+            <SalesForm employeeId={employeeId} />
           </TabsContent>
 
           <TabsContent value="branches">
