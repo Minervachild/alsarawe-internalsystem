@@ -5,12 +5,11 @@ export interface UserProfile {
   user_id: string;
   username: string;
   email: string | null;
-  // passcode and api_key intentionally excluded from client-side type
-  // to prevent accidental exposure in browser memory
   avatar_color: string;
   can_edit_columns: boolean;
   can_view_reports: boolean;
   can_manage_users: boolean;
+  is_active: boolean;
 }
 
 export interface UserRole {
@@ -60,6 +59,7 @@ export async function signUp(username: string, email: string | null, passcode: s
       can_edit_columns: isAdmin,
       can_view_reports: isAdmin,
       can_manage_users: isAdmin,
+      is_active: isAdmin,
     });
 
   if (profileError) {
@@ -129,7 +129,7 @@ export async function getCurrentProfile(): Promise<UserProfile | null> {
   // Use profiles_public view - base profiles table denies SELECT for non-admins
   const { data: profiles, error } = await supabase
     .from('profiles_public')
-    .select('id, user_id, username, email, avatar_color, can_edit_columns, can_view_reports, can_manage_users')
+    .select('id, user_id, username, email, avatar_color, can_edit_columns, can_view_reports, can_manage_users, is_active')
     .eq('user_id', user.id)
     .limit(1);
 

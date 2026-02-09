@@ -9,6 +9,7 @@ interface AuthContextType {
   role: UserRole | null;
   isLoading: boolean;
   isAdmin: boolean;
+  isActive: boolean;
   refreshProfile: () => Promise<void>;
 }
 
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   isLoading: true,
   isAdmin: false,
+  isActive: false,
   refreshProfile: async () => {},
 });
 
@@ -68,9 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const isAdmin = role?.role === 'admin';
+  const isActive = profile?.is_active ?? false;
 
   return (
-    <AuthContext.Provider value={{ user, profile, role, isLoading, isAdmin, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, role, isLoading, isAdmin, isActive, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

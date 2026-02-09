@@ -23,6 +23,7 @@ interface User {
   can_edit_columns: boolean;
   can_view_reports: boolean;
   can_manage_users: boolean;
+  is_active: boolean;
   api_key: string | null;
   role?: 'admin' | 'user' | 'viewer';
 }
@@ -179,15 +180,16 @@ export default function Users() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">User</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Role</th>
-                    <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Edit Columns</th>
-                    <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">View Reports</th>
-                    <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Manage Users</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">API Key</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Actions</th>
-                  </tr>
+                   <tr>
+                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">User</th>
+                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Role</th>
+                     <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Active</th>
+                     <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Edit Columns</th>
+                     <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">View Reports</th>
+                     <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Manage Users</th>
+                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">API Key</th>
+                     <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Actions</th>
+                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user) => (
@@ -211,7 +213,14 @@ export default function Users() {
                           {user.role || 'user'}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-center">
+                     <td className="px-4 py-3 text-center">
+                       <Switch
+                         checked={user.is_active}
+                         onCheckedChange={(checked) => updatePermission(user.id, 'is_active', checked)}
+                         disabled={!isAdmin || user.role === 'admin'}
+                       />
+                     </td>
+                     <td className="px-4 py-3 text-center">
                         <Switch
                           checked={user.can_edit_columns}
                           onCheckedChange={(checked) => updatePermission(user.id, 'can_edit_columns', checked)}
