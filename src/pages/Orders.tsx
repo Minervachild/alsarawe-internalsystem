@@ -181,15 +181,20 @@ export default function Orders() {
   };
 
   const handleDeleteRow = async (rowId: string) => {
-    try {
-      // Delete cells first
-      await supabase.from('board_cells').delete().eq('row_id', rowId);
-      // Then delete row
-      await supabase.from('board_rows').delete().eq('id', rowId);
+    // Optimistic update - remove from UI immediately
+    const previousRows = rows;
+    setRows(prev => prev.filter(row => row.id !== rowId));
+    toast({ title: 'Order deleted' });
 
-      setRows(prev => prev.filter(row => row.id !== rowId));
-      toast({ title: 'Order deleted' });
+    try {
+      // Delete in background
+      await Promise.all([
+        supabase.from('board_cells').delete().eq('row_id', rowId),
+        supabase.from('board_rows').delete().eq('id', rowId),
+      ]);
     } catch (error: any) {
+      // Rollback on failure
+      setRows(previousRows);
       toast({
         title: 'Error',
         description: 'Failed to delete order.',
@@ -199,21 +204,20 @@ export default function Orders() {
   };
 
   const handleMoveRow = async (rowId: string, targetGroupId: string) => {
+    // Optimistic update
+    const previousRows = rows;
+    setRows(prev => prev.map(row =>
+      row.id === rowId ? { ...row, group_id: targetGroupId } : row
+    ));
+    toast({ title: 'Order moved' });
+
     try {
       await supabase
         .from('board_rows')
         .update({ group_id: targetGroupId })
         .eq('id', rowId);
-
-      setRows(prev => prev.map(row => {
-        if (row.id === rowId) {
-          return { ...row, group_id: targetGroupId };
-        }
-        return row;
-      }));
-
-      toast({ title: 'Order moved' });
     } catch (error: any) {
+      setRows(previousRows);
       toast({
         title: 'Error',
         description: 'Failed to move order.',
@@ -288,22 +292,15 @@ export default function Orders() {
       const [movedColumn] = newColumns.splice(fromIndex, 1);
       newColumns.splice(toIndex, 0, movedColumn);
 
-      // Update positions
-      const updates = newColumns.map((col, idx) => ({
-        id: col.id,
-        position: idx,
-      }));
+      const updatedColumns = newColumns.map((col, idx) => ({ ...col, position: idx }));
+      setColumns(updatedColumns);
 
-      // Update local state immediately for responsiveness
-      setColumns(newColumns.map((col, idx) => ({ ...col, position: idx })));
-
-      // Update in database
-      for (const update of updates) {
-        await supabase
-          .from('board_columns')
-          .update({ position: update.position })
-          .eq('id', update.id);
-      }
+      // Batch update all positions in parallel
+      await Promise.all(
+        updatedColumns.map(col =>
+          supabase.from('board_columns').update({ position: col.position }).eq('id', col.id)
+        )
+      );
 
       toast({ title: 'Column order updated' });
     } catch (error: any) {
@@ -312,7 +309,6 @@ export default function Orders() {
         description: 'Failed to reorder columns.',
         variant: 'destructive',
       });
-      // Refetch to restore correct order
       fetchData();
     }
   };
@@ -396,30 +392,30 @@ export default function Orders() {
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-full">
+      <div className="p-3 sm:p-6 max-w-full">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div>
-            <h1 className="text-2xl font-display font-bold text-foreground">B2B Orders</h1>
-            <p className="text-muted-foreground">Manage your order pipeline</p>
+            <h1 className="text-xl sm:text-2xl font-display font-bold text-foreground">B2B Orders</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Manage your order pipeline</p>
           </div>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="board" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <TabsList>
-              <TabsTrigger value="board" className="gap-2">
+        <Tabs defaultValue="board" className="space-y-3 sm:space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="board" className="gap-1.5 text-xs sm:text-sm flex-1 sm:flex-none">
                 <LayoutGrid className="w-4 h-4" />
                 Board
               </TabsTrigger>
-              <TabsTrigger value="analytics" className="gap-2">
+              <TabsTrigger value="analytics" className="gap-1.5 text-xs sm:text-sm flex-1 sm:flex-none">
                 <BarChart3 className="w-4 h-4" />
                 Analytics
               </TabsTrigger>
             </TabsList>
 
-            <div className="flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-4">
               <TabsList>
                 <TabsTrigger value="employees" className="gap-2">
                   <Users className="w-4 h-4" />
@@ -433,10 +429,10 @@ export default function Orders() {
             </div>
           </div>
 
-          <TabsContent value="board" className="space-y-4">
+          <TabsContent value="board" className="space-y-3 sm:space-y-4">
             {/* Search */}
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1 max-w-md">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="relative flex-1 sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search orders..."
