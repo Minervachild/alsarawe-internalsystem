@@ -53,10 +53,22 @@ export default function Users() {
 
       if (rolesError) throw rolesError;
 
+      // Admins can fetch api_key from base profiles table
+      let apiKeys: Record<string, string | null> = {};
+      if (isAdmin) {
+        const { data: profilesWithKeys } = await supabase
+          .from('profiles')
+          .select('id, api_key');
+        if (profilesWithKeys) {
+          profilesWithKeys.forEach((p: any) => { apiKeys[p.id] = p.api_key; });
+        }
+      }
+
       const usersWithRoles = (profiles || []).map((profile: any) => {
         const userRole = roles?.find((r: any) => r.user_id === profile.user_id);
         return {
           ...profile,
+          api_key: apiKeys[profile.id] || null,
           role: userRole?.role || 'user',
         };
       });
