@@ -16,6 +16,7 @@ import Users from "./pages/Users";
 import SettingsPage from "./pages/Settings";
 import DailyDuties from "./pages/DailyDuties";
 import QualityCheck from "./pages/QualityCheck";
+import Sales from "./pages/Sales";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -75,6 +76,7 @@ function AppRoutes() {
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/daily-duties" element={<ProtectedRoute><DailyDuties /></ProtectedRoute>} />
       <Route path="/quality-check" element={<ProtectedRoute><QualityCheck /></ProtectedRoute>} />
+      <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

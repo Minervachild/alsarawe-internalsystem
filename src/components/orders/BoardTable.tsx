@@ -39,10 +39,10 @@ interface BoardGroup {
 
 // Column visibility by group name
 const GROUP_COLUMN_VISIBILITY: Record<string, string[]> = {
-  'New': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment', 'Order Type', 'Location'],
-  'Preparing': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment', 'Phase'],
-  'Ready': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment', 'Shipping Method'],
-  'Shipped': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment', 'Delivery Proof'],
+  'New': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment Status', 'Order Type', 'Location'],
+  'Preparing': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment Status', 'Phase'],
+  'Ready': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment Status', 'Shipping Method'],
+  'Shipped': ['Client', 'Items', 'Total', 'Due Date', 'Assigned To', 'Priority', 'Payment Status', 'Delivery Proof'],
 };
 
 interface Employee {
