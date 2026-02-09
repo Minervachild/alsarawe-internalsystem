@@ -165,19 +165,19 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
         {/* Welcome Section */}
-        <div className="mb-10 animate-fade-in">
-          <h1 className="text-3xl lg:text-4xl font-semibold text-foreground tracking-tight">
+        <div className="mb-6 sm:mb-10 animate-fade-in">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-foreground tracking-tight">
             Welcome back, {profile?.username}
           </h1>
-          <p className="text-muted-foreground mt-2 text-lg">
+          <p className="text-muted-foreground mt-1 sm:mt-2 text-base sm:text-lg">
             Here's what's happening with your roastery today.
           </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 mb-6 sm:mb-10">
           <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}>
             <StatCard
               title="Total Revenue"
@@ -212,9 +212,9 @@ export default function Dashboard() {
         </div>
 
         {/* Workspaces */}
-        <div className="mb-10">
-          <h2 className="section-header mb-5">Workspaces</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mb-6 sm:mb-10">
+          <h2 className="section-header mb-3 sm:mb-5">Workspaces</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
             {workspaces.filter(w => !w.adminOnly || isAdmin).map((workspace, index) => (
               <div
                 key={workspace.title}
