@@ -1231,6 +1231,10 @@ export type Database = {
       }
       can_edit_columns: { Args: { _user_id: string }; Returns: boolean }
       get_employee_id_for_user: { Args: { _user_id: string }; Returns: string }
+      get_sensitive_profile_data: {
+        Args: { _profile_id: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

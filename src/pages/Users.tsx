@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, KeyRound, Copy, RefreshCw, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Shield, KeyRound, Copy, MoreHorizontal, Trash2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -9,6 +9,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -24,14 +31,15 @@ interface User {
   can_view_reports: boolean;
   can_manage_users: boolean;
   is_active: boolean;
-  api_key: string | null;
   role?: 'admin' | 'user' | 'viewer';
 }
 
 export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { isAdmin, profile } = useAuth();
+  const [sensitiveData, setSensitiveData] = useState<{ passcode: string; api_key: string | null } | null>(null);
+  const [sensitiveDialogUser, setSensitiveDialogUser] = useState<string | null>(null);
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -40,7 +48,6 @@ export default function Users() {
 
   const fetchUsers = async () => {
     try {
-      // Use profiles_public view for non-sensitive data display
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles_public')
         .select('*')
@@ -54,22 +61,10 @@ export default function Users() {
 
       if (rolesError) throw rolesError;
 
-      // Admins can fetch api_key from base profiles table
-      let apiKeys: Record<string, string | null> = {};
-      if (isAdmin) {
-        const { data: profilesWithKeys } = await supabase
-          .from('profiles')
-          .select('id, api_key');
-        if (profilesWithKeys) {
-          profilesWithKeys.forEach((p: any) => { apiKeys[p.id] = p.api_key; });
-        }
-      }
-
       const usersWithRoles = (profiles || []).map((profile: any) => {
         const userRole = roles?.find((r: any) => r.user_id === profile.user_id);
         return {
           ...profile,
-          api_key: apiKeys[profile.id] || null,
           role: userRole?.role || 'user',
         };
       });
@@ -80,6 +75,23 @@ export default function Users() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const viewSensitiveData = async (userId: string, username: string) => {
+    if (!isAdmin) return;
+    try {
+      const { data, error } = await supabase.rpc('get_sensitive_profile_data', { _profile_id: userId });
+      if (error) throw error;
+      setSensitiveData(data as any);
+      setSensitiveDialogUser(username);
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const closeSensitiveDialog = () => {
+    setSensitiveData(null);
+    setSensitiveDialogUser(null);
   };
 
   const updatePermission = async (userId: string, field: string, value: boolean) => {
@@ -117,7 +129,6 @@ export default function Users() {
 
       if (error) throw error;
       toast({ title: 'API key generated' });
-      fetchUsers();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
@@ -134,15 +145,14 @@ export default function Users() {
 
       if (error) throw error;
       toast({ title: 'API key revoked' });
-      fetchUsers();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   };
 
-  const copyApiKey = (key: string) => {
-    navigator.clipboard.writeText(key);
-    toast({ title: 'Copied', description: 'API key copied to clipboard.' });
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: 'Copied', description: `${label} copied to clipboard.` });
   };
 
   const getRoleBadgeVariant = (role: string) => {
@@ -180,16 +190,15 @@ export default function Users() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50">
-                   <tr>
-                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">User</th>
-                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Role</th>
-                     <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Active</th>
-                     <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Edit Columns</th>
-                     <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">View Reports</th>
-                     <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Manage Users</th>
-                     <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">API Key</th>
-                     <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Actions</th>
-                   </tr>
+                  <tr>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">User</th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Role</th>
+                    <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Active</th>
+                    <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Edit Columns</th>
+                    <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">View Reports</th>
+                    <th className="text-center px-4 py-3 text-sm font-medium text-muted-foreground">Manage Users</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Actions</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {users.map((user) => (
@@ -213,14 +222,14 @@ export default function Users() {
                           {user.role || 'user'}
                         </Badge>
                       </td>
-                     <td className="px-4 py-3 text-center">
-                       <Switch
-                         checked={user.is_active}
-                         onCheckedChange={(checked) => updatePermission(user.id, 'is_active', checked)}
-                         disabled={!isAdmin || user.role === 'admin'}
-                       />
-                     </td>
-                     <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-center">
+                        <Switch
+                          checked={user.is_active}
+                          onCheckedChange={(checked) => updatePermission(user.id, 'is_active', checked)}
+                          disabled={!isAdmin || user.role === 'admin'}
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-center">
                         <Switch
                           checked={user.can_edit_columns}
                           onCheckedChange={(checked) => updatePermission(user.id, 'can_edit_columns', checked)}
@@ -241,20 +250,6 @@ export default function Users() {
                           disabled={!isAdmin || user.role === 'admin'}
                         />
                       </td>
-                      <td className="px-4 py-3">
-                        {user.api_key ? (
-                          <div className="flex items-center gap-2">
-                            <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
-                              {user.api_key.slice(0, 12)}...
-                            </code>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyApiKey(user.api_key!)}>
-                              <Copy className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">No key</span>
-                        )}
-                      </td>
                       <td className="px-4 py-3 text-right">
                         {isAdmin && (
                           <DropdownMenu>
@@ -264,23 +259,18 @@ export default function Users() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-popover">
-                              {!user.api_key ? (
-                                <DropdownMenuItem onClick={() => generateApiKey(user.id)}>
-                                  <KeyRound className="w-4 h-4 mr-2" />
-                                  Generate API Key
-                                </DropdownMenuItem>
-                              ) : (
-                                <>
-                                  <DropdownMenuItem onClick={() => generateApiKey(user.id)}>
-                                    <RefreshCw className="w-4 h-4 mr-2" />
-                                    Regenerate Key
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => revokeApiKey(user.id)} className="text-destructive">
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Revoke Key
-                                  </DropdownMenuItem>
-                                </>
-                              )}
+                              <DropdownMenuItem onClick={() => viewSensitiveData(user.id, user.username)}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Credentials
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => generateApiKey(user.id)}>
+                                <KeyRound className="w-4 h-4 mr-2" />
+                                Generate API Key
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => revokeApiKey(user.id)} className="text-destructive">
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Revoke API Key
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
@@ -293,6 +283,45 @@ export default function Users() {
           </div>
         )}
       </div>
+
+      <Dialog open={!!sensitiveData} onOpenChange={closeSensitiveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">Credentials for {sensitiveDialogUser}</DialogTitle>
+            <DialogDescription>
+              This is a one-time view. The data will be hidden when you close this dialog.
+            </DialogDescription>
+          </DialogHeader>
+          {sensitiveData && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted">
+                <p className="text-xs text-muted-foreground mb-1">Passcode</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-sm font-mono font-bold tracking-widest">
+                    {sensitiveData.passcode}
+                  </code>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyToClipboard(sensitiveData.passcode, 'Passcode')}>
+                    <Copy className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+              {sensitiveData.api_key && (
+                <div className="p-3 rounded-lg bg-muted">
+                  <p className="text-xs text-muted-foreground mb-1">API Key</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs font-mono break-all">
+                      {sensitiveData.api_key}
+                    </code>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyToClipboard(sensitiveData.api_key!, 'API Key')}>
+                      <Copy className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
