@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { BoardTableRow } from './BoardTableRow';
 import { DraggableColumnHeader } from './DraggableColumnHeader';
+import { CycleTargetEditor } from './CycleTargetEditor';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -33,6 +34,7 @@ interface BoardGroup {
   name: string;
   color: string;
   position: number;
+  target_days?: number;
 }
 
 // Column visibility by group name
@@ -63,6 +65,7 @@ interface BoardTableProps {
   onAddColumnOption?: (columnId: string, newOption: string) => void;
   onAddEmployee?: (name: string) => Promise<Employee | null>;
   onReorderColumns?: (fromIndex: number, toIndex: number) => void;
+  onUpdateTargetDays?: (groupId: string, targetDays: number) => void;
 }
 
 export function BoardTable({
@@ -79,6 +82,7 @@ export function BoardTable({
   onAddColumnOption,
   onAddEmployee,
   onReorderColumns,
+  onUpdateTargetDays,
 }: BoardTableProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { toast } = useToast();
@@ -188,6 +192,11 @@ export function BoardTable({
         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
           Average Cycle {avgCycle} days
         </span>
+        <CycleTargetEditor
+          groupId={group.id}
+          currentTarget={group.target_days ?? 7}
+          onUpdate={onUpdateTargetDays}
+        />
         <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground">
           {rows.length}
         </span>

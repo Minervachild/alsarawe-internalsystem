@@ -162,6 +162,7 @@ export type Database = {
           id: string
           name: string
           position: number
+          target_days: number | null
           updated_at: string | null
         }
         Insert: {
@@ -170,6 +171,7 @@ export type Database = {
           id?: string
           name: string
           position?: number
+          target_days?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -178,6 +180,7 @@ export type Database = {
           id?: string
           name?: string
           position?: number
+          target_days?: number | null
           updated_at?: string | null
         }
         Relationships: []
