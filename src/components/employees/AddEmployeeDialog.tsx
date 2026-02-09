@@ -26,7 +26,6 @@ interface AddEmployeeDialogProps {
   editingEmployee?: {
     id: string;
     name: string;
-    email: string | null;
     phone: string | null;
     role: string | null;
     hourly_rate: number;
@@ -50,7 +49,6 @@ export function AddEmployeeDialog({
   const [createAccount, setCreateAccount] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
     phone: '',
     role: '',
     hourly_rate: 0,
@@ -72,7 +70,6 @@ export function AddEmployeeDialog({
     if (isOpen && editingEmployee) {
       setFormData({
         name: editingEmployee.name,
-        email: editingEmployee.email || '',
         phone: editingEmployee.phone || '',
         role: editingEmployee.role || '',
         hourly_rate: editingEmployee.hourly_rate,
@@ -83,7 +80,6 @@ export function AddEmployeeDialog({
     } else if (isOpen) {
       setFormData({
         name: '',
-        email: '',
         phone: '',
         role: '',
         hourly_rate: 0,
@@ -238,24 +234,13 @@ export function AddEmployeeDialog({
               placeholder="e.g. Barista, Manager"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="email@example.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="+966 5XX XXX XXXX"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label>Phone</Label>
+            <Input
+              value={formData.phone}
+              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+              placeholder="+966 5XX XXX XXXX"
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

@@ -457,7 +457,6 @@ export type Database = {
           active_days: number | null
           avatar_color: string | null
           created_at: string | null
-          email: string | null
           hourly_rate: number | null
           id: string
           name: string
@@ -476,7 +475,6 @@ export type Database = {
           active_days?: number | null
           avatar_color?: string | null
           created_at?: string | null
-          email?: string | null
           hourly_rate?: number | null
           id?: string
           name: string
@@ -495,7 +493,6 @@ export type Database = {
           active_days?: number | null
           avatar_color?: string | null
           created_at?: string | null
-          email?: string | null
           hourly_rate?: number | null
           id?: string
           name?: string

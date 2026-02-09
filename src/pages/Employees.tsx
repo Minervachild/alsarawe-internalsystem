@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Mail, Phone, MoreHorizontal, Pencil, Trash2, UserPlus, UserX, Shield } from 'lucide-react';
+import { Plus, Search, Phone, MoreHorizontal, Pencil, Trash2, UserPlus, UserX, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +30,6 @@ import { useAuth } from '@/contexts/AuthContext';
 interface Employee {
   id: string;
   name: string;
-  email: string | null;
   phone: string | null;
   role: string | null;
   hourly_rate: number;
@@ -332,12 +331,6 @@ export default function Employees() {
                   )}
 
                   <div className="mt-4 space-y-2">
-                    {employee.email && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Mail className="w-4 h-4" />
-                        <span>{employee.email}</span>
-                      </div>
-                    )}
                     {employee.phone && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Phone className="w-4 h-4" />
