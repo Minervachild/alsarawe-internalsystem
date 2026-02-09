@@ -21,6 +21,7 @@ interface BoardGroup {
   name: string;
   color: string;
   position: number;
+  target_days?: number;
 }
 
 interface BoardRow {
@@ -315,6 +316,26 @@ export default function Orders() {
       fetchData();
     }
   };
+  const handleUpdateTargetDays = async (groupId: string, targetDays: number) => {
+    try {
+      await supabase
+        .from('board_groups')
+        .update({ target_days: targetDays } as any)
+        .eq('id', groupId);
+
+      setGroups(prev => prev.map(g => 
+        g.id === groupId ? { ...g, target_days: targetDays } : g
+      ));
+      toast({ title: `Target set to ${targetDays} days` });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update target days.',
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   const handleAddGroup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -444,6 +465,7 @@ export default function Orders() {
                   onAddColumnOption={handleAddColumnOption}
                   onAddEmployee={handleAddEmployee}
                   onReorderColumns={handleReorderColumns}
+                  onUpdateTargetDays={handleUpdateTargetDays}
                 />
               ))}
 
