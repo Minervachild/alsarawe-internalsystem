@@ -103,7 +103,7 @@ export function AddOrderDialog({ open, onOpenChange, groupId, columns, onSuccess
       const clientName = clientColumn ? formData[clientColumn.id] : 'Unknown';
 
       // Create notification for all users
-      const { data: allProfiles } = await supabase.from('profiles').select('id');
+      const { data: allProfiles } = await supabase.from('profiles_public').select('id');
       if (allProfiles && allProfiles.length > 0) {
         const notifications = allProfiles.map(profile => ({
           user_id: profile.id,

@@ -1187,6 +1187,7 @@ export type Database = {
           can_edit_columns: boolean | null
           can_manage_users: boolean | null
           can_view_reports: boolean | null
+          email: string | null
           id: string | null
           user_id: string | null
           username: string | null
@@ -1196,6 +1197,7 @@ export type Database = {
           can_edit_columns?: boolean | null
           can_manage_users?: boolean | null
           can_view_reports?: boolean | null
+          email?: string | null
           id?: string | null
           user_id?: string | null
           username?: string | null
@@ -1205,6 +1207,7 @@ export type Database = {
           can_edit_columns?: boolean | null
           can_manage_users?: boolean | null
           can_view_reports?: boolean | null
+          email?: string | null
           id?: string | null
           user_id?: string | null
           username?: string | null
@@ -1220,6 +1223,8 @@ export type Database = {
           username: string
         }[]
       }
+      can_edit_columns: { Args: { _user_id: string }; Returns: boolean }
+      get_employee_id_for_user: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -126,9 +126,9 @@ export async function getCurrentProfile(): Promise<UserProfile | null> {
     return null;
   }
 
-  // Only select necessary fields - exclude sensitive data (passcode, api_key) from browser memory
+  // Use profiles_public view - base profiles table denies SELECT for non-admins
   const { data: profiles, error } = await supabase
-    .from('profiles')
+    .from('profiles_public')
     .select('id, user_id, username, email, avatar_color, can_edit_columns, can_view_reports, can_manage_users')
     .eq('user_id', user.id)
     .limit(1);
