@@ -727,6 +727,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           id: string
+          is_active: boolean
           passcode: string
           updated_at: string | null
           user_id: string | null
@@ -741,6 +742,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          is_active?: boolean
           passcode: string
           updated_at?: string | null
           user_id?: string | null
@@ -755,6 +757,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          is_active?: boolean
           passcode?: string
           updated_at?: string | null
           user_id?: string | null
@@ -1189,6 +1192,7 @@ export type Database = {
           can_view_reports: boolean | null
           email: string | null
           id: string | null
+          is_active: boolean | null
           user_id: string | null
           username: string | null
         }
@@ -1199,6 +1203,7 @@ export type Database = {
           can_view_reports?: boolean | null
           email?: string | null
           id?: string | null
+          is_active?: boolean | null
           user_id?: string | null
           username?: string | null
         }
@@ -1209,6 +1214,7 @@ export type Database = {
           can_view_reports?: boolean | null
           email?: string | null
           id?: string | null
+          is_active?: boolean | null
           user_id?: string | null
           username?: string | null
         }
@@ -1233,6 +1239,7 @@ export type Database = {
         Returns: boolean
       }
       is_system_initialized: { Args: never; Returns: boolean }
+      is_user_active: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "viewer"

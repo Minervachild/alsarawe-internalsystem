@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { PendingApprovalScreen } from "@/components/auth/PendingApprovalScreen";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
@@ -22,7 +23,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isActive, profile } = useAuth();
 
   if (isLoading) {
     return (
@@ -34,13 +35,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/" replace />;
+  }
+
+  if (!isActive && profile) {
+    return <PendingApprovalScreen username={profile.username} />;
   }
 
   return <>{children}</>;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, isAdmin } = useAuth();
+  const { user, isLoading, isAdmin, isActive, profile } = useAuth();
 
   if (isLoading) {
     return (
@@ -52,6 +57,10 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/" replace />;
+  }
+
+  if (!isActive && profile) {
+    return <PendingApprovalScreen username={profile.username} />;
   }
 
   if (!isAdmin) {
