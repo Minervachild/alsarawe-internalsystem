@@ -21,9 +21,10 @@ interface Branch {
 
 interface SalesFormProps {
   employeeId: string | null;
+  onSuccess?: () => void;
 }
 
-export function SalesForm({ employeeId }: SalesFormProps) {
+export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -135,6 +136,7 @@ export function SalesForm({ employeeId }: SalesFormProps) {
 
       setIsSubmitted(true);
       toast({ title: 'Sales submitted successfully!' });
+      onSuccess?.();
     } catch (error: any) {
       toast({
         title: 'Submission failed',
