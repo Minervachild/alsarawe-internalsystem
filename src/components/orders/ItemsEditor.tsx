@@ -131,11 +131,11 @@ export function ItemsEditor({ value, onChange }: ItemsEditorProps) {
               {items.map((item, idx) => (
                 <span
                   key={idx}
-                  className="px-2 py-0.5 rounded-md text-xs font-medium text-white truncate max-w-[120px]"
+                  className="px-2 py-0.5 rounded-md text-xs font-medium text-white truncate max-w-[140px]"
                   style={{ backgroundColor: item.color || ITEM_COLORS[idx % ITEM_COLORS.length] }}
                   title={`${item.name} - ${item.qty} ${item.unit || 'kg'}`}
                 >
-                  {item.name}
+                  {item.name} {item.qty}{item.unit || 'kg'}
                 </span>
               ))}
               <span className="text-xs font-semibold text-muted-foreground ml-1">
