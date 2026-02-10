@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2 } from 'lucide-react';
+import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { BoardTable } from '@/components/orders/BoardTable';
 import { useAuth } from '@/contexts/AuthContext';
+import { QuickAddOrderDialog } from '@/components/orders/QuickAddOrderDialog';
 
 interface BoardGroup {
   id: string;
@@ -62,6 +63,7 @@ export default function Orders() {
   const [addGroupDialogOpen, setAddGroupDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupColor, setNewGroupColor] = useState('#22c55e');
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -419,7 +421,7 @@ export default function Orders() {
           </div>
 
           <TabsContent value="board" className="space-y-3 sm:space-y-4">
-            {/* Search */}
+            {/* Search + Quick Add */}
             <div className="flex items-center gap-2 sm:gap-4">
               <div className="relative flex-1 sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -430,6 +432,13 @@ export default function Orders() {
                   className="pl-10"
                 />
               </div>
+              <Button
+                className="bg-destructive hover:bg-destructive/90 text-white rounded-xl gap-1.5 shrink-0"
+                onClick={() => setQuickAddOpen(true)}
+              >
+                <Zap className="w-4 h-4" />
+                <span className="hidden sm:inline">Quick Add</span>
+              </Button>
             </div>
 
             {/* Board Tables */}
@@ -527,6 +536,61 @@ export default function Orders() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Quick Add Order Dialog */}
+      <QuickAddOrderDialog
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        columns={columns}
+        clients={clients}
+        employees={employees}
+        newGroupId={groups.find(g => g.name === 'New')?.id || groups[0]?.id || ''}
+        onSubmit={async (cells) => {
+          const targetGroupId = groups.find(g => g.name === 'New')?.id || groups[0]?.id;
+          if (!targetGroupId) return;
+
+          try {
+            const groupRows = rows.filter(r => r.group_id === targetGroupId);
+            const maxPosition = groupRows.length > 0
+              ? Math.max(...groupRows.map(r => r.position)) + 1
+              : 0;
+
+            const { data: newRow, error } = await supabase
+              .from('board_rows')
+              .insert({
+                group_id: targetGroupId,
+                position: maxPosition,
+                created_by: user?.id,
+              })
+              .select()
+              .single();
+
+            if (error) throw error;
+
+            // Insert all cells in parallel
+            const cellEntries = Object.entries(cells).filter(([_, v]) => v !== undefined && v !== '' && v !== null);
+            if (cellEntries.length > 0) {
+              await Promise.all(
+                cellEntries.map(([columnId, value]) =>
+                  supabase.from('board_cells').insert({
+                    row_id: newRow.id,
+                    column_id: columnId,
+                    value,
+                  })
+                )
+              );
+            }
+
+            const cellsMap = Object.fromEntries(cellEntries);
+            setRows(prev => [...prev, { ...newRow, cells: cellsMap }]);
+            toast({ title: 'Order added!' });
+          } catch (error: any) {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+          }
+        }}
+        onAddColumnOption={handleAddColumnOption}
+        onAddEmployee={handleAddEmployee}
+      />
     </AppLayout>
   );
 }

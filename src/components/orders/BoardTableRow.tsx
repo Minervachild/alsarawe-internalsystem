@@ -174,85 +174,92 @@ export const BoardTableRow = memo(function BoardTableRow({
         const isLocationColumn = column.name === 'Location';
         
         return (
-          <div className="flex items-center gap-1">
-            <Select
-              value={value || ''}
-              onValueChange={(val) => {
-                if (val === '__add_new__') {
-                  setAddingOptionForColumn(column.id);
-                } else {
-                  onUpdateCell(row.id, column.id, val);
-                }
-              }}
-            >
-              <SelectTrigger className="h-7 text-sm border-0 bg-transparent hover:bg-muted/50">
-                {value ? (
-                  <span 
-                    className="px-2 py-0.5 rounded text-xs font-medium text-white"
-                    style={{ backgroundColor: optionColor || getStatusColor(value) }}
-                  >
-                    {displayValue}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground text-sm">—</span>
-                )}
-              </SelectTrigger>
-              <SelectContent className="bg-popover">
-                {options.map((opt: any) => {
-                  const optValue = typeof opt === 'string' ? opt : opt.value;
-                  const optLabel = typeof opt === 'string' ? opt : opt.label;
-                  const color = typeof opt === 'object' ? opt.color : null;
-                  return (
-                    <SelectItem key={optValue} value={optValue}>
-                      <span 
-                        className="px-2 py-0.5 rounded text-xs font-medium text-white"
-                        style={{ backgroundColor: color || getStatusColor(optValue) }}
-                      >
-                        {optLabel}
+          <div className="flex items-center gap-1 w-full">
+            {addingOptionForColumn === column.id ? (
+              <div className="flex items-center gap-1 w-full">
+                <Input
+                  placeholder="City name..."
+                  value={newOptionValue}
+                  onChange={(e) => setNewOptionValue(e.target.value)}
+                  autoFocus
+                  className="h-7 text-sm flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newOptionValue.trim() && onAddColumnOption) {
+                      onAddColumnOption(column.id, newOptionValue.trim());
+                      onUpdateCell(row.id, column.id, newOptionValue.trim());
+                      setNewOptionValue('');
+                      setAddingOptionForColumn(null);
+                    }
+                    if (e.key === 'Escape') {
+                      setNewOptionValue('');
+                      setAddingOptionForColumn(null);
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => {
+                    if (newOptionValue.trim() && onAddColumnOption) {
+                      onAddColumnOption(column.id, newOptionValue.trim());
+                      onUpdateCell(row.id, column.id, newOptionValue.trim());
+                      setNewOptionValue('');
+                      setAddingOptionForColumn(null);
+                    }
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+            ) : (
+              <Select
+                value={value || ''}
+                onValueChange={(val) => {
+                  if (val === '__add_new__') {
+                    setAddingOptionForColumn(column.id);
+                  } else {
+                    onUpdateCell(row.id, column.id, val);
+                  }
+                }}
+              >
+                <SelectTrigger className="h-7 text-sm border-0 bg-transparent hover:bg-muted/50">
+                  {value ? (
+                    <span 
+                      className="px-2 py-0.5 rounded text-xs font-medium text-white"
+                      style={{ backgroundColor: optionColor || getStatusColor(value) }}
+                    >
+                      {displayValue}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  )}
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  {options.map((opt: any) => {
+                    const optValue = typeof opt === 'string' ? opt : opt.value;
+                    const optLabel = typeof opt === 'string' ? opt : opt.label;
+                    const color = typeof opt === 'object' ? opt.color : null;
+                    return (
+                      <SelectItem key={optValue} value={optValue}>
+                        <span 
+                          className="px-2 py-0.5 rounded text-xs font-medium text-white"
+                          style={{ backgroundColor: color || getStatusColor(optValue) }}
+                        >
+                          {optLabel}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                  {isLocationColumn && (
+                    <SelectItem value="__add_new__">
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Plus className="w-3 h-3" />
+                        Add new city
                       </span>
                     </SelectItem>
-                  );
-                })}
-                {isLocationColumn && (
-                  <SelectItem value="__add_new__">
-                    <span className="flex items-center gap-1 text-muted-foreground">
-                      <Plus className="w-3 h-3" />
-                      Add new city
-                    </span>
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-            {addingOptionForColumn === column.id && (
-              <Popover open onOpenChange={(open) => !open && setAddingOptionForColumn(null)}>
-                <PopoverTrigger asChild>
-                  <span />
-                </PopoverTrigger>
-                <PopoverContent className="w-48 p-2" align="start">
-                  <div className="flex flex-col gap-2">
-                    <Input
-                      placeholder="City name..."
-                      value={newOptionValue}
-                      onChange={(e) => setNewOptionValue(e.target.value)}
-                      autoFocus
-                      className="h-8"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (newOptionValue.trim() && onAddColumnOption) {
-                          onAddColumnOption(column.id, newOptionValue.trim());
-                          onUpdateCell(row.id, column.id, newOptionValue.trim());
-                          setNewOptionValue('');
-                          setAddingOptionForColumn(null);
-                        }
-                      }}
-                    >
-                      Add
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+                  )}
+                </SelectContent>
+              </Select>
             )}
           </div>
         );
