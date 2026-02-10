@@ -37,7 +37,7 @@ interface User {
 export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [sensitiveData, setSensitiveData] = useState<{ passcode: string; api_key: string | null } | null>(null);
+  const [sensitiveData, setSensitiveData] = useState<{ passcode: string; api_key: string | null; isNewApiKey?: boolean } | null>(null);
   const [sensitiveDialogUser, setSensitiveDialogUser] = useState<string | null>(null);
   const { isAdmin } = useAuth();
   const { toast } = useToast();
@@ -114,7 +114,7 @@ export default function Users() {
     }
   };
 
-  const generateApiKey = async (userId: string) => {
+  const generateApiKey = async (userId: string, username: string) => {
     if (!isAdmin) return;
 
     const apiKey = `sk_${Array.from({ length: 64 }, () => 
@@ -128,7 +128,18 @@ export default function Users() {
         .eq('id', userId);
 
       if (error) throw error;
-      toast({ title: 'API key generated' });
+      
+      // Show the key once in dialog, then immediately clear it from DB
+      setSensitiveData({ passcode: '', api_key: apiKey, isNewApiKey: true });
+      setSensitiveDialogUser(username);
+      
+      // Clear the API key from the database after showing it
+      await supabase
+        .from('profiles')
+        .update({ api_key: null })
+        .eq('id', userId);
+        
+      toast({ title: 'API key generated', description: 'Copy it now — it won\'t be shown again.' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
@@ -263,13 +274,9 @@ export default function Users() {
                                 <Eye className="w-4 h-4 mr-2" />
                                 View Credentials
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => generateApiKey(user.id)}>
+                              <DropdownMenuItem onClick={() => generateApiKey(user.id, user.username)}>
                                 <KeyRound className="w-4 h-4 mr-2" />
                                 Generate API Key
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => revokeApiKey(user.id)} className="text-destructive">
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Revoke API Key
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -287,27 +294,35 @@ export default function Users() {
       <Dialog open={!!sensitiveData} onOpenChange={closeSensitiveDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display">Credentials for {sensitiveDialogUser}</DialogTitle>
+            <DialogTitle className="font-display">
+              {sensitiveData?.isNewApiKey ? 'New API Key' : 'Credentials'} for {sensitiveDialogUser}
+            </DialogTitle>
             <DialogDescription>
-              This is a one-time view. The data will be hidden when you close this dialog.
+              {sensitiveData?.isNewApiKey 
+                ? '⚠️ Copy this API key now. It will never be shown again.'
+                : 'This is a one-time view. The data will be hidden when you close this dialog.'}
             </DialogDescription>
           </DialogHeader>
           {sensitiveData && (
             <div className="space-y-4">
-              <div className="p-3 rounded-lg bg-muted">
-                <p className="text-xs text-muted-foreground mb-1">Passcode</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-sm font-mono font-bold tracking-widest">
-                    {sensitiveData.passcode}
-                  </code>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyToClipboard(sensitiveData.passcode, 'Passcode')}>
-                    <Copy className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-              {sensitiveData.api_key && (
+              {!sensitiveData.isNewApiKey && (
                 <div className="p-3 rounded-lg bg-muted">
-                  <p className="text-xs text-muted-foreground mb-1">API Key</p>
+                  <p className="text-xs text-muted-foreground mb-1">Passcode</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-sm font-mono font-bold tracking-widest">
+                      {sensitiveData.passcode}
+                    </code>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyToClipboard(sensitiveData.passcode, 'Passcode')}>
+                      <Copy className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {sensitiveData.api_key && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <p className="text-xs text-destructive font-medium mb-1">
+                    {sensitiveData.isNewApiKey ? 'API Key (view once)' : 'API Key'}
+                  </p>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 text-xs font-mono break-all">
                       {sensitiveData.api_key}
