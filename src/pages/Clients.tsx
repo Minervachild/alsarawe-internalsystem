@@ -134,16 +134,14 @@ export default function Clients() {
             <h1 className="text-2xl font-display font-bold text-foreground">Clients</h1>
             <p className="text-muted-foreground">Manage your B2B customers</p>
           </div>
-          {isAdmin && (
-            <Button onClick={() => {
-              setEditingClient(null);
-              setFormData({ name: '', phone: '', location: '' });
-              setDialogOpen(true);
-            }}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Client
-            </Button>
-          )}
+          <Button onClick={() => {
+            setEditingClient(null);
+            setFormData({ name: '', phone: '', location: '' });
+            setDialogOpen(true);
+          }}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Client
+          </Button>
         </div>
 
         {/* Search */}

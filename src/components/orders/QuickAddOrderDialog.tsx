@@ -39,7 +39,7 @@ interface QuickAddOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   columns: BoardColumn[];
-  clients: { id: string; name: string }[];
+  clients: { id: string; name: string; location?: string | null }[];
   employees: Employee[];
   newGroupId: string;
   onSubmit: (cells: Record<string, any>) => void;
@@ -126,7 +126,10 @@ export function QuickAddOrderDialog({
         );
 
       case 'select': {
-        const options = Array.isArray(column.options) ? column.options : [];
+        const isLocationColumn = column.name === 'Location';
+        const options = isLocationColumn
+          ? [...new Set(clients.map(c => c.location).filter(Boolean))].map(loc => loc as string)
+          : (Array.isArray(column.options) ? column.options : []);
         return (
           <Select value={value || ''} onValueChange={(val) => updateCell(column.id, val)}>
             <SelectTrigger className="rounded-xl">
@@ -135,13 +138,17 @@ export function QuickAddOrderDialog({
               </span>
             </SelectTrigger>
             <SelectContent>
-              {options.map((opt: any) => {
-                const optValue = typeof opt === 'string' ? opt : opt.value;
-                const optLabel = typeof opt === 'string' ? opt : opt.label;
-                return (
-                  <SelectItem key={optValue} value={optValue}>{optLabel}</SelectItem>
-                );
-              })}
+              {isLocationColumn
+                ? (options as string[]).map((city) => (
+                    <SelectItem key={city} value={city}>{city}</SelectItem>
+                  ))
+                : options.map((opt: any) => {
+                    const optValue = typeof opt === 'string' ? opt : opt.value;
+                    const optLabel = typeof opt === 'string' ? opt : opt.label;
+                    return (
+                      <SelectItem key={optValue} value={optValue}>{optLabel}</SelectItem>
+                    );
+                  })}
             </SelectContent>
           </Select>
         );

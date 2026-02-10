@@ -57,7 +57,7 @@ interface BoardTableProps {
   group: BoardGroup;
   columns: BoardColumn[];
   rows: BoardRow[];
-  clients: { id: string; name: string }[];
+  clients: { id: string; name: string; location?: string | null }[];
   employees: Employee[];
   onAddRow: (groupId: string) => void;
   onUpdateCell: (rowId: string, columnId: string, value: any) => void;
@@ -221,7 +221,7 @@ export function BoardTable({
         <>
           {/* Mobile: Card view */}
           {isMobile ? (
-            <div className="space-y-2">
+            <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
               {rows.map((row) => (
                 <MobileOrderCard
                   key={row.id}
@@ -235,7 +235,10 @@ export function BoardTable({
               <Button
                 variant="ghost"
                 className="w-full border border-dashed border-border/50 text-muted-foreground text-sm py-3"
-                onClick={() => onAddRow(group.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddRow(group.id);
+                }}
               >
                 <Plus className="w-4 h-4 mr-1.5" />
                 New Item
@@ -290,7 +293,10 @@ export function BoardTable({
                 style={{ 
                   gridTemplateColumns: `40px repeat(${visibleColumns.length}, minmax(120px, 1fr)) 40px` 
                 }}
-                onClick={() => onAddRow(group.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddRow(group.id);
+                }}
               >
                 <div className="p-2" />
                 <div className="p-2 flex items-center gap-2 text-muted-foreground col-span-full">

@@ -44,6 +44,7 @@ interface BoardColumn {
 interface Client {
   id: string;
   name: string;
+  location?: string | null;
 }
 
 interface Employee {
@@ -78,7 +79,7 @@ export default function Orders() {
         supabase.from('board_groups').select('*').order('position'),
         supabase.from('board_columns').select('*').order('position'),
         supabase.from('board_rows').select('*, board_cells(*)').order('position'),
-        supabase.from('clients').select('id, name').order('name'),
+        supabase.from('clients').select('id, name, location').order('name'),
         supabase.from('employees').select('id, name, avatar_color').order('name'),
       ]);
 
