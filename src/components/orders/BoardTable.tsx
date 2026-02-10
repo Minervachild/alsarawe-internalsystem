@@ -68,6 +68,7 @@ interface BoardTableProps {
   onAddEmployee?: (name: string) => Promise<Employee | null>;
   onReorderColumns?: (fromIndex: number, toIndex: number) => void;
   onUpdateTargetDays?: (groupId: string, targetDays: number) => void;
+  allowAddRow?: boolean;
 }
 
 export function BoardTable({
@@ -85,6 +86,7 @@ export function BoardTable({
   onAddEmployee,
   onReorderColumns,
   onUpdateTargetDays,
+  allowAddRow = true,
 }: BoardTableProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { toast } = useToast();
@@ -232,17 +234,19 @@ export function BoardTable({
                   onMoveRow={onMoveRow}
                 />
               ))}
-              <Button
-                variant="ghost"
-                className="w-full border border-dashed border-border/50 text-muted-foreground text-sm py-3"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddRow(group.id);
-                }}
-              >
-                <Plus className="w-4 h-4 mr-1.5" />
-                New Item
-              </Button>
+              {allowAddRow && (
+                <Button
+                  variant="ghost"
+                  className="w-full border border-dashed border-border/50 text-muted-foreground text-sm py-3"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddRow(group.id);
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  New Item
+                </Button>
+              )}
             </div>
           ) : (
             /* Desktop: Table view */
@@ -288,23 +292,25 @@ export function BoardTable({
                 />
               ))}
 
-              {/* Add New Item Row */}
-              <div 
-                className="grid border-t border-border hover:bg-muted/30 cursor-pointer transition-colors"
-                style={{ 
-                  gridTemplateColumns: `40px repeat(${visibleColumns.length}, minmax(120px, 1fr)) minmax(100px, 120px) 40px` 
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddRow(group.id);
-                }}
-              >
-                <div className="p-2" />
-                <div className="p-2 flex items-center gap-2 text-muted-foreground col-span-full">
-                  <Plus className="w-4 h-4" />
-                  <span className="text-sm">New Item</span>
+              {/* Add New Item Row - only for allowed groups */}
+              {allowAddRow && (
+                <div 
+                  className="grid border-t border-border hover:bg-muted/30 cursor-pointer transition-colors"
+                  style={{ 
+                    gridTemplateColumns: `40px repeat(${visibleColumns.length}, minmax(120px, 1fr)) minmax(100px, 120px) 40px` 
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddRow(group.id);
+                  }}
+                >
+                  <div className="p-2" />
+                  <div className="p-2 flex items-center gap-2 text-muted-foreground col-span-full">
+                    <Plus className="w-4 h-4" />
+                    <span className="text-sm">New Item</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </>

@@ -461,6 +461,7 @@ export default function Orders() {
                   onAddEmployee={handleAddEmployee}
                   onReorderColumns={handleReorderColumns}
                   onUpdateTargetDays={handleUpdateTargetDays}
+                  allowAddRow={group.name === 'New'}
                 />
               ))}
 
