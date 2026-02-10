@@ -141,36 +141,25 @@ export default function Orders() {
   };
 
   const handleUpdateCell = async (rowId: string, columnId: string, value: any) => {
-    try {
-      // Check if cell exists
-      const { data: existingCell } = await supabase
-        .from('board_cells')
-        .select('id')
-        .eq('row_id', rowId)
-        .eq('column_id', columnId)
-        .maybeSingle();
-
-      if (existingCell) {
-        await supabase
-          .from('board_cells')
-          .update({ value })
-          .eq('id', existingCell.id);
-      } else {
-        await supabase
-          .from('board_cells')
-          .insert({ row_id: rowId, column_id: columnId, value });
+    // Optimistic update - update UI immediately
+    setRows(prev => prev.map(row => {
+      if (row.id === rowId) {
+        return {
+          ...row,
+          cells: { ...row.cells, [columnId]: value }
+        };
       }
+      return row;
+    }));
 
-      // Update local state
-      setRows(prev => prev.map(row => {
-        if (row.id === rowId) {
-          return {
-            ...row,
-            cells: { ...row.cells, [columnId]: value }
-          };
-        }
-        return row;
-      }));
+    try {
+      // Single upsert instead of check-then-insert/update
+      await supabase
+        .from('board_cells')
+        .upsert(
+          { row_id: rowId, column_id: columnId, value },
+          { onConflict: 'row_id,column_id' }
+        );
     } catch (error: any) {
       toast({
         title: 'Error',
