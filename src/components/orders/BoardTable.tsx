@@ -250,7 +250,7 @@ export function BoardTable({
               {/* Table Header */}
               <div className="grid bg-muted/50 border-b border-border text-xs font-medium text-muted-foreground"
                 style={{ 
-                  gridTemplateColumns: `40px repeat(${visibleColumns.length}, minmax(120px, 1fr)) 40px` 
+                  gridTemplateColumns: `40px repeat(${visibleColumns.length}, minmax(120px, 1fr)) minmax(100px, 120px) 40px` 
                 }}
               >
                 <div className="p-2" />
@@ -262,6 +262,7 @@ export function BoardTable({
                     onReorder={handleColumnReorder}
                   />
                 ))}
+                <div className="p-2 truncate">Created</div>
                 <div className="p-2 flex items-center justify-center">
                   <Plus className="w-4 h-4 cursor-pointer hover:text-foreground" />
                 </div>
@@ -291,7 +292,7 @@ export function BoardTable({
               <div 
                 className="grid border-t border-border hover:bg-muted/30 cursor-pointer transition-colors"
                 style={{ 
-                  gridTemplateColumns: `40px repeat(${visibleColumns.length}, minmax(120px, 1fr)) 40px` 
+                  gridTemplateColumns: `40px repeat(${visibleColumns.length}, minmax(120px, 1fr)) minmax(100px, 120px) 40px` 
                 }}
                 onClick={(e) => {
                   e.stopPropagation();

@@ -42,6 +42,7 @@ interface BoardRow {
   group_id: string;
   position: number;
   cells: Record<string, any>;
+  created_at?: string;
 }
 
 interface BoardGroup {
@@ -338,7 +339,7 @@ export const BoardTableRow = memo(function BoardTableRow({
         isDragging && "opacity-50 bg-muted"
       )}
       style={{ 
-        gridTemplateColumns: `40px repeat(${columns.length}, minmax(120px, 1fr)) 40px` 
+        gridTemplateColumns: `40px repeat(${columns.length}, minmax(120px, 1fr)) minmax(100px, 120px) 40px` 
       }}
       draggable={!isTouchDevice}
       onDragStart={!isTouchDevice ? (e) => onDragStart(e, row.id) : undefined}
@@ -356,6 +357,13 @@ export const BoardTableRow = memo(function BoardTableRow({
           {renderCell(column)}
         </div>
       ))}
+
+      {/* Created Date */}
+      <div className="p-2 flex items-center min-w-0">
+        <span className="text-xs text-muted-foreground truncate">
+          {row.created_at ? new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+        </span>
+      </div>
 
       {/* Actions */}
       <div className={cn("p-2 flex items-center justify-center", isTouchDevice ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>

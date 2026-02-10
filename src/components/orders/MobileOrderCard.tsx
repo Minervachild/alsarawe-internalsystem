@@ -146,15 +146,15 @@ export const MobileOrderCard = memo(function MobileOrderCard({
         )}
       </div>
 
-      {/* Bottom row: total + date */}
+      {/* Bottom row: created + date */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        {total ? (
-          <span className="font-medium text-foreground">﷼{total}</span>
+        {row.created_at ? (
+          <span>Created {new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
         ) : (
           <span>—</span>
         )}
         {dueDate ? (
-          <span>{new Date(dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+          <span>Due {new Date(dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
         ) : (
           <span>No date</span>
         )}
