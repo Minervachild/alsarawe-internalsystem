@@ -60,7 +60,7 @@ interface Employee {
 interface BoardTableRowProps {
   row: BoardRow;
   columns: BoardColumn[];
-  clients: { id: string; name: string }[];
+  clients: { id: string; name: string; location?: string | null }[];
   employees: Employee[];
   onUpdateCell: (rowId: string, columnId: string, value: any) => void;
   onDeleteRow: (rowId: string) => void;
@@ -89,8 +89,6 @@ export const BoardTableRow = memo(function BoardTableRow({
   onAddEmployee,
 }: BoardTableRowProps) {
   const [editingCell, setEditingCell] = useState<string | null>(null);
-  const [newOptionValue, setNewOptionValue] = useState('');
-  const [addingOptionForColumn, setAddingOptionForColumn] = useState<string | null>(null);
 
   const getCellValue = (columnId: string) => {
     return row.cells[columnId];
@@ -164,105 +162,67 @@ export const BoardTableRow = memo(function BoardTableRow({
           </span>
         );
 
-      case 'select':
-        const options = Array.isArray(column.options) ? column.options : [];
-        const selectedOption = options.find((opt: any) => 
-          typeof opt === 'string' ? opt === value : opt.value === value
-        );
-        const displayValue = typeof selectedOption === 'string' ? selectedOption : selectedOption?.label || value;
-        const optionColor = typeof selectedOption === 'object' ? selectedOption?.color : null;
+      case 'select': {
         const isLocationColumn = column.name === 'Location';
-        
+        const options = isLocationColumn
+          ? [...new Set(clients.map(c => c.location).filter(Boolean))].map(loc => loc as string)
+          : (Array.isArray(column.options) ? column.options : []);
+        const selectedOption = isLocationColumn
+          ? value
+          : options.find((opt: any) => typeof opt === 'string' ? opt === value : opt.value === value);
+        const displayValue = isLocationColumn
+          ? value
+          : (typeof selectedOption === 'string' ? selectedOption : selectedOption?.label || value);
+        const optionColor = isLocationColumn ? null : (typeof selectedOption === 'object' ? selectedOption?.color : null);
         return (
           <div className="flex items-center gap-1 w-full">
-            {addingOptionForColumn === column.id ? (
-              <div className="flex items-center gap-1 w-full">
-                <Input
-                  placeholder="City name..."
-                  value={newOptionValue}
-                  onChange={(e) => setNewOptionValue(e.target.value)}
-                  autoFocus
-                  className="h-7 text-sm flex-1"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newOptionValue.trim() && onAddColumnOption) {
-                      onAddColumnOption(column.id, newOptionValue.trim());
-                      onUpdateCell(row.id, column.id, newOptionValue.trim());
-                      setNewOptionValue('');
-                      setAddingOptionForColumn(null);
-                    }
-                    if (e.key === 'Escape') {
-                      setNewOptionValue('');
-                      setAddingOptionForColumn(null);
-                    }
-                  }}
-                />
-                <Button
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => {
-                    if (newOptionValue.trim() && onAddColumnOption) {
-                      onAddColumnOption(column.id, newOptionValue.trim());
-                      onUpdateCell(row.id, column.id, newOptionValue.trim());
-                      setNewOptionValue('');
-                      setAddingOptionForColumn(null);
-                    }
-                  }}
-                >
-                  Add
-                </Button>
-              </div>
-            ) : (
-              <Select
-                value={value || ''}
-                onValueChange={(val) => {
-                  if (val === '__add_new__') {
-                    setAddingOptionForColumn(column.id);
-                  } else {
-                    onUpdateCell(row.id, column.id, val);
-                  }
-                }}
-              >
-                <SelectTrigger className="h-7 text-sm border-0 bg-transparent hover:bg-muted/50">
-                  {value ? (
-                    <span 
-                      className="px-2 py-0.5 rounded text-xs font-medium text-white"
-                      style={{ backgroundColor: optionColor || getStatusColor(value) }}
-                    >
-                      {displayValue}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">—</span>
-                  )}
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  {options.map((opt: any) => {
-                    const optValue = typeof opt === 'string' ? opt : opt.value;
-                    const optLabel = typeof opt === 'string' ? opt : opt.label;
-                    const color = typeof opt === 'object' ? opt.color : null;
-                    return (
-                      <SelectItem key={optValue} value={optValue}>
-                        <span 
-                          className="px-2 py-0.5 rounded text-xs font-medium text-white"
-                          style={{ backgroundColor: color || getStatusColor(optValue) }}
-                        >
-                          {optLabel}
+            <Select
+              value={value || ''}
+              onValueChange={(val) => {
+                onUpdateCell(row.id, column.id, val);
+              }}
+            >
+              <SelectTrigger className="h-7 text-sm border-0 bg-transparent hover:bg-muted/50">
+                {value ? (
+                  <span 
+                    className="px-2 py-0.5 rounded text-xs font-medium text-white"
+                    style={{ backgroundColor: optionColor || getStatusColor(value) }}
+                  >
+                    {displayValue}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground text-sm">—</span>
+                )}
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                {isLocationColumn
+                  ? (options as string[]).map((city) => (
+                      <SelectItem key={city} value={city}>
+                        <span className="px-2 py-0.5 rounded text-xs font-medium text-white" style={{ backgroundColor: getStatusColor(city) }}>
+                          {city}
                         </span>
                       </SelectItem>
-                    );
-                  })}
-                  {isLocationColumn && (
-                    <SelectItem value="__add_new__">
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <Plus className="w-3 h-3" />
-                        Add new city
-                      </span>
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            )}
+                    ))
+                  : options.map((opt: any) => {
+                      const optValue = typeof opt === 'string' ? opt : opt.value;
+                      const optLabel = typeof opt === 'string' ? opt : opt.label;
+                      const color = typeof opt === 'object' ? opt.color : null;
+                      return (
+                        <SelectItem key={optValue} value={optValue}>
+                          <span 
+                            className="px-2 py-0.5 rounded text-xs font-medium text-white"
+                            style={{ backgroundColor: color || getStatusColor(optValue) }}
+                          >
+                            {optLabel}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
+              </SelectContent>
+            </Select>
           </div>
         );
+      }
 
       case 'date':
         if (isEditing) {
@@ -369,7 +329,9 @@ export const BoardTableRow = memo(function BoardTableRow({
     }
   };
 
-  return (
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    return (
     <div
       className={cn(
         "grid border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors group",
@@ -378,12 +340,13 @@ export const BoardTableRow = memo(function BoardTableRow({
       style={{ 
         gridTemplateColumns: `40px repeat(${columns.length}, minmax(120px, 1fr)) 40px` 
       }}
-      draggable
-      onDragStart={(e) => onDragStart(e, row.id)}
-      onDragEnd={onDragEnd}
+      draggable={!isTouchDevice}
+      onDragStart={!isTouchDevice ? (e) => onDragStart(e, row.id) : undefined}
+      onDragEnd={!isTouchDevice ? onDragEnd : undefined}
+      onClick={(e) => e.stopPropagation()}
     >
-      {/* Drag Handle */}
-      <div className="p-2 flex items-center justify-center cursor-grab opacity-0 group-hover:opacity-100">
+      {/* Drag Handle - hidden on touch devices */}
+      <div className={cn("p-2 flex items-center justify-center cursor-grab", isTouchDevice ? "opacity-0" : "opacity-0 group-hover:opacity-100")}>
         <GripVertical className="w-4 h-4 text-muted-foreground" />
       </div>
 
@@ -395,7 +358,7 @@ export const BoardTableRow = memo(function BoardTableRow({
       ))}
 
       {/* Actions */}
-      <div className="p-2 flex items-center justify-center opacity-0 group-hover:opacity-100">
+      <div className={cn("p-2 flex items-center justify-center", isTouchDevice ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
