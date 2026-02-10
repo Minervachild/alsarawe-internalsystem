@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Package, AlertTriangle, MoreHorizontal, Pencil, Trash2, ArrowUp, ArrowDown, TrendingUp, Clock, DollarSign } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -93,6 +94,7 @@ export default function Inventory() {
   const [movementReason, setMovementReason] = useState('');
   const [movementNotes, setMovementNotes] = useState('');
   const [consumptionDate, setConsumptionDate] = useState('');
+  const [priceIncludesVat, setPriceIncludesVat] = useState(false);
   const { toast } = useToast();
 
   const stockOutReasons = [
@@ -205,16 +207,29 @@ export default function Inventory() {
       }
 
       // Calculate total price with VAT for stock in
-      const totalWithVat = movementType === 'in' 
-        ? movementUnitPrice * movementQuantity * (1 + VAT_RATE)
-        : 0;
+      let unitPriceExVat: number;
+      let totalWithVat: number;
+      if (movementType === 'in') {
+        if (priceIncludesVat) {
+          // Price already includes VAT — back-calculate
+          unitPriceExVat = movementUnitPrice / (1 + VAT_RATE);
+          totalWithVat = movementUnitPrice * movementQuantity;
+        } else {
+          // Price excludes VAT — add it
+          unitPriceExVat = movementUnitPrice;
+          totalWithVat = movementUnitPrice * movementQuantity * (1 + VAT_RATE);
+        }
+      } else {
+        unitPriceExVat = 0;
+        totalWithVat = 0;
+      }
 
       // Record movement
       await supabase.from('inventory_movements').insert({
         item_id: selectedItemForMovement.id,
         type: movementType,
         quantity: movementQuantity,
-        unit_price: movementType === 'in' ? movementUnitPrice : 0,
+        unit_price: movementType === 'in' ? unitPriceExVat : 0,
         vat_rate: movementType === 'in' ? VAT_RATE : 0,
         total_price: totalWithVat,
         reason: movementType === 'out' ? movementReason : 'purchase',
@@ -246,6 +261,7 @@ export default function Inventory() {
       setMovementReason('');
       setMovementNotes('');
       setConsumptionDate('');
+      setPriceIncludesVat(false);
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -271,6 +287,7 @@ export default function Inventory() {
     setMovementReason('');
     setMovementNotes('');
     setConsumptionDate('');
+    setPriceIncludesVat(false);
     setMovementDialogOpen(true);
   };
 
@@ -684,7 +701,7 @@ export default function Inventory() {
 
             {movementType === 'in' && (
               <div className="space-y-2">
-                <Label>Unit Price (before VAT) *</Label>
+                <Label>Unit Price *</Label>
                 <Input
                   type="number"
                   value={movementUnitPrice}
@@ -693,20 +710,49 @@ export default function Inventory() {
                   step="0.01"
                   placeholder="0.00"
                 />
+                <div className="flex items-center justify-between mt-2">
+                  <Label htmlFor="vat-toggle" className="text-sm text-muted-foreground cursor-pointer">
+                    Price includes VAT ({(VAT_RATE * 100).toFixed(0)}%)
+                  </Label>
+                  <Switch
+                    id="vat-toggle"
+                    checked={priceIncludesVat}
+                    onCheckedChange={setPriceIncludesVat}
+                  />
+                </div>
                 {movementQuantity > 0 && movementUnitPrice > 0 && (
                   <div className="text-sm text-muted-foreground space-y-1 mt-2 p-3 bg-muted/50 rounded-lg">
-                    <div className="flex justify-between">
-                      <span>Subtotal:</span>
-                      <span>{(movementUnitPrice * movementQuantity).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>VAT ({(VAT_RATE * 100).toFixed(0)}%):</span>
-                      <span>{(movementUnitPrice * movementQuantity * VAT_RATE).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between font-semibold border-t pt-1">
-                      <span>Total:</span>
-                      <span>{(movementUnitPrice * movementQuantity * (1 + VAT_RATE)).toFixed(2)}</span>
-                    </div>
+                    {priceIncludesVat ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span>Price (ex. VAT):</span>
+                          <span>﷼{(movementUnitPrice / (1 + VAT_RATE)).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>VAT ({(VAT_RATE * 100).toFixed(0)}%):</span>
+                          <span>﷼{(movementUnitPrice - movementUnitPrice / (1 + VAT_RATE)).toFixed(2)} × {movementQuantity}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold border-t pt-1">
+                          <span>Total (inc. VAT):</span>
+                          <span>﷼{(movementUnitPrice * movementQuantity).toFixed(2)}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between">
+                          <span>Subtotal:</span>
+                          <span>﷼{(movementUnitPrice * movementQuantity).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>VAT ({(VAT_RATE * 100).toFixed(0)}%):</span>
+                          <span>﷼{(movementUnitPrice * movementQuantity * VAT_RATE).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold border-t pt-1">
+                          <span>Total (inc. VAT):</span>
+                          <span>﷼{(movementUnitPrice * movementQuantity * (1 + VAT_RATE)).toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
