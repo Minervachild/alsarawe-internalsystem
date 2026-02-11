@@ -189,6 +189,9 @@ export type Database = {
         Row: {
           created_at: string | null
           created_by: string | null
+          deleted: boolean
+          deleted_at: string | null
+          deleted_by: string | null
           group_id: string
           id: string
           position: number
@@ -197,6 +200,9 @@ export type Database = {
         Insert: {
           created_at?: string | null
           created_by?: string | null
+          deleted?: boolean
+          deleted_at?: string | null
+          deleted_by?: string | null
           group_id: string
           id?: string
           position?: number
@@ -205,6 +211,9 @@ export type Database = {
         Update: {
           created_at?: string | null
           created_by?: string | null
+          deleted?: boolean
+          deleted_at?: string | null
+          deleted_by?: string | null
           group_id?: string
           id?: string
           position?: number
@@ -310,6 +319,7 @@ export type Database = {
           created_at: string | null
           id: string
           location: string | null
+          logo_url: string | null
           name: string
           phone: string | null
           updated_at: string | null
@@ -318,6 +328,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           location?: string | null
+          logo_url?: string | null
           name: string
           phone?: string | null
           updated_at?: string | null
@@ -326,6 +337,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           location?: string | null
+          logo_url?: string | null
           name?: string
           phone?: string | null
           updated_at?: string | null
@@ -678,6 +690,7 @@ export type Database = {
           hours: number
           id: string
           is_paid: boolean | null
+          type: string
         }
         Insert: {
           amount: number
@@ -687,6 +700,7 @@ export type Database = {
           hours: number
           id?: string
           is_paid?: boolean | null
+          type?: string
         }
         Update: {
           amount?: number
@@ -696,6 +710,7 @@ export type Database = {
           hours?: number
           id?: string
           is_paid?: boolean | null
+          type?: string
         }
         Relationships: [
           {
@@ -713,6 +728,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      products: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          default_price: number | null
+          full_name: string
+          id: string
+          origin: string | null
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          default_price?: number | null
+          full_name: string
+          id?: string
+          origin?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          default_price?: number | null
+          full_name?: string
+          id?: string
+          origin?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {

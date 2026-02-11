@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2, Zap } from 'lucide-react';
+import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2, Zap, Sparkles, Undo2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { BoardTable } from '@/components/orders/BoardTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { QuickAddOrderDialog } from '@/components/orders/QuickAddOrderDialog';
+import { SmartQuickAdd } from '@/components/orders/SmartQuickAdd';
 
 interface BoardGroup {
   id: string;
@@ -65,8 +66,11 @@ export default function Orders() {
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupColor, setNewGroupColor] = useState('#22c55e');
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [smartAddOpen, setSmartAddOpen] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [undoInfo, setUndoInfo] = useState<{ rowId: string; timeout: NodeJS.Timeout } | null>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   useEffect(() => {
     fetchData();
@@ -173,25 +177,65 @@ export default function Orders() {
   };
 
   const handleDeleteRow = async (rowId: string) => {
-    // Optimistic update - remove from UI immediately
+    // Soft delete - hide from UI immediately
     const previousRows = rows;
-    setRows(prev => prev.filter(row => row.id !== rowId));
-    toast({ title: 'Order deleted' });
+    setRows(prev => prev.map(row => row.id === rowId ? { ...row, deleted: true } : row));
 
     try {
-      // Delete in background
+      await supabase
+        .from('board_rows')
+        .update({ deleted: true, deleted_at: new Date().toISOString(), deleted_by: user?.id })
+        .eq('id', rowId);
+
+      // Show undo toast
+      const timeout = setTimeout(() => setUndoInfo(null), 8000);
+      setUndoInfo({ rowId, timeout });
+      toast({ title: 'Order deleted', description: 'Undo available for 8 seconds.' });
+    } catch (error: any) {
+      setRows(previousRows);
+      toast({ title: 'Error', description: 'Failed to delete order.', variant: 'destructive' });
+    }
+  };
+
+  const handleUndoDelete = async () => {
+    if (!undoInfo) return;
+    const { rowId, timeout } = undoInfo;
+    clearTimeout(timeout);
+    setUndoInfo(null);
+
+    try {
+      await supabase
+        .from('board_rows')
+        .update({ deleted: false, deleted_at: null, deleted_by: null })
+        .eq('id', rowId);
+
+      setRows(prev => prev.map(row => row.id === rowId ? { ...row, deleted: false } : row));
+      toast({ title: 'Order restored' });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to restore order.', variant: 'destructive' });
+    }
+  };
+
+  const handlePermanentDelete = async (rowId: string) => {
+    try {
       await Promise.all([
         supabase.from('board_cells').delete().eq('row_id', rowId),
         supabase.from('board_rows').delete().eq('id', rowId),
       ]);
-    } catch (error: any) {
-      // Rollback on failure
-      setRows(previousRows);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete order.',
-        variant: 'destructive',
-      });
+      setRows(prev => prev.filter(r => r.id !== rowId));
+      toast({ title: 'Permanently deleted' });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to permanently delete.', variant: 'destructive' });
+    }
+  };
+
+  const handleRestoreRow = async (rowId: string) => {
+    try {
+      await supabase.from('board_rows').update({ deleted: false, deleted_at: null, deleted_by: null }).eq('id', rowId);
+      setRows(prev => prev.map(r => r.id === rowId ? { ...r, deleted: false } : r));
+      toast({ title: 'Order restored' });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to restore.', variant: 'destructive' });
     }
   };
 
@@ -362,15 +406,16 @@ export default function Orders() {
 
   const getRowsForGroup = (groupId: string) => {
     return rows
-      .filter(row => row.group_id === groupId)
+      .filter(row => row.group_id === groupId && !(row as any).deleted)
       .filter(row => {
         if (!searchQuery) return true;
-        // Search across all cell values
         return Object.values(row.cells).some(value => 
           String(value).toLowerCase().includes(searchQuery.toLowerCase())
         );
       });
   };
+
+  const deletedRows = rows.filter(r => (r as any).deleted);
 
   if (isLoading) {
     return (
@@ -421,8 +466,8 @@ export default function Orders() {
             </div>
           </div>
 
-          <TabsContent value="board" className="space-y-3 sm:space-y-4">
-            {/* Search + Quick Add */}
+           <TabsContent value="board" className="space-y-3 sm:space-y-4">
+            {/* Search + Quick Add + Smart Add */}
             <div className="flex items-center gap-2 sm:gap-4">
               <div className="relative flex-1 sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -434,13 +479,61 @@ export default function Orders() {
                 />
               </div>
               <Button
+                variant="outline"
+                className="rounded-xl gap-1.5 shrink-0"
+                onClick={() => setSmartAddOpen(true)}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">Smart Add</span>
+              </Button>
+              <Button
                 className="bg-destructive hover:bg-destructive/90 text-white rounded-xl gap-1.5 shrink-0"
                 onClick={() => setQuickAddOpen(true)}
               >
                 <Zap className="w-4 h-4" />
                 <span className="hidden sm:inline">Quick Add</span>
               </Button>
+              {undoInfo && (
+                <Button variant="outline" className="rounded-xl gap-1.5 shrink-0 border-warning text-warning" onClick={handleUndoDelete}>
+                  <Undo2 className="w-4 h-4" />
+                  Undo
+                </Button>
+              )}
+              <Button
+                variant={showDeleted ? 'secondary' : 'ghost'}
+                className="rounded-xl gap-1.5 shrink-0"
+                onClick={() => setShowDeleted(!showDeleted)}
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Deleted ({deletedRows.length})</span>
+              </Button>
             </div>
+
+            {/* Recently Deleted */}
+            {showDeleted && deletedRows.length > 0 && (
+              <div className="bg-muted/50 rounded-xl border border-border/50 p-4 space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Recently Deleted</h3>
+                {deletedRows.map(row => {
+                  const clientCol = columns.find(c => c.type === 'relation' || c.name === 'Client');
+                  const clientName = clientCol ? row.cells[clientCol.id] : 'Unknown';
+                  return (
+                    <div key={row.id} className="flex items-center justify-between bg-card rounded-lg p-2 px-3 border border-border/30">
+                      <span className="text-sm">{clientName || 'Unnamed order'}</span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => handleRestoreRow(row.id)}>
+                          <Undo2 className="w-3 h-3 mr-1" /> Restore
+                        </Button>
+                        {isAdmin && (
+                          <Button size="sm" variant="destructive" onClick={() => handlePermanentDelete(row.id)}>
+                            Delete Forever
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Board Tables */}
             <div className="overflow-x-auto">
@@ -592,6 +685,56 @@ export default function Orders() {
         }}
         onAddColumnOption={handleAddColumnOption}
         onAddEmployee={handleAddEmployee}
+      />
+
+      {/* Smart Quick Add */}
+      <SmartQuickAdd
+        open={smartAddOpen}
+        onOpenChange={setSmartAddOpen}
+        clients={clients}
+        columns={columns}
+        onSubmit={async (cells) => {
+          const targetGroupId = groups.find(g => g.name === 'New')?.id || groups[0]?.id;
+          if (!targetGroupId) return;
+
+          try {
+            const groupRows = rows.filter(r => r.group_id === targetGroupId);
+            const maxPosition = groupRows.length > 0
+              ? Math.max(...groupRows.map(r => r.position)) + 1
+              : 0;
+
+            const { data: newRow, error } = await supabase
+              .from('board_rows')
+              .insert({
+                group_id: targetGroupId,
+                position: maxPosition,
+                created_by: user?.id,
+              })
+              .select()
+              .single();
+
+            if (error) throw error;
+
+            const cellEntries = Object.entries(cells).filter(([_, v]) => v !== undefined && v !== '' && v !== null);
+            if (cellEntries.length > 0) {
+              await Promise.all(
+                cellEntries.map(([columnId, value]) =>
+                  supabase.from('board_cells').insert({
+                    row_id: newRow.id,
+                    column_id: columnId,
+                    value,
+                  })
+                )
+              );
+            }
+
+            const cellsMap = Object.fromEntries(cellEntries);
+            setRows(prev => [...prev, { ...newRow, cells: cellsMap }]);
+            toast({ title: 'Order added via Smart Add!' });
+          } catch (error: any) {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+          }
+        }}
       />
     </AppLayout>
   );

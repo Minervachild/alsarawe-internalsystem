@@ -10,7 +10,8 @@ import {
   Settings,
   CheckSquare,
   ClipboardCheck,
-  Receipt
+  Receipt,
+  Coffee
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -85,6 +86,13 @@ const workspaces: WorkspaceItem[] = [
     icon: Receipt,
     href: '/sales',
     color: '#14B8A6',
+  },
+  {
+    title: 'Products',
+    description: 'Product catalog & aliases',
+    icon: Coffee,
+    href: '/products',
+    color: '#D97706',
   },
   {
     title: 'Settings',
