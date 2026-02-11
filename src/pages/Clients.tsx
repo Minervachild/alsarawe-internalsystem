@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Phone, MapPin, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Phone, MapPin, MoreHorizontal, Pencil, Trash2, Upload, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +25,7 @@ interface Client {
   name: string;
   phone: string | null;
   location: string | null;
+  logo_url: string | null;
 }
 
 export default function Clients() {
@@ -33,7 +34,7 @@ export default function Clients() {
   const [searchQuery, setSearchQuery] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [formData, setFormData] = useState({ name: '', phone: '', location: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', location: '', logo_url: '' });
   const { toast } = useToast();
   const { isAdmin } = useAuth();
 
@@ -84,7 +85,7 @@ export default function Clients() {
 
       setDialogOpen(false);
       setEditingClient(null);
-      setFormData({ name: '', phone: '', location: '' });
+      setFormData({ name: '', phone: '', location: '', logo_url: '' });
       fetchClients();
     } catch (error: any) {
       toast({
@@ -101,6 +102,7 @@ export default function Clients() {
       name: client.name,
       phone: client.phone || '',
       location: client.location || '',
+      logo_url: client.logo_url || '',
     });
     setDialogOpen(true);
   };
@@ -136,7 +138,7 @@ export default function Clients() {
           </div>
           <Button onClick={() => {
             setEditingClient(null);
-            setFormData({ name: '', phone: '', location: '' });
+            setFormData({ name: '', phone: '', location: '', logo_url: '' });
             setDialogOpen(true);
           }}>
             <Plus className="w-4 h-4 mr-2" />
@@ -168,11 +170,15 @@ export default function Clients() {
               <div key={client.id} className="bg-card rounded-xl border border-border/50 p-4 hover-lift">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-semibold text-primary">
-                        {client.name.slice(0, 2).toUpperCase()}
-                      </span>
-                    </div>
+                    {client.logo_url ? (
+                      <img src={client.logo_url} alt={client.name} className="w-10 h-10 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-primary">
+                          {client.name.slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <h3 className="font-semibold text-foreground">{client.name}</h3>
                     </div>
@@ -254,6 +260,17 @@ export default function Clients() {
                 onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
                 placeholder="City, Country"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Logo URL</Label>
+              <Input
+                value={formData.logo_url}
+                onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))}
+                placeholder="https://example.com/logo.png"
+              />
+              {formData.logo_url && (
+                <img src={formData.logo_url} alt="Preview" className="w-12 h-12 rounded-full object-cover border" />
+              )}
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
