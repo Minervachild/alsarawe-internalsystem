@@ -29,7 +29,7 @@ export default function Products() {
   const [searchQuery, setSearchQuery] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({ full_name: '', aliases: '', origin: '', default_price: '' });
+  const [formData, setFormData] = useState({ full_name: '', aliases: '', origin: '' });
   const { toast } = useToast();
   const { isAdmin } = useAuth();
 
@@ -49,7 +49,6 @@ export default function Products() {
       full_name: formData.full_name.trim(),
       aliases,
       origin: formData.origin.trim() || null,
-      default_price: formData.default_price ? parseFloat(formData.default_price) : 0,
     };
 
     try {
@@ -64,7 +63,7 @@ export default function Products() {
       }
       setDialogOpen(false);
       setEditing(null);
-      setFormData({ full_name: '', aliases: '', origin: '', default_price: '' });
+      setFormData({ full_name: '', aliases: '', origin: '' });
       fetchProducts();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -77,7 +76,6 @@ export default function Products() {
       full_name: p.full_name,
       aliases: (p.aliases || []).join(', '),
       origin: p.origin || '',
-      default_price: p.default_price?.toString() || '',
     });
     setDialogOpen(true);
   };
@@ -103,7 +101,7 @@ export default function Products() {
             <p className="text-muted-foreground">Manage product catalog &amp; aliases for Quick Add</p>
           </div>
           {isAdmin && (
-            <Button onClick={() => { setEditing(null); setFormData({ full_name: '', aliases: '', origin: '', default_price: '' }); setDialogOpen(true); }}>
+            <Button onClick={() => { setEditing(null); setFormData({ full_name: '', aliases: '', origin: '' }); setDialogOpen(true); }}>
               <Plus className="w-4 h-4 mr-2" />
               Add Product
             </Button>
@@ -146,13 +144,13 @@ export default function Products() {
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1">
                   <Tag className="w-3 h-3 text-muted-foreground mt-0.5" />
+                  {product.origin && (
+                    <Badge variant="default" className="text-xs">{product.origin}</Badge>
+                  )}
                   {product.aliases?.length > 0 ? product.aliases.map(alias => (
                     <Badge key={alias} variant="outline" className="text-xs">{alias}</Badge>
-                  )) : <span className="text-xs text-muted-foreground">No aliases</span>}
+                  )) : !product.origin && <span className="text-xs text-muted-foreground">No tags</span>}
                 </div>
-                {product.default_price ? (
-                  <p className="text-sm text-muted-foreground mt-2">Default: {product.default_price} ﷼</p>
-                ) : null}
               </div>
             ))}
           </div>
@@ -170,19 +168,13 @@ export default function Products() {
               <Input value={formData.full_name} onChange={e => setFormData(p => ({ ...p, full_name: e.target.value }))} placeholder="e.g. Ethiopian Guji" required />
             </div>
             <div className="space-y-2">
-              <Label>Aliases (comma-separated)</Label>
-              <Input value={formData.aliases} onChange={e => setFormData(p => ({ ...p, aliases: e.target.value }))} placeholder="e.g. guji, eth guji" />
-              <p className="text-xs text-muted-foreground">Shorthand names used in Quick Add</p>
+              <Label>Tags / Aliases (comma-separated)</Label>
+              <Input value={formData.aliases} onChange={e => setFormData(p => ({ ...p, aliases: e.target.value }))} placeholder="e.g. guji, eth guji, ethiopia" />
+              <p className="text-xs text-muted-foreground">Shorthand names used in Quick Add for matching</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Origin</Label>
-                <Input value={formData.origin} onChange={e => setFormData(p => ({ ...p, origin: e.target.value }))} placeholder="e.g. Ethiopia" />
-              </div>
-              <div className="space-y-2">
-                <Label>Default Price (﷼)</Label>
-                <Input type="number" value={formData.default_price} onChange={e => setFormData(p => ({ ...p, default_price: e.target.value }))} placeholder="0" />
-              </div>
+            <div className="space-y-2">
+              <Label>Origin</Label>
+              <Input value={formData.origin} onChange={e => setFormData(p => ({ ...p, origin: e.target.value }))} placeholder="e.g. Ethiopia" />
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
