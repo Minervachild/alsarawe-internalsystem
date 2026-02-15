@@ -237,7 +237,7 @@ export default function Users() {
                         <Switch
                           checked={user.is_active}
                           onCheckedChange={(checked) => updatePermission(user.id, 'is_active', checked)}
-                          disabled={!isAdmin || user.role === 'admin'}
+                          disabled={!isAdmin}
                         />
                       </td>
                       <td className="px-4 py-3 text-center">
