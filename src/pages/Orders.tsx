@@ -676,8 +676,7 @@ export default function Orders() {
               );
             }
 
-            const cellsMap = Object.fromEntries(cellEntries);
-            setRows(prev => [...prev, { ...newRow, cells: cellsMap }]);
+            await fetchData();
             toast({ title: 'Order added!' });
           } catch (error: any) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -728,8 +727,7 @@ export default function Orders() {
               );
             }
 
-            const cellsMap = Object.fromEntries(cellEntries);
-            setRows(prev => [...prev, { ...newRow, cells: cellsMap }]);
+            await fetchData();
             toast({ title: 'Order added via Smart Add!' });
           } catch (error: any) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });

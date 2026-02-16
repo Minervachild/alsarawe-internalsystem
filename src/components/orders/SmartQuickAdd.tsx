@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Zap, Sparkles, User, Package, Hash, MapPin, AlertCircle } from 'lucide-react';
+import { Zap, Sparkles, User, Package, Hash, MapPin, AlertCircle, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -34,17 +34,24 @@ interface Product {
   aliases: string[];
 }
 
+interface ParsedItem {
+  text: string;
+  parsed: ParsedOrder;
+}
+
 export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }: SmartQuickAddProps) {
   const [text, setText] = useState('');
   const [parsed, setParsed] = useState<ParsedOrder | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [items, setItems] = useState<ParsedItem[]>([]);
 
   useEffect(() => {
     if (open) {
       setText('');
       setParsed(null);
       setSelectedClientId('');
+      setItems([]);
       fetchProducts();
     }
   }, [open]);
@@ -65,25 +72,38 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
     }
     const result = parseOrderText(value, clients, products);
     setParsed(result);
-    if (result.clientId) setSelectedClientId(result.clientId);
-  }, [clients, products]);
+    if (result.clientId && !selectedClientId) setSelectedClientId(result.clientId);
+  }, [clients, products, selectedClientId]);
+
+  const handleAddItem = () => {
+    if (!parsed || (!parsed.productName && !parsed.quantity)) return;
+    setItems(prev => [...prev, { text: text.trim(), parsed: { ...parsed } }]);
+    setText('');
+    setParsed(null);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setItems(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = () => {
-    if (!parsed) return;
+    // Combine current input + already added items
+    const allItems = [...items];
+    if (parsed && (parsed.productName || parsed.quantity)) {
+      allItems.push({ text: text.trim(), parsed: { ...parsed } });
+    }
+
+    if (allItems.length === 0 && !parsed) return;
 
     const cells: Record<string, any> = {};
 
-    // Map parsed data to column IDs
     const clientCol = columns.find(c => c.type === 'relation' || c.name === 'Client');
     const itemsCol = columns.find(c => c.type === 'items_qty' || c.name === 'Items');
     const locationCol = columns.find(c => c.name === 'Location');
 
-    // Resolve client
-    const resolvedClient = selectedClientId
-      ? clients.find(c => c.id === selectedClientId)
-      : parsed.clientId
-        ? clients.find(c => c.id === parsed.clientId)
-        : null;
+    // Resolve client - use selected or from first parsed result with a client
+    const resolvedClientId = selectedClientId || allItems.find(i => i.parsed.clientId)?.parsed.clientId;
+    const resolvedClient = resolvedClientId ? clients.find(c => c.id === resolvedClientId) : null;
 
     if (clientCol && resolvedClient) {
       cells[clientCol.id] = resolvedClient.name;
@@ -93,22 +113,33 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
       cells[locationCol.id] = resolvedClient.location;
     }
 
-    // Build items value
-    if (itemsCol && (parsed.productName || parsed.quantity)) {
-      const itemName = parsed.productName || parsed.productAlias || 'Item';
-      const qty = parsed.quantityNum || 1;
-      const unit = parsed.unit || 'kg';
-      cells[itemsCol.id] = {
-        items: [{ name: itemName, qty, unit }],
-      };
+    // Build items list from all parsed items
+    if (itemsCol) {
+      const itemsList = allItems
+        .filter(i => i.parsed.productName || i.parsed.quantity)
+        .map(i => ({
+          name: i.parsed.productName || i.parsed.productAlias || 'Item',
+          qty: i.parsed.quantityNum || 1,
+          unit: i.parsed.unit || 'kg',
+        }));
+
+      if (itemsList.length > 0) {
+        cells[itemsCol.id] = { items: itemsList };
+      }
     }
 
     onSubmit(cells);
     onOpenChange(false);
   };
 
-  const needsClientSelection = parsed && !parsed.clientId && (parsed.ambiguousClients?.length || 0) > 0;
-  const noClientFound = parsed && !parsed.clientId && !parsed.ambiguousClients?.length && text.trim().length > 0;
+  // Resolve client display from all sources
+  const effectiveClientId = selectedClientId || parsed?.clientId;
+  const effectiveClient = effectiveClientId ? clients.find(c => c.id === effectiveClientId) : null;
+  const needsClientSelection = parsed && !parsed.clientId && !selectedClientId && (parsed.ambiguousClients?.length || 0) > 0;
+  const noClientFound = parsed && !parsed.clientId && !selectedClientId && !parsed.ambiguousClients?.length && text.trim().length > 0 && items.length === 0;
+
+  const hasCurrentItem = parsed && (parsed.productName || parsed.quantity);
+  const canSubmit = items.length > 0 || hasCurrentItem;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -119,21 +150,76 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
             Smart Quick Add
           </DialogTitle>
           <DialogDescription>
-            Type shorthand like <code className="bg-muted px-1 rounded text-xs">50k guji cool donuts</code> and we'll parse it automatically.
+            Type shorthand like <code className="bg-muted px-1 rounded text-xs">50k guji cool donuts</code> — add multiple items to one order.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Smart Input */}
-          <Input
-            autoFocus
-            value={text}
-            onChange={(e) => handleTextChange(e.target.value)}
-            placeholder="e.g. 50k guji cool donuts"
-            className="rounded-xl text-base h-12"
-          />
+          {/* Already added items */}
+          {items.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Items added:</p>
+              {items.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-1.5 text-sm">
+                  <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span className="flex-1">
+                    {item.parsed.quantity && <span className="font-medium">{item.parsed.quantity}</span>}
+                    {item.parsed.quantity && item.parsed.productName && ' — '}
+                    {item.parsed.productName && <span>{item.parsed.productName}</span>}
+                  </span>
+                  <button onClick={() => handleRemoveItem(idx)} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
-          {/* Parsed Preview */}
+          {/* Client badge (resolved) */}
+          {effectiveClient && (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="gap-1">
+                <User className="w-3 h-3" />
+                {effectiveClient.name}
+              </Badge>
+              {effectiveClient.location && (
+                <Badge variant="secondary" className="gap-1">
+                  <MapPin className="w-3 h-3" />
+                  {effectiveClient.location}
+                </Badge>
+              )}
+            </div>
+          )}
+
+          {/* Smart Input */}
+          <div className="flex gap-2">
+            <Input
+              autoFocus
+              value={text}
+              onChange={(e) => handleTextChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && hasCurrentItem) {
+                  e.preventDefault();
+                  handleAddItem();
+                }
+              }}
+              placeholder={items.length > 0 ? "Add another item..." : "e.g. 50k guji cool donuts"}
+              className="rounded-xl text-base h-12 flex-1"
+            />
+            {hasCurrentItem && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-12 w-12 rounded-xl shrink-0"
+                onClick={handleAddItem}
+              >
+                <Plus className="w-5 h-5" />
+              </Button>
+            )}
+          </div>
+
+          {/* Parsed Preview for current input */}
           {parsed && text.trim() && (
             <div className="bg-muted/50 rounded-xl p-3 space-y-2 border border-border/50">
               <p className="text-xs font-medium text-muted-foreground mb-2">Detected:</p>
@@ -153,13 +239,13 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
                     )}
                   </Badge>
                 )}
-                {parsed.clientName && (
+                {parsed.clientName && !effectiveClient && (
                   <Badge variant="secondary" className="gap-1">
                     <User className="w-3 h-3" />
                     {parsed.clientName}
                   </Badge>
                 )}
-                {parsed.city && (
+                {parsed.city && !effectiveClient && (
                   <Badge variant="secondary" className="gap-1">
                     <MapPin className="w-3 h-3" />
                     {parsed.city}
@@ -215,11 +301,11 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
 
           <Button
             onClick={handleSubmit}
-            disabled={!text.trim()}
+            disabled={!canSubmit}
             className="w-full rounded-xl bg-destructive hover:bg-destructive/90 text-white"
           >
             <Zap className="w-4 h-4 mr-2" />
-            Add Order
+            Add Order {items.length > 0 ? `(${items.length + (hasCurrentItem ? 1 : 0)} items)` : ''}
           </Button>
         </div>
       </DialogContent>
