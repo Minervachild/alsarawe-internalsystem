@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Package, AlertTriangle, MoreHorizontal, Pencil, Trash2, ArrowUp, ArrowDown, TrendingUp, Clock, DollarSign } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, MoreHorizontal, Pencil, Trash2, ArrowUp, ArrowDown, TrendingUp, Clock, Banknote } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -89,6 +89,7 @@ export default function Inventory() {
     unit: 'kg' 
   });
   const [categoryFormData, setCategoryFormData] = useState({ name: '', color: '#8B4513' });
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [movementQuantity, setMovementQuantity] = useState(0);
   const [movementUnitPrice, setMovementUnitPrice] = useState(0);
   const [movementReason, setMovementReason] = useState('');
@@ -181,11 +182,34 @@ export default function Inventory() {
   const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { error } = await supabase.from('inventory_categories').insert(categoryFormData);
-      if (error) throw error;
-      toast({ title: 'Category added' });
+      if (editingCategory) {
+        const { error } = await supabase.from('inventory_categories').update(categoryFormData).eq('id', editingCategory.id);
+        if (error) throw error;
+        toast({ title: 'Category updated' });
+      } else {
+        const { error } = await supabase.from('inventory_categories').insert(categoryFormData);
+        if (error) throw error;
+        toast({ title: 'Category added' });
+      }
       setCategoryDialogOpen(false);
+      setEditingCategory(null);
       setCategoryFormData({ name: '', color: '#8B4513' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    const itemsInCategory = items.filter(i => i.category_id === id);
+    if (itemsInCategory.length > 0) {
+      toast({ title: 'Error', description: 'Remove all items from this category first.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const { error } = await supabase.from('inventory_categories').delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: 'Category deleted' });
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -366,10 +390,10 @@ export default function Inventory() {
           </div>
           <div className="card-premium p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <DollarSign className="w-4 h-4" />
+              <Banknote className="w-4 h-4" />
               <span className="text-sm">Total Purchases</span>
             </div>
-            <p className="text-2xl font-semibold">{totalValue.toFixed(2)}</p>
+            <p className="text-2xl font-semibold">{totalValue.toFixed(2)} ﷼</p>
           </div>
           <div className="card-premium p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -515,24 +539,50 @@ export default function Inventory() {
 
           <TabsContent value="categories">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {categories.map((category) => (
-                <div 
-                  key={category.id} 
-                  className="p-4 rounded-lg border border-border/50"
-                  style={{ backgroundColor: `${category.color}10` }}
-                >
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: category.color }}
-                    />
-                    <span className="font-medium">{category.name}</span>
+              {categories.map((category) => {
+                const categoryItemCount = items.filter(i => i.category_id === category.id).length;
+                return (
+                  <div 
+                    key={category.id} 
+                    className="p-4 rounded-lg border border-border/50"
+                    style={{ backgroundColor: `${category.color}10` }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: category.color }}
+                        />
+                        <span className="font-medium">{category.name}</span>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-popover">
+                          <DropdownMenuItem onClick={() => {
+                            setEditingCategory(category);
+                            setCategoryFormData({ name: category.name, color: category.color });
+                            setCategoryDialogOpen(true);
+                          }}>
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteCategory(category.id)} className="text-destructive">
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {categoryItemCount} items
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {items.filter(i => i.category_id === category.id).length} items
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </TabsContent>
 
@@ -564,8 +614,8 @@ export default function Inventory() {
                             </Badge>
                           </td>
                           <td className="p-3 text-sm">{m.quantity} {item?.unit}</td>
-                          <td className="p-3 text-sm">{m.unit_price > 0 ? m.unit_price.toFixed(2) : '-'}</td>
-                          <td className="p-3 text-sm font-medium">{m.total_price > 0 ? m.total_price.toFixed(2) : '-'}</td>
+                          <td className="p-3 text-sm">{m.unit_price > 0 ? `${m.unit_price.toFixed(2)} ﷼` : '-'}</td>
+                          <td className="p-3 text-sm font-medium">{m.total_price > 0 ? `${m.total_price.toFixed(2)} ﷼` : '-'}</td>
                           <td className="p-3 text-sm text-muted-foreground">{m.reason || '-'}</td>
                         </tr>
                       );
@@ -646,7 +696,7 @@ export default function Inventory() {
       <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-display">Add Category</DialogTitle>
+            <DialogTitle className="font-display">{editingCategory ? 'Edit Category' : 'Add Category'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCategorySubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
@@ -667,8 +717,8 @@ export default function Inventory() {
               />
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => setCategoryDialogOpen(false)}>Cancel</Button>
-              <Button type="submit">Add Category</Button>
+              <Button type="button" variant="outline" onClick={() => { setCategoryDialogOpen(false); setEditingCategory(null); }}>Cancel</Button>
+              <Button type="submit">{editingCategory ? 'Update' : 'Add'} Category</Button>
             </div>
           </form>
         </DialogContent>
