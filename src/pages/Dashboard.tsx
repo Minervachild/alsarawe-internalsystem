@@ -17,6 +17,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { WorkspaceCard } from '@/components/dashboard/WorkspaceCard';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePageAccess } from '@/hooks/usePageAccess';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -105,6 +106,7 @@ const workspaces: WorkspaceItem[] = [
 
 export default function Dashboard() {
   const { profile, isAdmin } = useAuth();
+  const { canAccess } = usePageAccess();
 
   // Fetch active orders count (rows not in completed/delivered groups)
   const { data: activeOrdersCount = 0 } = useQuery({
@@ -223,7 +225,13 @@ export default function Dashboard() {
         <div className="mb-6 sm:mb-10">
           <h2 className="section-header mb-3 sm:mb-5">Workspaces</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-            {workspaces.filter(w => !w.adminOnly || isAdmin).map((workspace, index) => (
+            {workspaces.filter(w => {
+              if (w.adminOnly && !isAdmin) return false;
+              // Check page access for non-admin pages
+              const pageKey = w.href.replace('/', '');
+              if (pageKey === 'dashboard') return true;
+              return canAccess(pageKey);
+            }).map((workspace, index) => (
               <div
                 key={workspace.title}
                 className="animate-slide-up"

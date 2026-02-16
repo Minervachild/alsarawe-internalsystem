@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PendingApprovalScreen } from "@/components/auth/PendingApprovalScreen";
+import { usePageAccess } from "@/hooks/usePageAccess";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
@@ -45,6 +46,33 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function PageProtectedRoute({ page, children }: { page: string; children: React.ReactNode }) {
+  const { user, isLoading, isActive, profile } = useAuth();
+  const { canAccess, isLoaded } = usePageAccess();
+
+  if (isLoading || !isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse-soft text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!isActive && profile) {
+    return <PendingApprovalScreen username={profile.username} />;
+  }
+
+  if (!canAccess(page)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading, isAdmin, isActive, profile } = useAuth();
 
@@ -76,18 +104,18 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-      <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+      <Route path="/orders" element={<PageProtectedRoute page="orders"><Orders /></PageProtectedRoute>} />
+      <Route path="/clients" element={<PageProtectedRoute page="clients"><Clients /></PageProtectedRoute>} />
       <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />
-      <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-      <Route path="/overtime" element={<ProtectedRoute><Overtime /></ProtectedRoute>} />
-      <Route path="/accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
+      <Route path="/inventory" element={<PageProtectedRoute page="inventory"><Inventory /></PageProtectedRoute>} />
+      <Route path="/overtime" element={<PageProtectedRoute page="overtime"><Overtime /></PageProtectedRoute>} />
+      <Route path="/accounts" element={<PageProtectedRoute page="accounts"><Accounts /></PageProtectedRoute>} />
       <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-      <Route path="/daily-duties" element={<ProtectedRoute><DailyDuties /></ProtectedRoute>} />
-      <Route path="/quality-check" element={<ProtectedRoute><QualityCheck /></ProtectedRoute>} />
-      <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
-      <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+      <Route path="/settings" element={<PageProtectedRoute page="settings"><SettingsPage /></PageProtectedRoute>} />
+      <Route path="/daily-duties" element={<PageProtectedRoute page="daily-duties"><DailyDuties /></PageProtectedRoute>} />
+      <Route path="/quality-check" element={<PageProtectedRoute page="quality-check"><QualityCheck /></PageProtectedRoute>} />
+      <Route path="/sales" element={<PageProtectedRoute page="sales"><Sales /></PageProtectedRoute>} />
+      <Route path="/products" element={<PageProtectedRoute page="products"><Products /></PageProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
