@@ -1143,6 +1143,27 @@ export type Database = {
           },
         ]
       }
+      user_page_access: {
+        Row: {
+          created_at: string
+          id: string
+          page: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          page: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          page?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string

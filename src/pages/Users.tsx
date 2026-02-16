@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, KeyRound, Copy, MoreHorizontal, Trash2, Eye } from 'lucide-react';
+import { Shield, KeyRound, Copy, MoreHorizontal, Trash2, Eye, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -20,6 +20,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { PageAccessDialog } from '@/components/users/PageAccessDialog';
 
 interface User {
   id: string;
@@ -39,6 +40,8 @@ export default function Users() {
   const [isLoading, setIsLoading] = useState(true);
   const [sensitiveData, setSensitiveData] = useState<{ passcode: string; api_key: string | null; isNewApiKey?: boolean } | null>(null);
   const [sensitiveDialogUser, setSensitiveDialogUser] = useState<string | null>(null);
+  const [pageAccessDialogOpen, setPageAccessDialogOpen] = useState(false);
+  const [pageAccessUser, setPageAccessUser] = useState<User | null>(null);
   const { isAdmin } = useAuth();
   const { toast } = useToast();
 
@@ -274,6 +277,15 @@ export default function Users() {
                                 <Eye className="w-4 h-4 mr-2" />
                                 View Credentials
                               </DropdownMenuItem>
+                              {user.role !== 'admin' && (
+                                <DropdownMenuItem onClick={() => {
+                                  setPageAccessUser(user);
+                                  setPageAccessDialogOpen(true);
+                                }}>
+                                  <LayoutGrid className="w-4 h-4 mr-2" />
+                                  Page Access
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => generateApiKey(user.id, user.username)}>
                                 <KeyRound className="w-4 h-4 mr-2" />
                                 Generate API Key
@@ -337,6 +349,17 @@ export default function Users() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Page Access Dialog */}
+      {pageAccessUser && (
+        <PageAccessDialog
+          open={pageAccessDialogOpen}
+          onOpenChange={setPageAccessDialogOpen}
+          userId={pageAccessUser.user_id}
+          username={pageAccessUser.username}
+          onSuccess={fetchUsers}
+        />
+      )}
     </AppLayout>
   );
 }
