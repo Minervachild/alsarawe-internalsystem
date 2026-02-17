@@ -473,6 +473,49 @@ export type Database = {
           },
         ]
       }
+      duty_employee_assignments: {
+        Row: {
+          created_at: string
+          duty_id: string
+          employee_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          duty_id: string
+          employee_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          duty_id?: string
+          employee_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duty_employee_assignments_duty_id_fkey"
+            columns: ["duty_id"]
+            isOneToOne: false
+            referencedRelation: "duties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duty_employee_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duty_employee_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           active_days: number | null
