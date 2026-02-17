@@ -109,30 +109,52 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Try creating auth user, appending a suffix if email already exists
+    // Try creating auth user; if email exists (orphaned from deleted employee), clean up and retry
     let authData: any = null;
     let fakeEmail = `${baseSlug}@roastery.local`;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      const candidateEmail = attempt === 0 ? fakeEmail : `${baseSlug}_${attempt}@roastery.local`;
-      const { data, error: authError } = await adminClient.auth.admin.createUser({
-        email: candidateEmail,
+
+    const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
+      email: fakeEmail,
+      password: passcodeUpper,
+      email_confirm: true,
+    });
+
+    if (createError && createError.message?.includes('already been registered')) {
+      // Find the existing auth user with this email
+      const { data: { users } } = await adminClient.auth.admin.listUsers();
+      const orphanedUser = users?.find((u: any) => u.email === fakeEmail);
+      if (orphanedUser) {
+        // Check if they still have an active profile
+        const { data: activeProfile } = await adminClient
+          .from('profiles')
+          .select('id')
+          .eq('user_id', orphanedUser.id)
+          .maybeSingle();
+
+        if (activeProfile) {
+          // Active profile exists — use a unique suffixed email
+          fakeEmail = `${baseSlug}_${Date.now()}@roastery.local`;
+        } else {
+          // Orphaned auth user with no profile — delete it
+          await adminClient.auth.admin.deleteUser(orphanedUser.id);
+        }
+      }
+
+      // Retry creation
+      const { data: retryData, error: retryError } = await adminClient.auth.admin.createUser({
+        email: fakeEmail,
         password: passcodeUpper,
         email_confirm: true,
       });
-      if (!authError && data?.user) {
-        authData = data;
-        fakeEmail = candidateEmail;
-        break;
-      }
-      if (authError && authError.message?.includes('already been registered')) {
-        continue;
-      }
-      if (authError) throw authError;
+      if (retryError) throw retryError;
+      authData = retryData;
+    } else if (createError) {
+      throw createError;
+    } else {
+      authData = createData;
     }
-    if (!authData?.user) throw new Error('Failed to create user after multiple attempts');
 
-    if (authError) throw authError;
-    if (!authData.user) throw new Error('Failed to create user');
+    if (!authData?.user) throw new Error('Failed to create user');
 
     // Create profile
     const isAdmin = role === 'admin';
