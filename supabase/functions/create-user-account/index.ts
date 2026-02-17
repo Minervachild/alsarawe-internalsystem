@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
     }
 
     const passcodeUpper = passcode.toUpperCase();
-    const fakeEmail = `${username.toLowerCase().replace(/\s+/g, '_')}@roastery.local`;
+    const baseSlug = username.toLowerCase().replace(/\s+/g, '_');
 
     // Check if passcode already exists
     const { data: existingProfile } = await adminClient
@@ -109,12 +109,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create auth user using admin client (won't affect caller's session)
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email: fakeEmail,
-      password: passcodeUpper,
-      email_confirm: true,
-    });
+    // Try creating auth user, appending a suffix if email already exists
+    let authData: any = null;
+    let fakeEmail = `${baseSlug}@roastery.local`;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const candidateEmail = attempt === 0 ? fakeEmail : `${baseSlug}_${attempt}@roastery.local`;
+      const { data, error: authError } = await adminClient.auth.admin.createUser({
+        email: candidateEmail,
+        password: passcodeUpper,
+        email_confirm: true,
+      });
+      if (!authError && data?.user) {
+        authData = data;
+        fakeEmail = candidateEmail;
+        break;
+      }
+      if (authError && authError.message?.includes('already been registered')) {
+        continue;
+      }
+      if (authError) throw authError;
+    }
+    if (!authData?.user) throw new Error('Failed to create user after multiple attempts');
 
     if (authError) throw authError;
     if (!authData.user) throw new Error('Failed to create user');
