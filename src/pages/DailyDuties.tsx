@@ -114,8 +114,9 @@ export default function DailyDuties() {
   const [newCategoryColor, setNewCategoryColor] = useState(CATEGORY_COLORS[0]);
   const [editingCategory, setEditingCategory] = useState<DutyCategory | null>(null);
   
-  // Add duty dialog
+  // Add/Edit duty dialog
   const [isDutyDialogOpen, setIsDutyDialogOpen] = useState(false);
+  const [editingDuty, setEditingDuty] = useState<Duty | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [newDutyTitle, setNewDutyTitle] = useState('');
   const [newDutyDescription, setNewDutyDescription] = useState('');
@@ -387,6 +388,73 @@ export default function DailyDuties() {
     setNewDutyTargetDate('');
     setNewDutyAssignedEmployees([]);
     setAssignmentMode('all');
+    setEditingDuty(null);
+  };
+
+  const openEditDuty = (duty: Duty) => {
+    setEditingDuty(duty);
+    setSelectedCategoryId(duty.category_id);
+    setNewDutyTitle(duty.title);
+    setNewDutyDescription(duty.description || '');
+    setNewDutyIsEndOfDay(duty.is_end_of_day);
+    setNewDutyIsRecurring(duty.is_recurring);
+    setNewDutyTargetDate(duty.target_date || '');
+    
+    // Determine assignment mode
+    const assignedEmps = dutyAssignments.filter(a => a.duty_id === duty.id);
+    if (assignedEmps.length > 0) {
+      setAssignmentMode('specific');
+      setNewDutyAssignedEmployees(assignedEmps.map(a => a.employee_id));
+    } else if (duty.role) {
+      setAssignmentMode('role');
+      setNewDutyRole(duty.role);
+    } else {
+      setAssignmentMode('all');
+      setNewDutyRole('');
+    }
+    
+    setIsDutyDialogOpen(true);
+  };
+
+  const handleUpdateDuty = async () => {
+    if (!editingDuty || !newDutyTitle.trim() || !selectedCategoryId) return;
+    try {
+      const { error } = await supabase
+        .from('duties')
+        .update({
+          category_id: selectedCategoryId,
+          title: newDutyTitle.trim(),
+          description: newDutyDescription.trim() || null,
+          role: assignmentMode === 'role' ? newDutyRole || null : null,
+          is_end_of_day: newDutyIsEndOfDay,
+          is_recurring: newDutyIsRecurring,
+          target_date: !newDutyIsRecurring && newDutyTargetDate ? newDutyTargetDate : null,
+        })
+        .eq('id', editingDuty.id);
+      if (error) throw error;
+
+      // Update assignments: delete old, insert new
+      await supabase.from('duty_employee_assignments').delete().eq('duty_id', editingDuty.id);
+      
+      if (assignmentMode === 'specific' && newDutyAssignedEmployees.length > 0) {
+        const assignments = newDutyAssignedEmployees.map(empId => ({
+          duty_id: editingDuty.id,
+          employee_id: empId,
+        }));
+        const { error: assignError } = await supabase
+          .from('duty_employee_assignments')
+          .insert(assignments);
+        if (assignError) throw assignError;
+      }
+
+      // Refresh data
+      await fetchData();
+      resetDutyForm();
+      setIsDutyDialogOpen(false);
+      toast({ title: 'Duty updated' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
   };
 
   const handleDeleteDuty = async (id: string) => {
@@ -833,7 +901,10 @@ export default function DailyDuties() {
                                                   {duty.description && <p className="text-sm text-muted-foreground">{duty.description}</p>}
                                                 </div>
                                               </div>
-                                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" onClick={() => handleDeleteDuty(duty.id)}><Trash2 className="w-4 h-4" /></Button>
+                                              <div className="flex items-center gap-1">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEditDuty(duty)}><Edit2 className="w-4 h-4" /></Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" onClick={() => handleDeleteDuty(duty.id)}><Trash2 className="w-4 h-4" /></Button>
+                                              </div>
                                             </div>
                                           ))}
                                         </div>
@@ -856,7 +927,7 @@ export default function DailyDuties() {
             {/* Add Duty Dialog */}
             <Dialog open={isDutyDialogOpen} onOpenChange={(open) => { setIsDutyDialogOpen(open); if (!open) resetDutyForm(); }}>
               <DialogContent className="rounded-2xl">
-                <DialogHeader><DialogTitle>Add Duty</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{editingDuty ? 'Edit Duty' : 'Add Duty'}</DialogTitle></DialogHeader>
                 <div className="space-y-4 mt-4">
                   <div className="space-y-2">
                     <Label>Duty Title</Label>
@@ -944,7 +1015,9 @@ export default function DailyDuties() {
                       <Input type="date" value={newDutyTargetDate} onChange={(e) => setNewDutyTargetDate(e.target.value)} className="rounded-xl" />
                     </div>
                   )}
-                  <Button onClick={handleAddDuty} className="w-full rounded-xl" disabled={!newDutyTitle.trim()}>Add Duty</Button>
+                  <Button onClick={editingDuty ? handleUpdateDuty : handleAddDuty} className="w-full rounded-xl" disabled={!newDutyTitle.trim()}>
+                    {editingDuty ? 'Update Duty' : 'Add Duty'}
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>
