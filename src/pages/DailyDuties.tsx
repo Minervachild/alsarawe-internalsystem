@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckSquare, Plus, Trash2, Edit2, GripVertical, ChevronDown, ChevronRight, Play, Star, AlertTriangle, CheckCircle2, Clock, Calendar } from 'lucide-react';
+import { CheckSquare, Plus, Trash2, Edit2, GripVertical, ChevronDown, ChevronRight, Play, Star, AlertTriangle, CheckCircle2, Clock, Calendar, Tag, ClipboardList } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +32,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ShiftCheckInDialog } from '@/components/dailyduties/ShiftCheckInDialog';
 import { AttendanceHistory } from '@/components/dailyduties/AttendanceHistory';
+import { ShiftChecklist } from '@/components/dailyduties/ShiftChecklist';
+import { format } from 'date-fns';
 
 interface DutyCategory {
   id: string;
@@ -45,11 +49,15 @@ interface Duty {
   description: string | null;
   role: string | null;
   position: number;
+  is_end_of_day: boolean;
+  is_recurring: boolean;
+  target_date: string | null;
 }
 
 interface Employee {
   id: string;
   name: string;
+  role: string | null;
 }
 
 interface DutyRating {
@@ -63,6 +71,10 @@ const CATEGORY_COLORS = [
   '#EF4444', '#EC4899', '#06B6D4', '#84CC16'
 ];
 
+const EMPLOYEE_ROLES = [
+  'Team Leader', 'Supervisor', 'Barista', 'Cashier', 'Cleaner', 'Kitchen Staff', 'Team Member'
+];
+
 export default function DailyDuties() {
   const [categories, setCategories] = useState<DutyCategory[]>([]);
   const [duties, setDuties] = useState<Duty[]>([]);
@@ -73,6 +85,11 @@ export default function DailyDuties() {
   
   // Shift check-in dialog
   const [isShiftCheckInOpen, setIsShiftCheckInOpen] = useState(false);
+  
+  // Checklist mode
+  const [checklistEmployeeId, setChecklistEmployeeId] = useState<string>('');
+  const [checklistEmployeeName, setChecklistEmployeeName] = useState<string>('');
+  const [checklistEmployeeRole, setChecklistEmployeeRole] = useState<string | null>(null);
   
   // Check-in mode (duty rating)
   const [isCheckInMode, setIsCheckInMode] = useState(false);
@@ -94,6 +111,10 @@ export default function DailyDuties() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [newDutyTitle, setNewDutyTitle] = useState('');
   const [newDutyDescription, setNewDutyDescription] = useState('');
+  const [newDutyRole, setNewDutyRole] = useState<string>('');
+  const [newDutyIsEndOfDay, setNewDutyIsEndOfDay] = useState(false);
+  const [newDutyIsRecurring, setNewDutyIsRecurring] = useState(true);
+  const [newDutyTargetDate, setNewDutyTargetDate] = useState('');
   
   const { toast } = useToast();
 
@@ -106,7 +127,7 @@ export default function DailyDuties() {
       const [categoriesRes, dutiesRes, employeesRes] = await Promise.all([
         supabase.from('duty_categories').select('*').order('position'),
         supabase.from('duties').select('*').order('position'),
-        supabase.from('employees').select('id, name').order('name'),
+        supabase.from('employees').select('id, name, role').order('name'),
       ]);
 
       if (categoriesRes.error) throw categoriesRes.error;
@@ -114,7 +135,7 @@ export default function DailyDuties() {
       if (employeesRes.error) throw employeesRes.error;
 
       setCategories(categoriesRes.data || []);
-      setDuties(dutiesRes.data || []);
+      setDuties((dutiesRes.data || []) as Duty[]);
       setEmployees(employeesRes.data || []);
       setExpandedCategories(new Set((categoriesRes.data || []).map(c => c.id)));
     } catch (error: any) {
@@ -127,44 +148,25 @@ export default function DailyDuties() {
   // Handle category drag and drop
   const handleCategoryDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
-    
     const sourceIndex = result.source.index;
     const destIndex = result.destination.index;
-    
     if (sourceIndex === destIndex) return;
 
     const reorderedCategories = Array.from(categories);
     const [removed] = reorderedCategories.splice(sourceIndex, 1);
     reorderedCategories.splice(destIndex, 0, removed);
 
-    // Update positions
-    const updatedCategories = reorderedCategories.map((cat, index) => ({
-      ...cat,
-      position: index,
-    }));
-
+    const updatedCategories = reorderedCategories.map((cat, index) => ({ ...cat, position: index }));
     setCategories(updatedCategories);
 
-    // Save to database
     try {
-      const updates = updatedCategories.map((cat) => ({
-        id: cat.id,
-        name: cat.name,
-        color: cat.color,
-        position: cat.position,
-      }));
-
-      for (const update of updates) {
-        await supabase
-          .from('duty_categories')
-          .update({ position: update.position })
-          .eq('id', update.id);
+      for (const update of updatedCategories) {
+        await supabase.from('duty_categories').update({ position: update.position }).eq('id', update.id);
       }
-
       toast({ title: 'Order saved' });
     } catch (error: any) {
       toast({ title: 'Error saving order', description: error.message, variant: 'destructive' });
-      fetchData(); // Revert on error
+      fetchData();
     }
   };
 
@@ -194,15 +196,22 @@ export default function DailyDuties() {
     setShowSummary(false);
   };
 
+  const openChecklist = () => {
+    if (!checklistEmployeeId) {
+      toast({ title: 'Select Employee', description: 'Please select an employee.', variant: 'destructive' });
+      return;
+    }
+    const emp = employees.find(e => e.id === checklistEmployeeId);
+    if (emp) {
+      setChecklistEmployeeName(emp.name);
+      setChecklistEmployeeRole(emp.role);
+      setActiveTab('checklist');
+    }
+  };
+
   const submitRating = () => {
     const currentDuty = allDuties[currentDutyIndex];
-    
-    setDutyRatings([...dutyRatings, {
-      dutyId: currentDuty.id,
-      rating: currentRating,
-      reason: currentReason,
-    }]);
-
+    setDutyRatings([...dutyRatings, { dutyId: currentDuty.id, rating: currentRating, reason: currentReason }]);
     if (currentDutyIndex < allDuties.length - 1) {
       setCurrentDutyIndex(currentDutyIndex + 1);
       setCurrentRating(5);
@@ -220,10 +229,8 @@ export default function DailyDuties() {
         rating: r.rating,
         reason: r.reason || null,
       }));
-
       const { error } = await supabase.from('duty_completions').insert(completions);
       if (error) throw error;
-
       toast({ title: 'Check-in Complete', description: 'All ratings have been saved.' });
       setIsCheckInMode(false);
       setShowSummary(false);
@@ -240,24 +247,19 @@ export default function DailyDuties() {
     setDutyRatings([]);
   };
 
-  // Focus areas (ratings 3 or below)
   const focusAreas = dutyRatings
     .filter(r => r.rating <= 3)
-    .map(r => {
-      const duty = allDuties.find(d => d.id === r.dutyId);
-      return { ...r, duty };
-    })
+    .map(r => ({ ...r, duty: allDuties.find(d => d.id === r.dutyId) }))
     .sort((a, b) => a.rating - b.rating);
 
-  // Category/Duty management functions
+  // Category/Duty management
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
     try {
       const { data, error } = await supabase
         .from('duty_categories')
         .insert({ name: newCategoryName.trim(), color: newCategoryColor, position: categories.length })
-        .select()
-        .single();
+        .select().single();
       if (error) throw error;
       setCategories([...categories, data]);
       setNewCategoryName('');
@@ -272,8 +274,7 @@ export default function DailyDuties() {
   const handleUpdateCategory = async () => {
     if (!editingCategory || !newCategoryName.trim()) return;
     try {
-      const { error } = await supabase
-        .from('duty_categories')
+      const { error } = await supabase.from('duty_categories')
         .update({ name: newCategoryName.trim(), color: newCategoryColor })
         .eq('id', editingCategory.id);
       if (error) throw error;
@@ -305,18 +306,34 @@ export default function DailyDuties() {
       const categoryDuties = duties.filter(d => d.category_id === selectedCategoryId);
       const { data, error } = await supabase
         .from('duties')
-        .insert({ category_id: selectedCategoryId, title: newDutyTitle.trim(), description: newDutyDescription.trim() || null, position: categoryDuties.length })
-        .select()
-        .single();
+        .insert({
+          category_id: selectedCategoryId,
+          title: newDutyTitle.trim(),
+          description: newDutyDescription.trim() || null,
+          role: newDutyRole || null,
+          position: categoryDuties.length,
+          is_end_of_day: newDutyIsEndOfDay,
+          is_recurring: newDutyIsRecurring,
+          target_date: !newDutyIsRecurring && newDutyTargetDate ? newDutyTargetDate : null,
+        })
+        .select().single();
       if (error) throw error;
-      setDuties([...duties, data]);
-      setNewDutyTitle('');
-      setNewDutyDescription('');
+      setDuties([...duties, data as Duty]);
+      resetDutyForm();
       setIsDutyDialogOpen(false);
       toast({ title: 'Duty added' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
+  };
+
+  const resetDutyForm = () => {
+    setNewDutyTitle('');
+    setNewDutyDescription('');
+    setNewDutyRole('');
+    setNewDutyIsEndOfDay(false);
+    setNewDutyIsRecurring(true);
+    setNewDutyTargetDate('');
   };
 
   const handleDeleteDuty = async (id: string) => {
@@ -347,8 +364,7 @@ export default function DailyDuties() {
 
   const openAddDuty = (categoryId: string) => {
     setSelectedCategoryId(categoryId);
-    setNewDutyTitle('');
-    setNewDutyDescription('');
+    resetDutyForm();
     setIsDutyDialogOpen(true);
   };
 
@@ -370,22 +386,17 @@ export default function DailyDuties() {
     return (
       <AppLayout>
         <div className="p-6 lg:p-8 max-w-[600px] mx-auto">
-          {/* Progress bar */}
           <div className="mb-6">
             <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
               <span>Duty {currentDutyIndex + 1} of {allDuties.length}</span>
               <Button variant="ghost" size="sm" onClick={cancelCheckIn}>Cancel</Button>
             </div>
             <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
+              <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
             </div>
           </div>
 
           <div className="card-premium p-6 space-y-6">
-            {/* Category badge */}
             <div 
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium"
               style={{ backgroundColor: `${currentDuty.categoryColor}15`, color: currentDuty.categoryColor }}
@@ -394,15 +405,14 @@ export default function DailyDuties() {
               {currentDuty.categoryName}
             </div>
 
-            {/* Duty title */}
             <div>
               <h2 className="text-2xl font-semibold text-foreground">{currentDuty.title}</h2>
-              {currentDuty.description && (
-                <p className="text-muted-foreground mt-2">{currentDuty.description}</p>
+              {currentDuty.description && <p className="text-muted-foreground mt-2">{currentDuty.description}</p>}
+              {currentDuty.is_end_of_day && (
+                <Badge variant="outline" className="mt-2"><Clock className="w-3 h-3 mr-1" /> Anytime Today</Badge>
               )}
             </div>
 
-            {/* Rating */}
             <div className="space-y-3">
               <Label className="text-base">Rate this duty (0-5)</Label>
               <div className="flex gap-2">
@@ -412,11 +422,9 @@ export default function DailyDuties() {
                     onClick={() => setCurrentRating(rating)}
                     className={`w-12 h-12 rounded-xl text-lg font-semibold transition-all ${
                       currentRating === rating
-                        ? rating <= 2 
-                          ? 'bg-destructive text-white scale-110' 
-                          : rating <= 3 
-                            ? 'bg-warning text-white scale-110'
-                            : 'bg-success text-white scale-110'
+                        ? rating <= 2 ? 'bg-destructive text-white scale-110' 
+                          : rating <= 3 ? 'bg-warning text-white scale-110'
+                          : 'bg-success text-white scale-110'
                         : 'bg-muted hover:bg-muted/80'
                     }`}
                   >
@@ -425,13 +433,10 @@ export default function DailyDuties() {
                 ))}
               </div>
               <p className="text-sm text-muted-foreground">
-                {currentRating <= 2 ? 'Needs immediate attention' : 
-                 currentRating <= 3 ? 'Could be improved' : 
-                 currentRating <= 4 ? 'Good condition' : 'Excellent'}
+                {currentRating <= 2 ? 'Needs immediate attention' : currentRating <= 3 ? 'Could be improved' : currentRating <= 4 ? 'Good condition' : 'Excellent'}
               </p>
             </div>
 
-            {/* Reason */}
             <div className="space-y-2">
               <Label>Notes / Reason for rating {currentRating <= 3 && <span className="text-destructive">*</span>}</Label>
               <Textarea
@@ -478,22 +483,16 @@ export default function DailyDuties() {
                 <AlertTriangle className="w-5 h-5 text-warning" />
                 <h2 className="text-lg font-semibold">Focus Areas ({focusAreas.length})</h2>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                These items rated 3 or below need attention:
-              </p>
+              <p className="text-sm text-muted-foreground mb-4">These items rated 3 or below need attention:</p>
               <div className="space-y-3">
                 {focusAreas.map((item, idx) => (
                   <div key={idx} className="flex items-start gap-3 p-3 bg-muted/30 rounded-xl">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold text-sm ${
-                      item.rating <= 2 ? 'bg-destructive' : 'bg-warning'
-                    }`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold text-sm ${item.rating <= 2 ? 'bg-destructive' : 'bg-warning'}`}>
                       {item.rating}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground">{item.duty?.title}</p>
-                      {item.reason && (
-                        <p className="text-sm text-muted-foreground mt-1">{item.reason}</p>
-                      )}
+                      {item.reason && <p className="text-sm text-muted-foreground mt-1">{item.reason}</p>}
                     </div>
                   </div>
                 ))}
@@ -510,12 +509,8 @@ export default function DailyDuties() {
           )}
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={cancelCheckIn} className="flex-1 rounded-xl h-12">
-              Back to Management
-            </Button>
-            <Button onClick={finishCheckIn} className="flex-1 rounded-xl h-12">
-              Save & Complete
-            </Button>
+            <Button variant="outline" onClick={cancelCheckIn} className="flex-1 rounded-xl h-12">Back to Management</Button>
+            <Button onClick={finishCheckIn} className="flex-1 rounded-xl h-12">Save & Complete</Button>
           </div>
         </div>
       </AppLayout>
@@ -543,12 +538,55 @@ export default function DailyDuties() {
               <CheckSquare className="w-4 h-4" />
               Duties
             </TabsTrigger>
+            <TabsTrigger value="checklist" className="rounded-lg gap-2">
+              <ClipboardList className="w-4 h-4" />
+              Checklist
+            </TabsTrigger>
             <TabsTrigger value="history" className="rounded-lg gap-2">
               <Calendar className="w-4 h-4" />
               History
             </TabsTrigger>
           </TabsList>
 
+          {/* ========== CHECKLIST TAB ========== */}
+          <TabsContent value="checklist" className="space-y-6">
+            {!checklistEmployeeId || activeTab !== 'checklist' ? (
+              <div className="card-premium p-6">
+                <h3 className="font-semibold mb-4">Select Employee for Checklist</h3>
+                <div className="flex items-center gap-3">
+                  <Select value={checklistEmployeeId} onValueChange={setChecklistEmployeeId}>
+                    <SelectTrigger className="flex-1 rounded-xl">
+                      <SelectValue placeholder="Select employee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees.map(emp => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name} {emp.role ? `(${emp.role})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={openChecklist} className="rounded-xl">Open Checklist</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="max-w-[600px] mx-auto">
+                <Button variant="ghost" className="mb-4 rounded-xl" onClick={() => { setChecklistEmployeeId(''); }}>
+                  ← Change Employee
+                </Button>
+                <div className="card-premium p-6">
+                  <ShiftChecklist
+                    employeeId={checklistEmployeeId}
+                    employeeName={checklistEmployeeName}
+                    employeeRole={checklistEmployeeRole}
+                    onClose={() => setChecklistEmployeeId('')}
+                  />
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ========== DUTIES TAB ========== */}
           <TabsContent value="duties" className="space-y-6">
             {/* Start Duty Check-in Card */}
             {allDuties.length > 0 && (
@@ -603,12 +641,7 @@ export default function DailyDuties() {
                   <div className="space-y-4 mt-4">
                     <div className="space-y-2">
                       <Label>Category Name</Label>
-                      <Input
-                        placeholder="e.g., Cleaning & Hygiene"
-                        value={newCategoryName}
-                        onChange={(e) => setNewCategoryName(e.target.value)}
-                        className="rounded-xl"
-                      />
+                      <Input placeholder="e.g., Cleaning & Hygiene" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="rounded-xl" />
                     </div>
                     <div className="space-y-2">
                       <Label>Color</Label>
@@ -661,10 +694,7 @@ export default function DailyDuties() {
                                 <Collapsible open={isExpanded}>
                                   <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors">
                                     <div className="flex items-center gap-3">
-                                      <div
-                                        {...provided.dragHandleProps}
-                                        className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
-                                      >
+                                      <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
                                         <GripVertical className="w-5 h-5 text-muted-foreground" />
                                       </div>
                                       <CollapsibleTrigger asChild>
@@ -672,7 +702,7 @@ export default function DailyDuties() {
                                           {isExpanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
                                           <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
                                           <h3 className="font-semibold text-foreground">{category.name}</h3>
-                                          <span className="text-sm text-muted-foreground">({categoryDuties.length} {categoryDuties.length === 1 ? 'duty' : 'duties'})</span>
+                                          <span className="text-sm text-muted-foreground">({categoryDuties.length})</span>
                                         </div>
                                       </CollapsibleTrigger>
                                     </div>
@@ -694,9 +724,14 @@ export default function DailyDuties() {
                                           {categoryDuties.map((duty) => (
                                             <div key={duty.id} className="flex items-center justify-between p-4 hover:bg-muted/20">
                                               <div className="flex items-center gap-3">
-                                                <GripVertical className="w-4 h-4 text-muted-foreground/50" />
+                                                <span className="text-xs font-mono text-muted-foreground w-6">#{duty.position + 1}</span>
                                                 <div>
-                                                  <p className="font-medium text-foreground">{duty.title}</p>
+                                                  <div className="flex items-center gap-2">
+                                                    <p className="font-medium text-foreground">{duty.title}</p>
+                                                    {duty.role && <Badge variant="secondary" className="text-xs">{duty.role}</Badge>}
+                                                    {duty.is_end_of_day && <Badge variant="outline" className="text-xs"><Clock className="w-3 h-3 mr-1" />Anytime</Badge>}
+                                                    {!duty.is_recurring && <Badge variant="outline" className="text-xs bg-warning/10 border-warning/30 text-warning">One-time{duty.target_date ? ` · ${duty.target_date}` : ''}</Badge>}
+                                                  </div>
                                                   {duty.description && <p className="text-sm text-muted-foreground">{duty.description}</p>}
                                                 </div>
                                               </div>
@@ -721,7 +756,7 @@ export default function DailyDuties() {
             </DragDropContext>
 
             {/* Add Duty Dialog */}
-            <Dialog open={isDutyDialogOpen} onOpenChange={setIsDutyDialogOpen}>
+            <Dialog open={isDutyDialogOpen} onOpenChange={(open) => { setIsDutyDialogOpen(open); if (!open) resetDutyForm(); }}>
               <DialogContent className="rounded-2xl">
                 <DialogHeader><DialogTitle>Add Duty</DialogTitle></DialogHeader>
                 <div className="space-y-4 mt-4">
@@ -733,6 +768,40 @@ export default function DailyDuties() {
                     <Label>Description (optional)</Label>
                     <Input placeholder="Additional details..." value={newDutyDescription} onChange={(e) => setNewDutyDescription(e.target.value)} className="rounded-xl" />
                   </div>
+                  <div className="space-y-2">
+                    <Label>Role (leave empty for all roles)</Label>
+                    <Select value={newDutyRole} onValueChange={setNewDutyRole}>
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="All roles" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All Roles</SelectItem>
+                        {EMPLOYEE_ROLES.map(r => (
+                          <SelectItem key={r} value={r}>{r}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Anytime Today (End-of-Day)</Label>
+                      <p className="text-xs text-muted-foreground">Can be done at any point during the shift</p>
+                    </div>
+                    <Switch checked={newDutyIsEndOfDay} onCheckedChange={setNewDutyIsEndOfDay} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Recurring Daily</Label>
+                      <p className="text-xs text-muted-foreground">Repeats every day automatically</p>
+                    </div>
+                    <Switch checked={newDutyIsRecurring} onCheckedChange={setNewDutyIsRecurring} />
+                  </div>
+                  {!newDutyIsRecurring && (
+                    <div className="space-y-2">
+                      <Label>Target Date</Label>
+                      <Input type="date" value={newDutyTargetDate} onChange={(e) => setNewDutyTargetDate(e.target.value)} className="rounded-xl" />
+                    </div>
+                  )}
                   <Button onClick={handleAddDuty} className="w-full rounded-xl" disabled={!newDutyTitle.trim()}>Add Duty</Button>
                 </div>
               </DialogContent>
@@ -744,14 +813,12 @@ export default function DailyDuties() {
           </TabsContent>
         </Tabs>
 
-        {/* Shift Check-In Dialog */}
         <ShiftCheckInDialog
           open={isShiftCheckInOpen}
           onOpenChange={setIsShiftCheckInOpen}
           onSuccess={() => {
-            // Refresh if on history tab
             if (activeTab === 'history') {
-              // The AttendanceHistory component will refetch on mount
+              // AttendanceHistory will refetch on mount
             }
           }}
         />
