@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Zap, Sparkles, User, Package, Hash, MapPin, AlertCircle, Plus, X } from 'lucide-react';
+import { Zap, Sparkles, User, Package, Hash, MapPin, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -41,17 +41,15 @@ interface ParsedItem {
 
 export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }: SmartQuickAddProps) {
   const [text, setText] = useState('');
-  const [parsed, setParsed] = useState<ParsedOrder | null>(null);
+  const [parsedLines, setParsedLines] = useState<ParsedItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const [items, setItems] = useState<ParsedItem[]>([]);
 
   useEffect(() => {
     if (open) {
       setText('');
-      setParsed(null);
+      setParsedLines([]);
       setSelectedClientId('');
-      setItems([]);
       fetchProducts();
     }
   }, [open]);
@@ -66,34 +64,34 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
   const handleTextChange = useCallback((value: string) => {
     setText(value);
     if (!value.trim()) {
-      setParsed(null);
+      setParsedLines([]);
       setSelectedClientId('');
       return;
     }
-    const result = parseOrderText(value, clients, products);
-    setParsed(result);
-    if (result.clientId && !selectedClientId) setSelectedClientId(result.clientId);
+    const lines = value.split('\n').filter(l => l.trim());
+    const results = lines.map(line => ({
+      text: line.trim(),
+      parsed: parseOrderText(line.trim(), clients, products),
+    }));
+    setParsedLines(results);
+    // Auto-select client from first line that has one
+    if (!selectedClientId) {
+      const firstClient = results.find(r => r.parsed.clientId);
+      if (firstClient?.parsed.clientId) setSelectedClientId(firstClient.parsed.clientId);
+    }
   }, [clients, products, selectedClientId]);
 
-  const handleAddItem = () => {
-    if (!parsed || (!parsed.productName && !parsed.quantity)) return;
-    setItems(prev => [...prev, { text: text.trim(), parsed: { ...parsed } }]);
-    setText('');
-    setParsed(null);
-  };
-
-  const handleRemoveItem = (index: number) => {
-    setItems(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveLine = (index: number) => {
+    const lines = text.split('\n');
+    lines.splice(index, 1);
+    const newText = lines.join('\n');
+    setText(newText);
+    handleTextChange(newText);
   };
 
   const handleSubmit = () => {
-    // Combine current input + already added items
-    const allItems = [...items];
-    if (parsed && (parsed.productName || parsed.quantity)) {
-      allItems.push({ text: text.trim(), parsed: { ...parsed } });
-    }
-
-    if (allItems.length === 0 && !parsed) return;
+    const allItems = parsedLines.filter(i => i.parsed.productName || i.parsed.quantity);
+    if (allItems.length === 0) return;
 
     const cells: Record<string, any> = {};
 
@@ -132,14 +130,14 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
     onOpenChange(false);
   };
 
-  // Resolve client display from all sources
-  const effectiveClientId = selectedClientId || parsed?.clientId;
+  // Resolve client from parsed lines or manual selection
+  const firstClientParsed = parsedLines.find(r => r.parsed.clientId);
+  const effectiveClientId = selectedClientId || firstClientParsed?.parsed.clientId;
   const effectiveClient = effectiveClientId ? clients.find(c => c.id === effectiveClientId) : null;
-  const needsClientSelection = parsed && !parsed.clientId && !selectedClientId && (parsed.ambiguousClients?.length || 0) > 0;
-  const noClientFound = parsed && !parsed.clientId && !selectedClientId && !parsed.ambiguousClients?.length && text.trim().length > 0 && items.length === 0;
-
-  const hasCurrentItem = parsed && (parsed.productName || parsed.quantity);
-  const canSubmit = items.length > 0 || hasCurrentItem;
+  const ambiguousFromLines = parsedLines.find(r => (r.parsed.ambiguousClients?.length || 0) > 0);
+  const needsClientSelection = !effectiveClientId && !!ambiguousFromLines;
+  const validItems = parsedLines.filter(i => i.parsed.productName || i.parsed.quantity);
+  const canSubmit = validItems.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -150,31 +148,13 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
             Smart Quick Add
           </DialogTitle>
           <DialogDescription>
-            Type shorthand like <code className="bg-muted px-1 rounded text-xs">50k guji cool donuts</code> — add multiple items to one order.
+            Type one item per line, e.g:<br />
+            <code className="bg-muted px-1 rounded text-xs">guji 50k</code><br />
+            <code className="bg-muted px-1 rounded text-xs">costa 50k</code>
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Already added items */}
-          {items.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground">Items added:</p>
-              {items.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-1.5 text-sm">
-                  <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="flex-1">
-                    {item.parsed.quantity && <span className="font-medium">{item.parsed.quantity}</span>}
-                    {item.parsed.quantity && item.parsed.productName && ' — '}
-                    {item.parsed.productName && <span>{item.parsed.productName}</span>}
-                  </span>
-                  <button onClick={() => handleRemoveItem(idx)} className="text-muted-foreground hover:text-foreground">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* Client badge (resolved) */}
           {effectiveClient && (
             <div className="flex items-center gap-2">
@@ -191,71 +171,45 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
             </div>
           )}
 
-          {/* Smart Input */}
-          <div className="flex gap-2">
-            <Input
-              autoFocus
-              value={text}
-              onChange={(e) => handleTextChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && hasCurrentItem) {
-                  e.preventDefault();
-                  handleAddItem();
-                }
-              }}
-              placeholder={items.length > 0 ? "Add another item..." : "e.g. 50k guji cool donuts"}
-              className="rounded-xl text-base h-12 flex-1"
-            />
-            {hasCurrentItem && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-12 w-12 rounded-xl shrink-0"
-                onClick={handleAddItem}
-              >
-                <Plus className="w-5 h-5" />
-              </Button>
-            )}
-          </div>
+          {/* Multi-line Textarea */}
+          <Textarea
+            autoFocus
+            value={text}
+            onChange={(e) => handleTextChange(e.target.value)}
+            placeholder={"guji 50k\ncosta 50k\nwhf 20k"}
+            className="rounded-xl text-base min-h-[120px]"
+            rows={4}
+          />
 
-          {/* Parsed Preview for current input */}
-          {parsed && text.trim() && (
-            <div className="bg-muted/50 rounded-xl p-3 space-y-2 border border-border/50">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Detected:</p>
-              <div className="flex flex-wrap gap-2">
-                {parsed.quantity && (
-                  <Badge variant="secondary" className="gap-1">
-                    <Hash className="w-3 h-3" />
-                    {parsed.quantity}
-                  </Badge>
-                )}
-                {parsed.productName && (
-                  <Badge variant="secondary" className="gap-1">
-                    <Package className="w-3 h-3" />
-                    {parsed.productName}
-                    {parsed.productAlias && (
-                      <span className="text-muted-foreground ml-1">({parsed.productAlias})</span>
-                    )}
-                  </Badge>
-                )}
-                {parsed.clientName && !effectiveClient && (
-                  <Badge variant="secondary" className="gap-1">
-                    <User className="w-3 h-3" />
-                    {parsed.clientName}
-                  </Badge>
-                )}
-                {parsed.city && !effectiveClient && (
-                  <Badge variant="secondary" className="gap-1">
-                    <MapPin className="w-3 h-3" />
-                    {parsed.city}
-                  </Badge>
-                )}
-              </div>
-
-              {!parsed.quantity && !parsed.productName && !parsed.clientName && (
-                <p className="text-xs text-muted-foreground">No matches found. Try adding a known client name or product alias.</p>
-              )}
+          {/* Live parsed preview */}
+          {parsedLines.length > 0 && (
+            <div className="bg-muted/50 rounded-xl p-3 space-y-1.5 border border-border/50">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Detected ({validItems.length} items):</p>
+              {parsedLines.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-sm">
+                  {(item.parsed.productName || item.parsed.quantity) ? (
+                    <>
+                      <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className="flex-1">
+                        {item.parsed.quantity && <span className="font-medium">{item.parsed.quantity}</span>}
+                        {item.parsed.quantity && item.parsed.productName && ' — '}
+                        {item.parsed.productName && <span>{item.parsed.productName}</span>}
+                        {item.parsed.clientName && !effectiveClient && (
+                          <span className="text-muted-foreground ml-1">({item.parsed.clientName})</span>
+                        )}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground flex-1">"{item.text}" — no match</span>
+                    </>
+                  )}
+                  <button onClick={() => handleRemoveLine(idx)} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
@@ -271,7 +225,7 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
                   <SelectValue placeholder="Select client..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {parsed?.ambiguousClients?.map(c => (
+                  {ambiguousFromLines?.parsed.ambiguousClients?.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -279,24 +233,18 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
             </div>
           )}
 
-          {/* No client found - manual select */}
-          {noClientFound && !parsed?.productName && !parsed?.quantity && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <AlertCircle className="w-3 h-3" />
-                No client matched. Select manually or continue without.
-              </div>
-              <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="Select client (optional)..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Manual client select if none found */}
+          {!effectiveClientId && text.trim().length > 0 && !needsClientSelection && (
+            <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+              <SelectTrigger className="rounded-xl">
+                <SelectValue placeholder="Select client (optional)..." />
+              </SelectTrigger>
+              <SelectContent>
+                {clients.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
 
           <Button
@@ -305,7 +253,7 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
             className="w-full rounded-xl bg-destructive hover:bg-destructive/90 text-white"
           >
             <Zap className="w-4 h-4 mr-2" />
-            Add Order {items.length > 0 ? `(${items.length + (hasCurrentItem ? 1 : 0)} items)` : ''}
+            Add Order {validItems.length > 0 ? `(${validItems.length} items)` : ''}
           </Button>
         </div>
       </DialogContent>
