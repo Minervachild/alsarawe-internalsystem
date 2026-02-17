@@ -34,6 +34,7 @@ import { ShiftCheckInDialog } from '@/components/dailyduties/ShiftCheckInDialog'
 import { AttendanceHistory } from '@/components/dailyduties/AttendanceHistory';
 import { ShiftChecklist } from '@/components/dailyduties/ShiftChecklist';
 import { format } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DutyCategory {
   id: string;
@@ -117,10 +118,35 @@ export default function DailyDuties() {
   const [newDutyTargetDate, setNewDutyTargetDate] = useState('');
   
   const { toast } = useToast();
+  const { user, isAdmin } = useAuth();
+  const [myEmployeeId, setMyEmployeeId] = useState<string | null>(null);
+  const [myEmployeeName, setMyEmployeeName] = useState<string>('');
+  const [myEmployeeRole, setMyEmployeeRole] = useState<string | null>(null);
+  const [myEmployeeLoading, setMyEmployeeLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
+    fetchMyEmployee();
   }, []);
+
+  const fetchMyEmployee = async () => {
+    if (!user) { setMyEmployeeLoading(false); return; }
+    try {
+      const { data, error } = await supabase.rpc('get_employee_id_for_user', { _user_id: user.id });
+      if (error || !data) { setMyEmployeeLoading(false); return; }
+      setMyEmployeeId(data);
+      // Fetch name/role
+      const { data: emp } = await supabase.from('employees').select('name, role').eq('id', data).single();
+      if (emp) {
+        setMyEmployeeName(emp.name);
+        setMyEmployeeRole(emp.role);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setMyEmployeeLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -550,40 +576,79 @@ export default function DailyDuties() {
 
           {/* ========== CHECKLIST TAB ========== */}
           <TabsContent value="checklist" className="space-y-6">
-            {!checklistEmployeeId || activeTab !== 'checklist' ? (
-              <div className="card-premium p-6">
-                <h3 className="font-semibold mb-4">Select Employee for Checklist</h3>
-                <div className="flex items-center gap-3">
-                  <Select value={checklistEmployeeId} onValueChange={setChecklistEmployeeId}>
-                    <SelectTrigger className="flex-1 rounded-xl">
-                      <SelectValue placeholder="Select employee" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {employees.map(emp => (
-                        <SelectItem key={emp.id} value={emp.id}>
-                          {emp.name} {emp.role ? `(${emp.role})` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button onClick={openChecklist} className="rounded-xl">Open Checklist</Button>
+            {(() => {
+              // Non-admin with linked employee: show their checklist directly
+              if (!isAdmin && myEmployeeId && !myEmployeeLoading) {
+                return (
+                  <div className="max-w-[600px] mx-auto">
+                    <div className="card-premium p-6">
+                      <ShiftChecklist
+                        employeeId={myEmployeeId}
+                        employeeName={myEmployeeName}
+                        employeeRole={myEmployeeRole}
+                        onClose={() => {}}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+
+              // Non-admin without linked employee
+              if (!isAdmin && !myEmployeeId && !myEmployeeLoading) {
+                return (
+                  <div className="card-premium p-12 text-center">
+                    <ClipboardList className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                    <h3 className="font-semibold text-lg mb-1">No Employee Profile Linked</h3>
+                    <p className="text-muted-foreground">Ask your admin to link your account to an employee profile to see your checklist.</p>
+                  </div>
+                );
+              }
+
+              // Loading state
+              if (myEmployeeLoading) {
+                return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading...</div>;
+              }
+
+              // Admin: show employee selector
+              if (!checklistEmployeeId || activeTab !== 'checklist') {
+                return (
+                  <div className="card-premium p-6">
+                    <h3 className="font-semibold mb-4">Select Employee for Checklist</h3>
+                    <div className="flex items-center gap-3">
+                      <Select value={checklistEmployeeId} onValueChange={setChecklistEmployeeId}>
+                        <SelectTrigger className="flex-1 rounded-xl">
+                          <SelectValue placeholder="Select employee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {employees.map(emp => (
+                            <SelectItem key={emp.id} value={emp.id}>
+                              {emp.name} {emp.role ? `(${emp.role})` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button onClick={openChecklist} className="rounded-xl">Open Checklist</Button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="max-w-[600px] mx-auto">
+                  <Button variant="ghost" className="mb-4 rounded-xl" onClick={() => { setChecklistEmployeeId(''); }}>
+                    ← Change Employee
+                  </Button>
+                  <div className="card-premium p-6">
+                    <ShiftChecklist
+                      employeeId={checklistEmployeeId}
+                      employeeName={checklistEmployeeName}
+                      employeeRole={checklistEmployeeRole}
+                      onClose={() => setChecklistEmployeeId('')}
+                    />
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="max-w-[600px] mx-auto">
-                <Button variant="ghost" className="mb-4 rounded-xl" onClick={() => { setChecklistEmployeeId(''); }}>
-                  ← Change Employee
-                </Button>
-                <div className="card-premium p-6">
-                  <ShiftChecklist
-                    employeeId={checklistEmployeeId}
-                    employeeName={checklistEmployeeName}
-                    employeeRole={checklistEmployeeRole}
-                    onClose={() => setChecklistEmployeeId('')}
-                  />
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </TabsContent>
 
           {/* ========== DUTIES TAB ========== */}
