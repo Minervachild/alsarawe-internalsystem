@@ -45,7 +45,7 @@ export function ShiftChecklist({ employeeId, employeeName, employeeRole, onClose
 
   const fetchChecklist = async () => {
     try {
-      const [categoriesRes, dutiesRes, completionsRes] = await Promise.all([
+      const [categoriesRes, dutiesRes, completionsRes, assignmentsRes] = await Promise.all([
         supabase.from('duty_categories').select('*').order('position'),
         supabase.from('duties').select('*').order('position'),
         supabase.from('duty_completions')
@@ -53,17 +53,33 @@ export function ShiftChecklist({ employeeId, employeeName, employeeRole, onClose
           .eq('employee_id', employeeId)
           .gte('completed_at', `${today}T00:00:00`)
           .lte('completed_at', `${today}T23:59:59`),
+        supabase.from('duty_employee_assignments').select('duty_id, employee_id'),
       ]);
 
       if (categoriesRes.error) throw categoriesRes.error;
       if (dutiesRes.error) throw dutiesRes.error;
 
-      // Filter duties: recurring ones matching role, plus one-off for today
+      const allAssignments = assignmentsRes.data || [];
+
+      // Filter duties: 
+      // 1. If duty has specific employee assignments, only show if this employee is assigned
+      // 2. If duty has no assignments, fall back to role matching (or show to all if no role set)
       const allDuties = (dutiesRes.data || []).filter(d => {
-        const roleMatch = !d.role || d.role === employeeRole || d.role === '';
-        if (d.is_recurring) return roleMatch;
+        const dutyAssignments = allAssignments.filter(a => a.duty_id === d.id);
+        
+        if (dutyAssignments.length > 0) {
+          // Duty has specific assignments - only show to assigned employees
+          const isAssigned = dutyAssignments.some(a => a.employee_id === employeeId);
+          if (!isAssigned) return false;
+        } else {
+          // No specific assignments - fall back to role matching
+          const roleMatch = !d.role || d.role === employeeRole || d.role === '';
+          if (!roleMatch) return false;
+        }
+        
+        if (d.is_recurring) return true;
         // One-off: only show if target_date is today
-        return roleMatch && d.target_date === today;
+        return d.target_date === today;
       });
 
       setCategories(categoriesRes.data || []);

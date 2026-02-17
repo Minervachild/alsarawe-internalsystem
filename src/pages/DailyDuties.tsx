@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckSquare, Plus, Trash2, Edit2, GripVertical, ChevronDown, ChevronRight, Play, Star, AlertTriangle, CheckCircle2, Clock, Calendar, Tag, ClipboardList } from 'lucide-react';
+import { CheckSquare, Plus, Trash2, Edit2, GripVertical, ChevronDown, ChevronRight, Play, Star, AlertTriangle, CheckCircle2, Clock, Calendar, Tag, ClipboardList, Users } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
@@ -55,6 +56,11 @@ interface Duty {
   target_date: string | null;
 }
 
+interface DutyAssignment {
+  duty_id: string;
+  employee_id: string;
+}
+
 interface Employee {
   id: string;
   name: string;
@@ -80,6 +86,7 @@ export default function DailyDuties() {
   const [categories, setCategories] = useState<DutyCategory[]>([]);
   const [duties, setDuties] = useState<Duty[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [dutyAssignments, setDutyAssignments] = useState<DutyAssignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState('duties');
@@ -116,6 +123,8 @@ export default function DailyDuties() {
   const [newDutyIsEndOfDay, setNewDutyIsEndOfDay] = useState(false);
   const [newDutyIsRecurring, setNewDutyIsRecurring] = useState(true);
   const [newDutyTargetDate, setNewDutyTargetDate] = useState('');
+  const [newDutyAssignedEmployees, setNewDutyAssignedEmployees] = useState<string[]>([]);
+  const [assignmentMode, setAssignmentMode] = useState<'all' | 'role' | 'specific'>('all');
   
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
@@ -150,10 +159,11 @@ export default function DailyDuties() {
 
   const fetchData = async () => {
     try {
-      const [categoriesRes, dutiesRes, employeesRes] = await Promise.all([
+      const [categoriesRes, dutiesRes, employeesRes, assignmentsRes] = await Promise.all([
         supabase.from('duty_categories').select('*').order('position'),
         supabase.from('duties').select('*').order('position'),
         supabase.from('employees').select('id, name, role').order('name'),
+        supabase.from('duty_employee_assignments').select('duty_id, employee_id'),
       ]);
 
       if (categoriesRes.error) throw categoriesRes.error;
@@ -163,6 +173,7 @@ export default function DailyDuties() {
       setCategories(categoriesRes.data || []);
       setDuties((dutiesRes.data || []) as Duty[]);
       setEmployees(employeesRes.data || []);
+      setDutyAssignments((assignmentsRes.data || []) as DutyAssignment[]);
       setExpandedCategories(new Set((categoriesRes.data || []).map(c => c.id)));
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -336,7 +347,7 @@ export default function DailyDuties() {
           category_id: selectedCategoryId,
           title: newDutyTitle.trim(),
           description: newDutyDescription.trim() || null,
-          role: newDutyRole || null,
+          role: assignmentMode === 'role' ? newDutyRole || null : null,
           position: categoryDuties.length,
           is_end_of_day: newDutyIsEndOfDay,
           is_recurring: newDutyIsRecurring,
@@ -344,6 +355,20 @@ export default function DailyDuties() {
         })
         .select().single();
       if (error) throw error;
+      
+      // Save employee assignments if specific employees selected
+      if (assignmentMode === 'specific' && newDutyAssignedEmployees.length > 0) {
+        const assignments = newDutyAssignedEmployees.map(empId => ({
+          duty_id: data.id,
+          employee_id: empId,
+        }));
+        const { error: assignError } = await supabase
+          .from('duty_employee_assignments')
+          .insert(assignments);
+        if (assignError) throw assignError;
+        setDutyAssignments(prev => [...prev, ...assignments]);
+      }
+      
       setDuties([...duties, data as Duty]);
       resetDutyForm();
       setIsDutyDialogOpen(false);
@@ -360,6 +385,8 @@ export default function DailyDuties() {
     setNewDutyIsEndOfDay(false);
     setNewDutyIsRecurring(true);
     setNewDutyTargetDate('');
+    setNewDutyAssignedEmployees([]);
+    setAssignmentMode('all');
   };
 
   const handleDeleteDuty = async (id: string) => {
@@ -791,11 +818,17 @@ export default function DailyDuties() {
                                               <div className="flex items-center gap-3">
                                                 <span className="text-xs font-mono text-muted-foreground w-6">#{duty.position + 1}</span>
                                                 <div>
-                                                  <div className="flex items-center gap-2">
+                                                  <div className="flex items-center gap-2 flex-wrap">
                                                     <p className="font-medium text-foreground">{duty.title}</p>
                                                     {duty.role && <Badge variant="secondary" className="text-xs">{duty.role}</Badge>}
                                                     {duty.is_end_of_day && <Badge variant="outline" className="text-xs"><Clock className="w-3 h-3 mr-1" />Anytime</Badge>}
                                                     {!duty.is_recurring && <Badge variant="outline" className="text-xs bg-warning/10 border-warning/30 text-warning">One-time{duty.target_date ? ` · ${duty.target_date}` : ''}</Badge>}
+                                                    {(() => {
+                                                      const assignedEmps = dutyAssignments.filter(a => a.duty_id === duty.id);
+                                                      if (assignedEmps.length === 0) return null;
+                                                      const names = assignedEmps.map(a => employees.find(e => e.id === a.employee_id)?.name).filter(Boolean);
+                                                      return <Badge variant="outline" className="text-xs"><Users className="w-3 h-3 mr-1" />{names.join(', ')}</Badge>;
+                                                    })()}
                                                   </div>
                                                   {duty.description && <p className="text-sm text-muted-foreground">{duty.description}</p>}
                                                 </div>
@@ -834,19 +867,63 @@ export default function DailyDuties() {
                     <Input placeholder="Additional details..." value={newDutyDescription} onChange={(e) => setNewDutyDescription(e.target.value)} className="rounded-xl" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Role (leave empty for all roles)</Label>
-                    <Select value={newDutyRole} onValueChange={setNewDutyRole}>
-                      <SelectTrigger className="rounded-xl">
-                        <SelectValue placeholder="All roles" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">All Roles</SelectItem>
-                        {EMPLOYEE_ROLES.map(r => (
-                          <SelectItem key={r} value={r}>{r}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Assign To</Label>
+                    <div className="flex gap-2">
+                      {(['all', 'role', 'specific'] as const).map(mode => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setAssignmentMode(mode)}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                            assignmentMode === mode 
+                              ? 'bg-primary text-primary-foreground' 
+                              : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                          }`}
+                        >
+                          {mode === 'all' ? 'Everyone' : mode === 'role' ? 'By Role' : 'Specific Employees'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                  {assignmentMode === 'role' && (
+                    <div className="space-y-2">
+                      <Label>Role</Label>
+                      <Select value={newDutyRole} onValueChange={setNewDutyRole}>
+                        <SelectTrigger className="rounded-xl">
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EMPLOYEE_ROLES.map(r => (
+                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {assignmentMode === 'specific' && (
+                    <div className="space-y-2">
+                      <Label>Select Employees</Label>
+                      <div className="max-h-[200px] overflow-y-auto space-y-1 border rounded-xl p-3">
+                        {employees.map(emp => (
+                          <label key={emp.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-muted/30 cursor-pointer">
+                            <Checkbox
+                              checked={newDutyAssignedEmployees.includes(emp.id)}
+                              onCheckedChange={(checked) => {
+                                setNewDutyAssignedEmployees(prev =>
+                                  checked ? [...prev, emp.id] : prev.filter(id => id !== emp.id)
+                                );
+                              }}
+                            />
+                            <span className="text-sm">{emp.name}</span>
+                            {emp.role && <span className="text-xs text-muted-foreground">({emp.role})</span>}
+                          </label>
+                        ))}
+                      </div>
+                      {newDutyAssignedEmployees.length > 0 && (
+                        <p className="text-xs text-muted-foreground">{newDutyAssignedEmployees.length} employee(s) selected</p>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <div>
                       <Label>Anytime Today (End-of-Day)</Label>
