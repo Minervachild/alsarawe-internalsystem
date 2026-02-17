@@ -350,8 +350,11 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_end_of_day: boolean
+          is_recurring: boolean
           position: number
           role: string | null
+          target_date: string | null
           title: string
           updated_at: string
         }
@@ -360,8 +363,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_end_of_day?: boolean
+          is_recurring?: boolean
           position?: number
           role?: string | null
+          target_date?: string | null
           title: string
           updated_at?: string
         }
@@ -370,8 +376,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_end_of_day?: boolean
+          is_recurring?: boolean
           position?: number
           role?: string | null
+          target_date?: string | null
           title?: string
           updated_at?: string
         }
