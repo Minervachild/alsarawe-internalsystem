@@ -122,7 +122,7 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
         }));
 
       if (itemsList.length > 0) {
-        cells[itemsCol.id] = { items: itemsList };
+        cells[itemsCol.id] = itemsList;
       }
     }
 
