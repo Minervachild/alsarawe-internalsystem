@@ -39,7 +39,7 @@ interface ProductRecord {
  * Extract quantity from text. Matches patterns like: 50k, 100kg, 20kg, 5k
  */
 function extractQuantity(text: string): { quantity: string; quantityNum: number; unit: string; remaining: string } | null {
-  const match = text.match(/(\d+(?:\.\d+)?)\s*(k|kg|g|lb|lbs|pcs|bags?)\b/i);
+  const match = text.match(/(\d+(?:\.\d+)?)\s*(k|kg|g|lb|lbs|pcs|pc|bags?)\b/i);
   if (!match) return null;
 
   const num = parseFloat(match[1]);
@@ -48,6 +48,7 @@ function extractQuantity(text: string): { quantity: string; quantityNum: number;
   if (unit === 'k') unit = 'kg';
   if (unit === 'bag') unit = 'bags';
   if (unit === 'lb') unit = 'lbs';
+  if (unit === 'pc') unit = 'pcs';
 
   const remaining = text.replace(match[0], '').trim();
   return { quantity: `${num}${unit}`, quantityNum: num, unit, remaining };
@@ -99,6 +100,24 @@ function findClient(text: string, clients: ClientRecord[]): { client: ClientReco
 function findProduct(text: string, products: ProductRecord[]): { product: ProductRecord | null; alias: string | null; remaining: string } {
   const lower = text.toLowerCase();
   const words = lower.split(/\s+/).filter(Boolean);
+
+  // Check for multi-word keywords first (e.g. "white bag" → "white label")
+  const multiWordAliases: { product: ProductRecord; alias: string; phraseLen: number }[] = [];
+  for (const product of products) {
+    for (const alias of product.aliases) {
+      const aliasLower = alias.toLowerCase();
+      if (aliasLower.includes(' ') && lower.includes(aliasLower)) {
+        multiWordAliases.push({ product, alias, phraseLen: aliasLower.length });
+      }
+    }
+  }
+  // Longest multi-word alias wins
+  if (multiWordAliases.length > 0) {
+    multiWordAliases.sort((a, b) => b.phraseLen - a.phraseLen);
+    const best = multiWordAliases[0];
+    const remaining = text.replace(new RegExp(best.alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), '').trim();
+    return { product: best.product, alias: best.alias, remaining };
+  }
 
   for (const product of products) {
     // Check aliases
