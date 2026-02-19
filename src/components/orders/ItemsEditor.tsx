@@ -40,7 +40,11 @@ export function ItemsEditor({ value, onChange }: ItemsEditorProps) {
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   
 
-  const items: ItemEntry[] = Array.isArray(value) ? value : [];
+  const items: ItemEntry[] = Array.isArray(value) 
+    ? value 
+    : (value && typeof value === 'object' && 'items' in value && Array.isArray((value as any).items))
+      ? (value as any).items 
+      : [];
   const totalQty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
 
   // Fetch saved items when popover opens
