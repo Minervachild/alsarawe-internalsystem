@@ -126,6 +126,8 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
       }
     }
 
+    // Only submit if we have items data
+    if (Object.keys(cells).length === 0) return;
     onSubmit(cells);
     onOpenChange(false);
   };
