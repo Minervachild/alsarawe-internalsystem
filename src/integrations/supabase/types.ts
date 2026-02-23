@@ -194,6 +194,7 @@ export type Database = {
           deleted_by: string | null
           group_id: string
           id: string
+          moved_at: string | null
           position: number
           updated_at: string | null
         }
@@ -205,6 +206,7 @@ export type Database = {
           deleted_by?: string | null
           group_id: string
           id?: string
+          moved_at?: string | null
           position?: number
           updated_at?: string | null
         }
@@ -216,6 +218,7 @@ export type Database = {
           deleted_by?: string | null
           group_id?: string
           id?: string
+          moved_at?: string | null
           position?: number
           updated_at?: string | null
         }
