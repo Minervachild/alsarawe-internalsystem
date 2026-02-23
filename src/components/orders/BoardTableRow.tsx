@@ -358,10 +358,14 @@ export const BoardTableRow = memo(function BoardTableRow({
         </div>
       ))}
 
-      {/* Created Date */}
+      {/* Moved/Created Date */}
       <div className="p-2 flex items-center min-w-0">
         <span className="text-xs text-muted-foreground truncate">
-          {row.created_at ? new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+          {(row as any).moved_at
+            ? new Date((row as any).moved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : row.created_at
+              ? new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              : '—'}
         </span>
       </div>
 

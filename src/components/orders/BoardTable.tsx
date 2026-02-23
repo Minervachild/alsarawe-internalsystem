@@ -122,25 +122,7 @@ export function BoardTable({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const rowId = e.dataTransfer.getData('text/plain');
-    if (rowId && rowId !== draggedRowId) {
-      // Check if moving to Shipped group - require delivery proof
-      if (group.name === 'Shipped') {
-        const row = rows.find(r => r.id === rowId);
-        // Find the delivery proof column
-        const deliveryProofCol = columns.find(c => c.name === 'Delivery Proof');
-        if (deliveryProofCol) {
-          const proof = row?.cells[deliveryProofCol.id];
-          if (!proof || (Array.isArray(proof) && proof.length === 0)) {
-            toast({
-              title: 'Delivery Proof Required',
-              description: 'Please upload a delivery authentication document before moving to Shipped.',
-              variant: 'destructive',
-            });
-            setDraggedRowId(null);
-            return;
-          }
-        }
-      }
+    if (rowId) {
       onMoveRow(rowId, group.id);
     }
     setDraggedRowId(null);
@@ -266,7 +248,7 @@ export function BoardTable({
                     onReorder={handleColumnReorder}
                   />
                 ))}
-                <div className="p-2 truncate">Created</div>
+                <div className="p-2 truncate">Moved</div>
                 <div className="p-2 flex items-center justify-center">
                   <Plus className="w-4 h-4 cursor-pointer hover:text-foreground" />
                 </div>

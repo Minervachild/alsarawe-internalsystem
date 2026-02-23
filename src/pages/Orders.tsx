@@ -17,6 +17,7 @@ import { BoardTable } from '@/components/orders/BoardTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { QuickAddOrderDialog } from '@/components/orders/QuickAddOrderDialog';
 import { SmartQuickAdd } from '@/components/orders/SmartQuickAdd';
+import { DeliveryProofDialog } from '@/components/orders/DeliveryProofDialog';
 
 interface BoardGroup {
   id: string;
@@ -69,6 +70,7 @@ export default function Orders() {
   const [smartAddOpen, setSmartAddOpen] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
   const [undoInfo, setUndoInfo] = useState<{ rowId: string; timeout: NodeJS.Timeout } | null>(null);
+  const [deliveryProofTarget, setDeliveryProofTarget] = useState<{ rowId: string; groupId: string } | null>(null);
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
 
@@ -240,17 +242,33 @@ export default function Orders() {
   };
 
   const handleMoveRow = async (rowId: string, targetGroupId: string) => {
-    // Optimistic update
+    // Check if moving to Shipped - show delivery proof dialog
+    const targetGroup = groups.find(g => g.id === targetGroupId);
+    if (targetGroup?.name === 'Shipped') {
+      const row = rows.find(r => r.id === rowId);
+      const deliveryProofCol = columns.find(c => c.name === 'Delivery Proof');
+      const proof = deliveryProofCol ? row?.cells[deliveryProofCol.id] : null;
+      if (!proof || (Array.isArray(proof) && proof.length === 0)) {
+        setDeliveryProofTarget({ rowId, groupId: targetGroupId });
+        return;
+      }
+    }
+
+    await executeMoveRow(rowId, targetGroupId);
+  };
+
+  const executeMoveRow = async (rowId: string, targetGroupId: string) => {
     const previousRows = rows;
+    const now = new Date().toISOString();
     setRows(prev => prev.map(row =>
-      row.id === rowId ? { ...row, group_id: targetGroupId } : row
+      row.id === rowId ? { ...row, group_id: targetGroupId, moved_at: now } as any : row
     ));
     toast({ title: 'Order moved' });
 
     try {
       await supabase
         .from('board_rows')
-        .update({ group_id: targetGroupId })
+        .update({ group_id: targetGroupId, moved_at: now } as any)
         .eq('id', rowId);
     } catch (error: any) {
       setRows(previousRows);
@@ -260,6 +278,21 @@ export default function Orders() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleDeliveryProofConfirm = async (urls: string[]) => {
+    if (!deliveryProofTarget) return;
+    const { rowId, groupId } = deliveryProofTarget;
+
+    // Save the delivery proof to the cell
+    const deliveryProofCol = columns.find(c => c.name === 'Delivery Proof');
+    if (deliveryProofCol) {
+      await handleUpdateCell(rowId, deliveryProofCol.id, urls);
+    }
+
+    // Now move the row
+    await executeMoveRow(rowId, groupId);
+    setDeliveryProofTarget(null);
   };
 
   const handleAddColumnOption = async (columnId: string, newOption: string) => {
@@ -733,6 +766,14 @@ export default function Orders() {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
           }
         }}
+      />
+
+      {/* Delivery Proof Dialog */}
+      <DeliveryProofDialog
+        open={!!deliveryProofTarget}
+        onOpenChange={(open) => { if (!open) setDeliveryProofTarget(null); }}
+        rowId={deliveryProofTarget?.rowId || ''}
+        onConfirm={handleDeliveryProofConfirm}
       />
     </AppLayout>
   );
