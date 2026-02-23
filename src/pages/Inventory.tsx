@@ -31,6 +31,7 @@ import {
   AlertTitle,
 } from '@/components/ui/alert';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { InventorySessions } from '@/components/inventory/InventorySessions';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, differenceInDays } from 'date-fns';
@@ -96,6 +97,7 @@ export default function Inventory() {
   const [movementNotes, setMovementNotes] = useState('');
   const [consumptionDate, setConsumptionDate] = useState('');
   const [priceIncludesVat, setPriceIncludesVat] = useState(false);
+  const [employees, setEmployees] = useState<{ id: string; name: string; avatar_color: string | null }[]>([]);
   const { toast } = useToast();
 
   const stockOutReasons = [
@@ -112,14 +114,16 @@ export default function Inventory() {
 
   const fetchData = async () => {
     try {
-      const [categoriesRes, itemsRes, movementsRes] = await Promise.all([
+      const [categoriesRes, itemsRes, movementsRes, employeesRes] = await Promise.all([
         supabase.from('inventory_categories').select('*').order('name'),
         supabase.from('inventory_items').select('*, inventory_categories(*)').order('name'),
         supabase.from('inventory_movements').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('employees_public').select('id, name, avatar_color'),
       ]);
 
       setCategories(categoriesRes.data || []);
       setMovements(movementsRes.data || []);
+      setEmployees((employeesRes.data || []).map(e => ({ id: e.id!, name: e.name!, avatar_color: e.avatar_color })));
       
       const transformedItems = (itemsRes.data || []).map((item: any) => ({
         ...item,
@@ -407,6 +411,7 @@ export default function Inventory() {
         <Tabs defaultValue="items" className="space-y-4">
           <TabsList>
             <TabsTrigger value="items">Items</TabsTrigger>
+            <TabsTrigger value="sessions">Sessions</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="history">Movement History</TabsTrigger>
           </TabsList>
@@ -535,6 +540,14 @@ export default function Inventory() {
                 })}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="sessions">
+            <InventorySessions
+              items={items.map(i => ({ ...i, category: i.category ? { id: i.category.id, name: i.category.name, color: i.category.color } : null }))}
+              employees={employees}
+              onRefreshData={fetchData}
+            />
           </TabsContent>
 
           <TabsContent value="categories">
