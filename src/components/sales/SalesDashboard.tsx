@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, Filter, DollarSign, CreditCard, Hash, Building2, Copy, Check } from 'lucide-react';
+import { Calendar, Filter, DollarSign, CreditCard, Hash, Building2, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { BotRegister } from './BotRegister';
@@ -26,6 +27,7 @@ interface SalesEntry {
   transaction_count: number;
   proof_image_url: string;
   created_at: string;
+  status: string;
   branches?: { name: string };
   employees?: { name: string };
 }
@@ -42,8 +44,11 @@ export function SalesDashboard() {
   const [filterDate, setFilterDate] = useState('');
   const [filterBranch, setFilterBranch] = useState('all');
   const [filterShift, setFilterShift] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [selectedEntry, setSelectedEntry] = useState<SalesEntry | null>(null);
   const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -94,9 +99,60 @@ export function SalesDashboard() {
       if (filterDate && entry.date !== filterDate) return false;
       if (filterBranch !== 'all' && entry.branch_id !== filterBranch) return false;
       if (filterShift !== 'all' && entry.shift !== filterShift) return false;
+      if (filterStatus !== 'all' && entry.status !== filterStatus) return false;
       return true;
     });
-  }, [entries, filterDate, filterBranch, filterShift]);
+  }, [entries, filterDate, filterBranch, filterShift, filterStatus]);
+
+  const handleApprove = async (entry: SalesEntry) => {
+    if (!user) return;
+    setProcessingIds(prev => new Set(prev).add(entry.id));
+    try {
+      const { error } = await supabase
+        .from('sales_entries')
+        .update({ status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() })
+        .eq('id', entry.id);
+      if (error) throw error;
+
+      // Send to Telegram
+      supabase.functions.invoke('send-sales-telegram', {
+        body: {
+          date: entry.date,
+          shift: entry.shift,
+          branchName: (entry as any).branches?.name || '',
+          employeeName: (entry as any).employees?.name || '',
+          cashAmount: entry.cash_amount,
+          cardAmount: entry.card_amount,
+          transactionCount: entry.transaction_count,
+        },
+      }).catch(err => console.error('Telegram notification failed:', err));
+
+      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'approved' } : e));
+      toast({ title: 'Sale approved & sent to Telegram' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(entry.id); return n; });
+    }
+  };
+
+  const handleReject = async (entry: SalesEntry) => {
+    setProcessingIds(prev => new Set(prev).add(entry.id));
+    try {
+      const { error } = await supabase
+        .from('sales_entries')
+        .update({ status: 'rejected' })
+        .eq('id', entry.id);
+      if (error) throw error;
+
+      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'rejected' } : e));
+      toast({ title: 'Sale rejected' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(entry.id); return n; });
+    }
+  };
 
   const stats = useMemo(() => {
     const totalCash = filteredEntries.reduce((sum, e) => sum + Number(e.cash_amount), 0);
@@ -125,7 +181,7 @@ export function SalesDashboard() {
           <Filter className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium">Filters</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs">Date</Label>
             <Input
@@ -162,13 +218,27 @@ export function SalesDashboard() {
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Status</Label>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         {filterDate && (
           <Button
             variant="ghost"
             size="sm"
             className="mt-2 text-xs"
-            onClick={() => { setFilterDate(''); setFilterBranch('all'); setFilterShift('all'); }}
+            onClick={() => { setFilterDate(''); setFilterBranch('all'); setFilterShift('all'); setFilterStatus('all'); }}
           >
             Clear filters
           </Button>
@@ -222,17 +292,16 @@ export function SalesDashboard() {
                   <th className="text-left p-3 font-medium text-muted-foreground">Branch</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Shift</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Employee</th>
-                  <th className="text-right p-3 font-medium text-muted-foreground">Cash</th>
-                  <th className="text-right p-3 font-medium text-muted-foreground">Card</th>
                   <th className="text-right p-3 font-medium text-muted-foreground">Total</th>
-                  <th className="text-right p-3 font-medium text-muted-foreground">Txns</th>
+                  <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
                   <th className="text-center p-3 font-medium text-muted-foreground">Proof</th>
+                  <th className="text-center p-3 font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
                       No sales entries found
                     </td>
                   </tr>
@@ -264,16 +333,23 @@ export function SalesDashboard() {
                       <td className="p-3 text-muted-foreground">
                         {(entry as any).employees?.name || '—'}
                       </td>
-                      <td className="p-3 text-right font-medium text-green-600">
-                        ﷼{Number(entry.cash_amount).toLocaleString()}
-                      </td>
-                      <td className="p-3 text-right font-medium text-blue-600">
-                        ﷼{Number(entry.card_amount).toLocaleString()}
-                      </td>
                       <td className="p-3 text-right font-semibold">
                         ﷼{(Number(entry.cash_amount) + Number(entry.card_amount)).toLocaleString()}
                       </td>
-                      <td className="p-3 text-right">{entry.transaction_count}</td>
+                      <td className="p-3 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1 ${
+                          entry.status === 'approved'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : entry.status === 'rejected'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                        }`}>
+                          {entry.status === 'approved' ? <CheckCircle className="w-3 h-3" /> :
+                           entry.status === 'rejected' ? <XCircle className="w-3 h-3" /> :
+                           <Clock className="w-3 h-3" />}
+                          {entry.status === 'approved' ? 'Approved' : entry.status === 'rejected' ? 'Rejected' : 'Pending'}
+                        </span>
+                      </td>
                       <td className="p-3 text-center">
                         <Button
                           variant="ghost"
@@ -287,6 +363,32 @@ export function SalesDashboard() {
                         >
                           View
                         </Button>
+                      </td>
+                      <td className="p-3 text-center">
+                        {entry.status === 'pending' ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                              disabled={processingIds.has(entry.id)}
+                              onClick={(e) => { e.stopPropagation(); handleApprove(entry); }}
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              disabled={processingIds.has(entry.id)}
+                              onClick={(e) => { e.stopPropagation(); handleReject(entry); }}
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </td>
                     </tr>
                   ))
