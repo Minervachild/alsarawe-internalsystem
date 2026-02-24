@@ -1165,6 +1165,8 @@ export type Database = {
       }
       sales_entries: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           branch_id: string
           card_amount: number
           cash_amount: number
@@ -1174,10 +1176,13 @@ export type Database = {
           id: string
           proof_image_url: string
           shift: string
+          status: string
           submitted_by: string
           transaction_count: number
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           branch_id: string
           card_amount: number
           cash_amount: number
@@ -1187,10 +1192,13 @@ export type Database = {
           id?: string
           proof_image_url: string
           shift: string
+          status?: string
           submitted_by: string
           transaction_count: number
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           branch_id?: string
           card_amount?: number
           cash_amount?: number
@@ -1200,6 +1208,7 @@ export type Database = {
           id?: string
           proof_image_url?: string
           shift?: string
+          status?: string
           submitted_by?: string
           transaction_count?: number
         }
