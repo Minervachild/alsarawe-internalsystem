@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.create-user-account]
 verify_jwt = false
+
+[functions.send-sales-telegram]
+verify_jwt = false
