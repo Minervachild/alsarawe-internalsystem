@@ -148,6 +148,24 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
 
       if (error) throw error;
 
+      // Send to Telegram (fire-and-forget)
+      const branchName = branches.find(b => b.id === branchId)?.name || '';
+      const empName = isAdmin
+        ? employees.find(emp => emp.id === selectedEmployeeId)?.name || ''
+        : '';
+
+      supabase.functions.invoke('send-sales-telegram', {
+        body: {
+          date,
+          shift,
+          branchName,
+          employeeName: empName,
+          cashAmount,
+          cardAmount,
+          transactionCount,
+        },
+      }).catch(err => console.error('Telegram notification failed:', err));
+
       setIsSubmitted(true);
       toast({ title: 'Sales submitted successfully!' });
       onSuccess?.();
