@@ -11,16 +11,19 @@ import { SalesDashboard } from '@/components/sales/SalesDashboard';
 import { BranchManager } from '@/components/sales/BranchManager';
 
 export default function Sales() {
-  const { user, isAdmin, profile } = useAuth();
+  const { user, isAdmin, profile, isLoading: authLoading } = useAuth();
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [registerOpen, setRegisterOpen] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
     if (user && profile) {
       fetchEmployeeId();
+    } else {
+      setIsLoading(false);
     }
-  }, [user, profile]);
+  }, [user, profile, authLoading]);
 
   const fetchEmployeeId = async () => {
     try {
