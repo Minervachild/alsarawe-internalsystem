@@ -56,7 +56,6 @@ export function Header() {
       } catch (e) {
         console.log('Browser notification not supported in this context');
       }
-      }
     }
   };
 
