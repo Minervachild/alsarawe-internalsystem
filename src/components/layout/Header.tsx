@@ -15,6 +15,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 
 interface Notification {
   id: string;
@@ -33,6 +34,7 @@ export function Header() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { playSound } = useNotificationSound();
 
   const fetchNotifications = useCallback(async () => {
     if (!profile?.id) return;
@@ -80,6 +82,9 @@ export function Header() {
             const newNotification = payload.new as Notification;
             setNotifications(prev => [newNotification, ...prev]);
             setUnreadCount(prev => prev + 1);
+            
+            // Play notification sound
+            playSound();
             
             // Show toast for new notification
             toast({
