@@ -23,7 +23,6 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Create a client scoped to the caller to verify their identity
   const callerClient = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: authHeader } },
   });
@@ -36,16 +35,13 @@ Deno.serve(async (req) => {
     });
   }
 
-  const callerId = callerUser.id;
-
-  // Use service role client for admin operations
   const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
   // Check caller is admin
   const { data: callerRole } = await adminClient
     .from('user_roles')
     .select('role')
-    .eq('user_id', callerId)
+    .eq('user_id', callerUser.id)
     .eq('role', 'admin')
     .maybeSingle();
 
@@ -69,7 +65,6 @@ Deno.serve(async (req) => {
       employeeId,
     } = body;
 
-    // Validate inputs
     if (!username || !passcode) {
       return new Response(JSON.stringify({ error: 'username and passcode are required' }), {
         status: 400,
@@ -109,7 +104,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Try creating auth user; if email exists (orphaned from deleted employee), clean up and retry
+    // Create auth user
     let authData: any = null;
     let fakeEmail = `${baseSlug}@roastery.local`;
 
@@ -120,11 +115,9 @@ Deno.serve(async (req) => {
     });
 
     if (createError && createError.message?.includes('already been registered')) {
-      // Find the existing auth user with this email
       const { data: { users } } = await adminClient.auth.admin.listUsers();
       const orphanedUser = users?.find((u: any) => u.email === fakeEmail);
       if (orphanedUser) {
-        // Check if they still have an active profile
         const { data: activeProfile } = await adminClient
           .from('profiles')
           .select('id')
@@ -132,15 +125,12 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (activeProfile) {
-          // Active profile exists — use a unique suffixed email
           fakeEmail = `${baseSlug}_${Date.now()}@roastery.local`;
         } else {
-          // Orphaned auth user with no profile — delete it
           await adminClient.auth.admin.deleteUser(orphanedUser.id);
         }
       }
 
-      // Retry creation
       const { data: retryData, error: retryError } = await adminClient.auth.admin.createUser({
         email: fakeEmail,
         password: passcodeUpper,
@@ -155,6 +145,14 @@ Deno.serve(async (req) => {
     }
 
     if (!authData?.user) throw new Error('Failed to create user');
+
+    // If employeeId provided, pre-link the employee BEFORE inserting profile
+    // so the trigger sees an employee already linked and skips auto-creation
+    if (employeeId) {
+      // We'll set a temporary profile_id placeholder, then update after profile creation
+      // Actually, we need to create profile first to get the ID.
+      // Instead, we'll handle cleanup after profile creation.
+    }
 
     // Create profile
     const isAdmin = role === 'admin';
@@ -186,6 +184,20 @@ Deno.serve(async (req) => {
 
     // Link profile to employee if employeeId provided
     if (employeeId) {
+      // The trigger may have auto-created an employee with this profile_id.
+      // Delete that auto-created employee first, then link the target employee.
+      const { data: autoCreated } = await adminClient
+        .from('employees')
+        .select('id')
+        .eq('profile_id', profileData.id)
+        .neq('id', employeeId);
+
+      if (autoCreated && autoCreated.length > 0) {
+        for (const emp of autoCreated) {
+          await adminClient.from('employees').delete().eq('id', emp.id);
+        }
+      }
+
       const { error: linkError } = await adminClient
         .from('employees')
         .update({ profile_id: profileData.id })
@@ -197,6 +209,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       profileId: profileData.id,
+      userId: authData.user.id,
       passcode: passcodeUpper,
     }), {
       status: 201,
