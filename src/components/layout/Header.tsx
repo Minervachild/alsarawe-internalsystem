@@ -36,6 +36,30 @@ export function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const { playSound } = useNotificationSound();
 
+  // Request browser notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const showBrowserNotification = (title: string, body?: string) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const options: any = {
+          body: body || undefined,
+          icon: logoUrl || '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'roastflow-notification',
+        };
+        new Notification(title, options);
+      } catch (e) {
+        console.log('Browser notification not supported in this context');
+      }
+      }
+    }
+  };
+
   const fetchNotifications = useCallback(async () => {
     if (!profile?.id) return;
     
@@ -85,6 +109,9 @@ export function Header() {
             
             // Play notification sound
             playSound();
+            
+            // Show browser notification (works even when tab is in background)
+            showBrowserNotification(newNotification.title, newNotification.message || undefined);
             
             // Show toast for new notification
             toast({

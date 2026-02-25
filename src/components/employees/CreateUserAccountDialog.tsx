@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UserPlus, Shield, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Shield, Eye, EyeOff, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { PageAccessDialog } from '@/components/users/PageAccessDialog';
 
 interface CreateUserAccountDialogProps {
   open: boolean;
@@ -39,6 +40,8 @@ export function CreateUserAccountDialog({
 }: CreateUserAccountDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPasscode, setShowPasscode] = useState(false);
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
+  const [pageAccessOpen, setPageAccessOpen] = useState(false);
   const [formData, setFormData] = useState({
     username: employeeName,
     passcode: '',
@@ -133,8 +136,14 @@ export function CreateUserAccountDialog({
         description: `Account for ${formData.username} created with passcode: ${result.passcode}` 
       });
       
-      onOpenChange(false);
-      onSuccess();
+      // Store userId for page access configuration
+      if (result.userId && formData.role !== 'admin') {
+        setCreatedUserId(result.userId);
+        setPageAccessOpen(true);
+      } else {
+        onOpenChange(false);
+        onSuccess();
+      }
       
       // Reset form
       setFormData({
@@ -307,6 +316,29 @@ export function CreateUserAccountDialog({
           </div>
         </form>
       </DialogContent>
+
+      {/* Page Access Dialog - shown after account creation */}
+      {createdUserId && (
+        <PageAccessDialog
+          open={pageAccessOpen}
+          onOpenChange={(open) => {
+            setPageAccessOpen(open);
+            if (!open) {
+              setCreatedUserId(null);
+              onOpenChange(false);
+              onSuccess();
+            }
+          }}
+          userId={createdUserId}
+          username={formData.username}
+          onSuccess={() => {
+            setPageAccessOpen(false);
+            setCreatedUserId(null);
+            onOpenChange(false);
+            onSuccess();
+          }}
+        />
+      )}
     </Dialog>
   );
 }

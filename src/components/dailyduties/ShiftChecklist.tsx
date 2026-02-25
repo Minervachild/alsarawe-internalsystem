@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, Circle, Clock, Tag } from 'lucide-react';
+import { Check, Circle, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -61,24 +61,18 @@ export function ShiftChecklist({ employeeId, employeeName, employeeRole, onClose
 
       const allAssignments = assignmentsRes.data || [];
 
-      // Filter duties: 
-      // 1. If duty has specific employee assignments, only show if this employee is assigned
-      // 2. If duty has no assignments, fall back to role matching (or show to all if no role set)
       const allDuties = (dutiesRes.data || []).filter(d => {
         const dutyAssignments = allAssignments.filter(a => a.duty_id === d.id);
         
         if (dutyAssignments.length > 0) {
-          // Duty has specific assignments - only show to assigned employees
           const isAssigned = dutyAssignments.some(a => a.employee_id === employeeId);
           if (!isAssigned) return false;
         } else {
-          // No specific assignments - fall back to role matching
           const roleMatch = !d.role || d.role === employeeRole || d.role === '';
           if (!roleMatch) return false;
         }
         
         if (d.is_recurring) return true;
-        // One-off: only show if target_date is today
         return d.target_date === today;
       });
 
@@ -96,7 +90,6 @@ export function ShiftChecklist({ employeeId, employeeName, employeeRole, onClose
     const isCompleted = completedDutyIds.has(dutyId);
 
     if (isCompleted) {
-      // Uncomplete: delete today's completion
       try {
         const { error } = await supabase
           .from('duty_completions')
@@ -115,7 +108,6 @@ export function ShiftChecklist({ employeeId, employeeName, employeeRole, onClose
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       }
     } else {
-      // Complete
       try {
         const { error } = await supabase
           .from('duty_completions')
@@ -132,7 +124,6 @@ export function ShiftChecklist({ employeeId, employeeName, employeeRole, onClose
   const completedCount = duties.filter(d => completedDutyIds.has(d.id)).length;
   const progress = totalDuties > 0 ? (completedCount / totalDuties) * 100 : 0;
 
-  // Split duties: regular first, end-of-day last
   const regularDuties = duties.filter(d => !d.is_end_of_day);
   const endOfDayDuties = duties.filter(d => d.is_end_of_day);
 
@@ -142,43 +133,71 @@ export function ShiftChecklist({ employeeId, employeeName, employeeRole, onClose
 
   const renderDutyItem = (duty: Duty, category?: DutyCategory) => {
     const isCompleted = completedDutyIds.has(duty.id);
+    const categoryColor = category?.color || '#6B7280';
+
     return (
-      <button
+      <div
         key={duty.id}
-        onClick={() => toggleDuty(duty.id)}
-        className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
+        className={`relative flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 ${
           isCompleted
-            ? 'bg-muted/30 opacity-60'
-            : 'hover:bg-muted/20'
+            ? 'bg-muted/40 border-border/30'
+            : 'bg-card border-border/50 hover:border-border hover:shadow-sm'
         }`}
       >
-        {isCompleted ? (
-          <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-        ) : (
-          <Circle className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
-        )}
+        {/* Category color bar */}
+        <div
+          className="absolute left-0 top-3 bottom-3 w-1 rounded-full"
+          style={{ backgroundColor: categoryColor }}
+        />
+
+        {/* Check button */}
+        <button
+          onClick={() => toggleDuty(duty.id)}
+          className={`ml-2 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+            isCompleted
+              ? 'border-transparent text-primary-foreground'
+              : 'border-muted-foreground/30 hover:border-muted-foreground/60'
+          }`}
+          style={isCompleted ? { backgroundColor: categoryColor } : {}}
+        >
+          {isCompleted ? (
+            <Check className="w-4 h-4" />
+          ) : (
+            <Circle className="w-4 h-4 text-muted-foreground/40" />
+          )}
+        </button>
+
+        {/* Content */}
         <div className="flex-1 min-w-0">
-          <p className={`font-medium ${isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-            <span className="text-muted-foreground text-sm mr-2">#{duty.position + 1}</span>
-            {duty.title}
-          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className={`font-medium text-sm ${isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+              {duty.title}
+            </p>
+            {!duty.is_recurring && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">One-time</Badge>
+            )}
+          </div>
           {duty.description && (
-            <p className={`text-sm mt-0.5 ${isCompleted ? 'line-through text-muted-foreground/60' : 'text-muted-foreground'}`}>
+            <p className={`text-xs mt-0.5 ${isCompleted ? 'line-through text-muted-foreground/50' : 'text-muted-foreground'}`}>
               {duty.description}
             </p>
           )}
-          <div className="flex items-center gap-2 mt-1">
-            {category && (
-              <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: `${category.color}15`, color: category.color }}>
-                {category.name}
-              </span>
-            )}
-            {!duty.is_recurring && (
-              <Badge variant="outline" className="text-xs">One-time</Badge>
-            )}
-          </div>
         </div>
-      </button>
+
+        {/* Category badge */}
+        {category && (
+          <span
+            className="flex-shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+            style={{
+              backgroundColor: `${categoryColor}18`,
+              color: categoryColor,
+              border: `1px solid ${categoryColor}30`,
+            }}
+          >
+            {category.name}
+          </span>
+        )}
+      </div>
     );
   };
 
@@ -200,8 +219,8 @@ export function ShiftChecklist({ employeeId, employeeName, employeeRole, onClose
           <span className="text-muted-foreground">Progress</span>
           <span className="font-medium">{completedCount}/{totalDuties} done</span>
         </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-primary transition-all duration-300 rounded-full" style={{ width: `${progress}%` }} />
+        <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+          <div className="h-full bg-primary transition-all duration-500 rounded-full" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
@@ -216,28 +235,35 @@ export function ShiftChecklist({ employeeId, employeeName, employeeRole, onClose
             const catDuties = regularDuties.filter(d => d.category_id === cat.id);
             if (catDuties.length === 0) return null;
             return (
-              <div key={cat.id} className="space-y-1">
-                <div className="flex items-center gap-2 mb-2">
+              <div key={cat.id} className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
                   <h3 className="text-sm font-semibold text-foreground">{cat.name}</h3>
+                  <span className="text-xs text-muted-foreground">
+                    {catDuties.filter(d => completedDutyIds.has(d.id)).length}/{catDuties.length}
+                  </span>
                 </div>
-                {catDuties.map(d => renderDutyItem(d, cat))}
+                <div className="space-y-2">
+                  {catDuties.map(d => renderDutyItem(d, cat))}
+                </div>
               </div>
             );
           })}
 
           {/* End-of-Day section */}
           {endOfDayDuties.length > 0 && (
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-1">
                 <Clock className="w-4 h-4 text-muted-foreground" />
                 <h3 className="text-sm font-semibold text-foreground">Anytime Today</h3>
                 <Badge variant="outline" className="text-xs">End of Day</Badge>
               </div>
-              {endOfDayDuties.map(d => {
-                const cat = categories.find(c => c.id === d.category_id);
-                return renderDutyItem(d, cat);
-              })}
+              <div className="space-y-2">
+                {endOfDayDuties.map(d => {
+                  const cat = categories.find(c => c.id === d.category_id);
+                  return renderDutyItem(d, cat);
+                })}
+              </div>
             </div>
           )}
         </>
