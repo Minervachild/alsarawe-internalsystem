@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Clock, Filter, Check, Banknote, Calendar } from 'lucide-react';
+import { Plus, Clock, Filter, Banknote, Calendar, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +40,18 @@ interface OvertimeEntry {
   employee?: Employee;
 }
 
+// Group entries by employee for a given month
+interface EmployeeSummary {
+  employee: Employee;
+  overtimeHours: number;
+  overtimeAmount: number;
+  offDayHours: number;
+  offDayAmount: number;
+  totalAmount: number;
+  unpaidAmount: number;
+  entries: OvertimeEntry[];
+}
+
 export default function Overtime() {
   const { isAdmin } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -48,16 +59,21 @@ export default function Overtime() {
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filterEmployee, setFilterEmployee] = useState<string>('all');
+  const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+
+  // Form state
   const [formData, setFormData] = useState({
     employee_id: '',
-    overtime_hours: 0,
-    offday_hours: 0,
-    date: new Date().toISOString().split('T')[0],
+    total_overtime_hours: 0,
+    total_offday_hours: 0,
   });
+  const [dailyBreakdown, setDailyBreakdown] = useState<{ date: string; overtime_hours: number; offday_hours: number }[]>([]);
+  const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
+
   const { toast } = useToast();
 
   useEffect(() => { fetchData(); }, []);
@@ -101,27 +117,63 @@ export default function Overtime() {
     try {
       const entriesToInsert: any[] = [];
 
-      if (formData.overtime_hours > 0) {
-        const amount = formData.overtime_hours * (employee.hourly_rate || 0);
-        entriesToInsert.push({
-          employee_id: formData.employee_id,
-          hours: formData.overtime_hours,
-          amount,
-          date: formData.date,
-          type: 'overtime',
-        });
-      }
+      if (showDailyBreakdown && dailyBreakdown.length > 0) {
+        // Use daily breakdown - validate totals match
+        const totalOT = dailyBreakdown.reduce((s, d) => s + d.overtime_hours, 0);
+        const totalOD = dailyBreakdown.reduce((s, d) => s + d.offday_hours, 0);
 
-      if (formData.offday_hours > 0) {
-        const rate = employee.off_day_rate || employee.hourly_rate || 0;
-        const amount = formData.offday_hours * rate;
-        entriesToInsert.push({
-          employee_id: formData.employee_id,
-          hours: formData.offday_hours,
-          amount,
-          date: formData.date,
-          type: 'off_day',
-        });
+        if (Math.abs(totalOT - formData.total_overtime_hours) > 0.01 && formData.total_overtime_hours > 0) {
+          toast({ title: 'Mismatch', description: `Daily overtime total (${totalOT}h) doesn't match total (${formData.total_overtime_hours}h).`, variant: 'destructive' });
+          return;
+        }
+        if (Math.abs(totalOD - formData.total_offday_hours) > 0.01 && formData.total_offday_hours > 0) {
+          toast({ title: 'Mismatch', description: `Daily off-day total (${totalOD}h) doesn't match total (${formData.total_offday_hours}h).`, variant: 'destructive' });
+          return;
+        }
+
+        for (const day of dailyBreakdown) {
+          if (day.overtime_hours > 0) {
+            entriesToInsert.push({
+              employee_id: formData.employee_id,
+              hours: day.overtime_hours,
+              amount: day.overtime_hours * (employee.hourly_rate || 0),
+              date: day.date,
+              type: 'overtime',
+            });
+          }
+          if (day.offday_hours > 0) {
+            const rate = employee.off_day_rate || employee.hourly_rate || 0;
+            entriesToInsert.push({
+              employee_id: formData.employee_id,
+              hours: day.offday_hours,
+              amount: day.offday_hours * rate,
+              date: day.date,
+              type: 'off_day',
+            });
+          }
+        }
+      } else {
+        // No daily breakdown - store as single entries for the 1st of the month
+        const monthDate = `${selectedMonth}-01`;
+        if (formData.total_overtime_hours > 0) {
+          entriesToInsert.push({
+            employee_id: formData.employee_id,
+            hours: formData.total_overtime_hours,
+            amount: formData.total_overtime_hours * (employee.hourly_rate || 0),
+            date: monthDate,
+            type: 'overtime',
+          });
+        }
+        if (formData.total_offday_hours > 0) {
+          const rate = employee.off_day_rate || employee.hourly_rate || 0;
+          entriesToInsert.push({
+            employee_id: formData.employee_id,
+            hours: formData.total_offday_hours,
+            amount: formData.total_offday_hours * rate,
+            date: monthDate,
+            type: 'off_day',
+          });
+        }
       }
 
       if (entriesToInsert.length === 0) {
@@ -134,11 +186,17 @@ export default function Overtime() {
 
       toast({ title: 'Overtime entry added' });
       setDialogOpen(false);
-      setFormData(prev => ({ ...prev, overtime_hours: 0, offday_hours: 0, date: new Date().toISOString().split('T')[0] }));
+      resetForm();
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
+  };
+
+  const resetForm = () => {
+    setFormData(prev => ({ ...prev, total_overtime_hours: 0, total_offday_hours: 0 }));
+    setDailyBreakdown([]);
+    setShowDailyBreakdown(false);
   };
 
   const markAsPaid = async (id: string) => {
@@ -152,25 +210,85 @@ export default function Overtime() {
     }
   };
 
+  const markAllPaid = async (employeeId: string) => {
+    try {
+      const unpaidIds = filteredEntries
+        .filter(e => e.employee_id === employeeId && !e.is_paid)
+        .map(e => e.id);
+      if (unpaidIds.length === 0) return;
+
+      const { error } = await supabase
+        .from('overtime')
+        .update({ is_paid: true })
+        .in('id', unpaidIds);
+      if (error) throw error;
+      toast({ title: `Marked ${unpaidIds.length} entries as paid` });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const deleteEntry = async (id: string) => {
+    try {
+      const { error } = await supabase.from('overtime').delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: 'Entry deleted' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
   // Filter by employee and month
   const filteredEntries = entries.filter(e => {
     if (filterEmployee !== 'all' && e.employee_id !== filterEmployee) return false;
-    const entryMonth = e.date.substring(0, 7); // YYYY-MM
+    const entryMonth = e.date.substring(0, 7);
     if (entryMonth !== selectedMonth) return false;
     return true;
   });
 
-  const overtimeEntries = filteredEntries.filter(e => e.type === 'overtime');
-  const offDayEntries = filteredEntries.filter(e => e.type === 'off_day');
+  // Group by employee
+  const employeeSummaries: EmployeeSummary[] = (() => {
+    const map = new Map<string, EmployeeSummary>();
+    for (const entry of filteredEntries) {
+      if (!entry.employee) continue;
+      let summary = map.get(entry.employee_id);
+      if (!summary) {
+        summary = {
+          employee: entry.employee,
+          overtimeHours: 0,
+          overtimeAmount: 0,
+          offDayHours: 0,
+          offDayAmount: 0,
+          totalAmount: 0,
+          unpaidAmount: 0,
+          entries: [],
+        };
+        map.set(entry.employee_id, summary);
+      }
+      if (entry.type === 'overtime') {
+        summary.overtimeHours += entry.hours;
+        summary.overtimeAmount += entry.amount;
+      } else {
+        summary.offDayHours += entry.hours;
+        summary.offDayAmount += entry.amount;
+      }
+      summary.totalAmount += entry.amount;
+      if (!entry.is_paid) summary.unpaidAmount += entry.amount;
+      summary.entries.push(entry);
+    }
+    return Array.from(map.values());
+  })();
 
   const totalUnpaid = filteredEntries.filter(e => !e.is_paid).reduce((sum, e) => sum + e.amount, 0);
-  const totalOvertimeHours = overtimeEntries.reduce((sum, e) => sum + e.hours, 0);
-  const totalOffDayHours = offDayEntries.reduce((sum, e) => sum + e.hours, 0);
+  const totalOvertimeHours = filteredEntries.filter(e => e.type === 'overtime').reduce((sum, e) => sum + e.hours, 0);
+  const totalOffDayHours = filteredEntries.filter(e => e.type === 'off_day').reduce((sum, e) => sum + e.hours, 0);
 
   const selectedEmployee = employees.find(e => e.id === formData.employee_id);
-  const overtimeAmount = (formData.overtime_hours || 0) * (selectedEmployee?.hourly_rate || 0);
+  const overtimeAmount = (formData.total_overtime_hours || 0) * (selectedEmployee?.hourly_rate || 0);
   const offDayRate = selectedEmployee?.off_day_rate || selectedEmployee?.hourly_rate || 0;
-  const offDayAmount = (formData.offday_hours || 0) * offDayRate;
+  const offDayAmount = (formData.total_offday_hours || 0) * offDayRate;
 
   // Generate month options
   const monthOptions: string[] = [];
@@ -185,59 +303,34 @@ export default function Overtime() {
     return new Date(parseInt(y), parseInt(mo) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
-  const renderTable = (entries: OvertimeEntry[], typeLabel: string) => (
-    entries.length === 0 ? (
-      <div className="text-center py-8 text-muted-foreground text-sm">No {typeLabel} entries this month.</div>
-    ) : (
-      <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                {isAdmin && <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Employee</th>}
-                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Date</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Hours</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Amount</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Status</th>
-                {isAdmin && <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Action</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map(entry => (
-                <tr key={entry.id} className="border-t border-border/50">
-                  {isAdmin && (
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-primary-foreground" style={{ backgroundColor: entry.employee?.avatar_color || '#8B4513' }}>
-                          {entry.employee?.name?.slice(0, 2).toUpperCase()}
-                        </div>
-                        <span className="font-medium">{entry.employee?.name}</span>
-                      </div>
-                    </td>
-                  )}
-                  <td className="px-4 py-3 text-sm">{new Date(entry.date).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-sm">{entry.hours}h</td>
-                  <td className="px-4 py-3 text-sm font-medium">{entry.amount.toFixed(2)} ﷼</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${entry.is_paid ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
-                      {entry.is_paid ? 'Paid' : 'Pending'}
-                    </span>
-                  </td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-right">
-                      {!entry.is_paid && (
-                        <Button size="sm" variant="outline" onClick={() => markAsPaid(entry.id)}>Mark Paid</Button>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )
-  );
+  // Get days in selected month for daily breakdown
+  const getDaysInMonth = () => {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    return new Date(y, m, 0).getDate();
+  };
+
+  const addDailyRow = () => {
+    const [y, m] = selectedMonth.split('-');
+    const nextDay = dailyBreakdown.length + 1;
+    const daysInMonth = getDaysInMonth();
+    if (nextDay > daysInMonth) return;
+    setDailyBreakdown(prev => [...prev, {
+      date: `${y}-${m}-${String(nextDay).padStart(2, '0')}`,
+      overtime_hours: 0,
+      offday_hours: 0,
+    }]);
+  };
+
+  const removeDailyRow = (index: number) => {
+    setDailyBreakdown(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateDailyRow = (index: number, field: 'date' | 'overtime_hours' | 'offday_hours', value: string | number) => {
+    setDailyBreakdown(prev => prev.map((row, i) => i === index ? { ...row, [field]: value } : row));
+  };
+
+  const dailyOTTotal = dailyBreakdown.reduce((s, d) => s + d.overtime_hours, 0);
+  const dailyODTotal = dailyBreakdown.reduce((s, d) => s + d.offday_hours, 0);
 
   return (
     <AppLayout>
@@ -247,7 +340,7 @@ export default function Overtime() {
             <h1 className="text-2xl font-display font-bold text-foreground">Overtime Tracker</h1>
             <p className="text-muted-foreground">{isAdmin ? 'Track extra hours and payments' : 'Submit your overtime hours'}</p>
           </div>
-          <Button onClick={() => setDialogOpen(true)}>
+          <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" />
             Add Entry
           </Button>
@@ -268,8 +361,8 @@ export default function Overtime() {
           </div>
           <div className="stat-card">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-info" />
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Overtime Hours</p>
@@ -280,7 +373,7 @@ export default function Overtime() {
           <div className="stat-card">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-accent" />
+                <Calendar className="w-5 h-5 text-accent-foreground" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Off-Day Hours</p>
@@ -323,38 +416,134 @@ export default function Overtime() {
           )}
         </div>
 
-        {/* Tabs for overtime vs off-day */}
+        {/* Employee Summaries */}
         {isLoading ? (
           <div className="text-center py-12 text-muted-foreground">Loading...</div>
+        ) : employeeSummaries.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p>No overtime entries for {formatMonth(selectedMonth)}</p>
+          </div>
         ) : (
-          <Tabs defaultValue="overtime">
-            <TabsList className="mb-4">
-              <TabsTrigger value="overtime" className="gap-1.5">
-                <Clock className="w-4 h-4" />
-                Overtime ({overtimeEntries.length})
-              </TabsTrigger>
-              <TabsTrigger value="offday" className="gap-1.5">
-                <Calendar className="w-4 h-4" />
-                Off-Day ({offDayEntries.length})
-              </TabsTrigger>
-              <TabsTrigger value="all" className="gap-1.5">
-                All ({filteredEntries.length})
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="overtime">{renderTable(overtimeEntries, 'overtime')}</TabsContent>
-            <TabsContent value="offday">{renderTable(offDayEntries, 'off-day')}</TabsContent>
-            <TabsContent value="all">{renderTable(filteredEntries, '')}</TabsContent>
-          </Tabs>
+          <div className="space-y-4">
+            {employeeSummaries.map(summary => {
+              const isExpanded = expandedEmployee === summary.employee.id;
+              return (
+                <div key={summary.employee.id} className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                  {/* Summary row */}
+                  <div
+                    className="p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => setExpandedEmployee(isExpanded ? null : summary.employee.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-primary-foreground"
+                          style={{ backgroundColor: summary.employee.avatar_color || '#8B4513' }}
+                        >
+                          {summary.employee.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground">{summary.employee.name}</p>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> {summary.overtimeHours}h OT
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" /> {summary.offDayHours}h Off-Day
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-bold text-foreground">{summary.totalAmount.toFixed(2)} ﷼</p>
+                          {summary.unpaidAmount > 0 && (
+                            <p className="text-xs text-warning">{summary.unpaidAmount.toFixed(2)} ﷼ unpaid</p>
+                          )}
+                        </div>
+                        {isAdmin && summary.unpaidAmount > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={(e) => { e.stopPropagation(); markAllPaid(summary.employee.id); }}
+                          >
+                            Pay All
+                          </Button>
+                        )}
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div className="border-t border-border/50">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Date</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Type</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Hours</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Amount</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Status</th>
+                              {isAdmin && <th className="text-right px-4 py-2 text-xs font-medium text-muted-foreground">Actions</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {summary.entries.map(entry => (
+                              <tr key={entry.id} className="border-t border-border/30">
+                                <td className="px-4 py-2 text-sm">{new Date(entry.date).toLocaleDateString()}</td>
+                                <td className="px-4 py-2">
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.type === 'overtime' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent-foreground'}`}>
+                                    {entry.type === 'overtime' ? 'Overtime' : 'Off-Day'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2 text-sm">{entry.hours}h</td>
+                                <td className="px-4 py-2 text-sm font-medium">{entry.amount.toFixed(2)} ﷼</td>
+                                <td className="px-4 py-2">
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.is_paid ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
+                                    {entry.is_paid ? 'Paid' : 'Pending'}
+                                  </span>
+                                </td>
+                                {isAdmin && (
+                                  <td className="px-4 py-2 text-right">
+                                    <div className="flex items-center justify-end gap-1">
+                                      {!entry.is_paid && (
+                                        <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => markAsPaid(entry.id)}>
+                                          Mark Paid
+                                        </Button>
+                                      )}
+                                      <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive" onClick={() => deleteEntry(entry.id)}>
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
       {/* Add Entry Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-display">Add Overtime Entry</DialogTitle>
+            <DialogTitle className="font-display">Add Monthly Overtime</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+            {/* Employee selector */}
             {isAdmin ? (
               <div className="space-y-2">
                 <Label>Employee *</Label>
@@ -382,33 +571,130 @@ export default function Overtime() {
               )
             )}
 
+            {/* Month */}
             <div className="space-y-2">
-              <Label>Date *</Label>
-              <Input type="date" value={formData.date} onChange={e => setFormData(p => ({ ...p, date: e.target.value }))} required />
+              <Label>Month</Label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  {monthOptions.map(m => (
+                    <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
+            {/* Total hours */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Overtime Hours</Label>
-                <Input type="number" value={formData.overtime_hours || ''} onChange={e => setFormData(p => ({ ...p, overtime_hours: parseFloat(e.target.value) || 0 }))} step={0.5} min={0} placeholder="0" />
-                {formData.overtime_hours > 0 && selectedEmployee && (
+                <Label>Total Overtime Hours</Label>
+                <Input
+                  type="number"
+                  value={formData.total_overtime_hours || ''}
+                  onChange={e => setFormData(p => ({ ...p, total_overtime_hours: parseFloat(e.target.value) || 0 }))}
+                  step={0.5}
+                  min={0}
+                  placeholder="0"
+                />
+                {formData.total_overtime_hours > 0 && selectedEmployee && (
                   <p className="text-xs text-muted-foreground">= {overtimeAmount.toFixed(2)} ﷼ ({selectedEmployee.hourly_rate} ﷼/hr)</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Off-Day Hours</Label>
-                <Input type="number" value={formData.offday_hours || ''} onChange={e => setFormData(p => ({ ...p, offday_hours: parseFloat(e.target.value) || 0 }))} step={0.5} min={0} placeholder="0" />
-                {formData.offday_hours > 0 && selectedEmployee && (
+                <Label>Total Off-Day Hours</Label>
+                <Input
+                  type="number"
+                  value={formData.total_offday_hours || ''}
+                  onChange={e => setFormData(p => ({ ...p, total_offday_hours: parseFloat(e.target.value) || 0 }))}
+                  step={0.5}
+                  min={0}
+                  placeholder="0"
+                />
+                {formData.total_offday_hours > 0 && selectedEmployee && (
                   <p className="text-xs text-muted-foreground">= {offDayAmount.toFixed(2)} ﷼ ({offDayRate} ﷼/hr)</p>
                 )}
               </div>
             </div>
 
-            {(formData.overtime_hours > 0 || formData.offday_hours > 0) && selectedEmployee && (
+            {/* Total preview */}
+            {(formData.total_overtime_hours > 0 || formData.total_offday_hours > 0) && selectedEmployee && (
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-sm font-medium">
                   Total: <span className="text-foreground">{(overtimeAmount + offDayAmount).toFixed(2)} ﷼</span>
                 </p>
+              </div>
+            )}
+
+            {/* Optional daily breakdown toggle */}
+            <div className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                onClick={() => {
+                  setShowDailyBreakdown(!showDailyBreakdown);
+                  if (!showDailyBreakdown && dailyBreakdown.length === 0) {
+                    addDailyRow();
+                  }
+                }}
+              >
+                {showDailyBreakdown ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
+                {showDailyBreakdown ? 'Hide' : 'Add'} Daily Breakdown (Optional)
+              </Button>
+            </div>
+
+            {/* Daily breakdown rows */}
+            {showDailyBreakdown && (
+              <div className="space-y-2 border border-border/50 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs text-muted-foreground">Daily Breakdown</Label>
+                  <div className="text-xs text-muted-foreground">
+                    OT: {dailyOTTotal}h | Off: {dailyODTotal}h
+                  </div>
+                </div>
+                {dailyBreakdown.map((row, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_80px_80px_32px] gap-2 items-end">
+                    <div>
+                      <Input
+                        type="date"
+                        value={row.date}
+                        onChange={e => updateDailyRow(i, 'date', e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        type="number"
+                        value={row.overtime_hours || ''}
+                        onChange={e => updateDailyRow(i, 'overtime_hours', parseFloat(e.target.value) || 0)}
+                        placeholder="OT"
+                        step={0.5}
+                        min={0}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        type="number"
+                        value={row.offday_hours || ''}
+                        onChange={e => updateDailyRow(i, 'offday_hours', parseFloat(e.target.value) || 0)}
+                        placeholder="Off"
+                        step={0.5}
+                        min={0}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeDailyRow(i)}>
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" className="w-full text-xs" onClick={addDailyRow}>
+                  <Plus className="w-3 h-3 mr-1" /> Add Day
+                </Button>
               </div>
             )}
 
