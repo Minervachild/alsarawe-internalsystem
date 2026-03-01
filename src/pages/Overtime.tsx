@@ -45,7 +45,7 @@ interface EmployeeSummary {
   employee: Employee;
   overtimeHours: number;
   overtimeAmount: number;
-  offDayHours: number;
+  offDayDays: number;
   offDayAmount: number;
   totalAmount: number;
   unpaidAmount: number;
@@ -69,9 +69,9 @@ export default function Overtime() {
   const [formData, setFormData] = useState({
     employee_id: '',
     total_overtime_hours: 0,
-    total_offday_hours: 0,
+    total_offday_days: 0,
   });
-  const [dailyBreakdown, setDailyBreakdown] = useState<{ date: string; overtime_hours: number; offday_hours: number }[]>([]);
+  const [dailyBreakdown, setDailyBreakdown] = useState<{ date: string; overtime_hours: number; is_offday: boolean }[]>([]);
   const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
 
   const { toast } = useToast();
@@ -120,14 +120,14 @@ export default function Overtime() {
       if (showDailyBreakdown && dailyBreakdown.length > 0) {
         // Use daily breakdown - validate totals match
         const totalOT = dailyBreakdown.reduce((s, d) => s + d.overtime_hours, 0);
-        const totalOD = dailyBreakdown.reduce((s, d) => s + d.offday_hours, 0);
+        const totalOD = dailyBreakdown.filter(d => d.is_offday).length;
 
         if (Math.abs(totalOT - formData.total_overtime_hours) > 0.01 && formData.total_overtime_hours > 0) {
           toast({ title: 'Mismatch', description: `Daily overtime total (${totalOT}h) doesn't match total (${formData.total_overtime_hours}h).`, variant: 'destructive' });
           return;
         }
-        if (Math.abs(totalOD - formData.total_offday_hours) > 0.01 && formData.total_offday_hours > 0) {
-          toast({ title: 'Mismatch', description: `Daily off-day total (${totalOD}h) doesn't match total (${formData.total_offday_hours}h).`, variant: 'destructive' });
+        if (totalOD !== formData.total_offday_days && formData.total_offday_days > 0) {
+          toast({ title: 'Mismatch', description: `Daily off-days count (${totalOD}) doesn't match total (${formData.total_offday_days}).`, variant: 'destructive' });
           return;
         }
 
@@ -141,12 +141,12 @@ export default function Overtime() {
               type: 'overtime',
             });
           }
-          if (day.offday_hours > 0) {
+          if (day.is_offday) {
             const rate = employee.off_day_rate || employee.hourly_rate || 0;
             entriesToInsert.push({
               employee_id: formData.employee_id,
-              hours: day.offday_hours,
-              amount: day.offday_hours * rate,
+              hours: 1, // 1 day
+              amount: rate,
               date: day.date,
               type: 'off_day',
             });
@@ -164,12 +164,12 @@ export default function Overtime() {
             type: 'overtime',
           });
         }
-        if (formData.total_offday_hours > 0) {
+        if (formData.total_offday_days > 0) {
           const rate = employee.off_day_rate || employee.hourly_rate || 0;
           entriesToInsert.push({
             employee_id: formData.employee_id,
-            hours: formData.total_offday_hours,
-            amount: formData.total_offday_hours * rate,
+            hours: formData.total_offday_days, // number of days
+            amount: formData.total_offday_days * rate,
             date: monthDate,
             type: 'off_day',
           });
@@ -194,7 +194,7 @@ export default function Overtime() {
   };
 
   const resetForm = () => {
-    setFormData(prev => ({ ...prev, total_overtime_hours: 0, total_offday_hours: 0 }));
+    setFormData(prev => ({ ...prev, total_overtime_hours: 0, total_offday_days: 0 }));
     setDailyBreakdown([]);
     setShowDailyBreakdown(false);
   };
@@ -259,7 +259,7 @@ export default function Overtime() {
           employee: entry.employee,
           overtimeHours: 0,
           overtimeAmount: 0,
-          offDayHours: 0,
+          offDayDays: 0,
           offDayAmount: 0,
           totalAmount: 0,
           unpaidAmount: 0,
@@ -271,7 +271,7 @@ export default function Overtime() {
         summary.overtimeHours += entry.hours;
         summary.overtimeAmount += entry.amount;
       } else {
-        summary.offDayHours += entry.hours;
+        summary.offDayDays += entry.hours;
         summary.offDayAmount += entry.amount;
       }
       summary.totalAmount += entry.amount;
@@ -283,12 +283,12 @@ export default function Overtime() {
 
   const totalUnpaid = filteredEntries.filter(e => !e.is_paid).reduce((sum, e) => sum + e.amount, 0);
   const totalOvertimeHours = filteredEntries.filter(e => e.type === 'overtime').reduce((sum, e) => sum + e.hours, 0);
-  const totalOffDayHours = filteredEntries.filter(e => e.type === 'off_day').reduce((sum, e) => sum + e.hours, 0);
+  const totalOffDayDays = filteredEntries.filter(e => e.type === 'off_day').reduce((sum, e) => sum + e.hours, 0);
 
   const selectedEmployee = employees.find(e => e.id === formData.employee_id);
   const overtimeAmount = (formData.total_overtime_hours || 0) * (selectedEmployee?.hourly_rate || 0);
   const offDayRate = selectedEmployee?.off_day_rate || selectedEmployee?.hourly_rate || 0;
-  const offDayAmount = (formData.total_offday_hours || 0) * offDayRate;
+  const offDayAmount = (formData.total_offday_days || 0) * offDayRate;
 
   // Generate month options
   const monthOptions: string[] = [];
@@ -317,7 +317,7 @@ export default function Overtime() {
     setDailyBreakdown(prev => [...prev, {
       date: `${y}-${m}-${String(nextDay).padStart(2, '0')}`,
       overtime_hours: 0,
-      offday_hours: 0,
+      is_offday: false,
     }]);
   };
 
@@ -325,12 +325,12 @@ export default function Overtime() {
     setDailyBreakdown(prev => prev.filter((_, i) => i !== index));
   };
 
-  const updateDailyRow = (index: number, field: 'date' | 'overtime_hours' | 'offday_hours', value: string | number) => {
+  const updateDailyRow = (index: number, field: 'date' | 'overtime_hours' | 'is_offday', value: string | number | boolean) => {
     setDailyBreakdown(prev => prev.map((row, i) => i === index ? { ...row, [field]: value } : row));
   };
 
   const dailyOTTotal = dailyBreakdown.reduce((s, d) => s + d.overtime_hours, 0);
-  const dailyODTotal = dailyBreakdown.reduce((s, d) => s + d.offday_hours, 0);
+  const dailyODTotal = dailyBreakdown.filter(d => d.is_offday).length;
 
   return (
     <AppLayout>
@@ -376,8 +376,8 @@ export default function Overtime() {
                 <Calendar className="w-5 h-5 text-accent-foreground" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Off-Day Hours</p>
-                <p className="text-xl font-bold">{totalOffDayHours}h</p>
+                <p className="text-sm text-muted-foreground">Off-Days Worked</p>
+                <p className="text-xl font-bold">{totalOffDayDays} days</p>
               </div>
             </div>
           </div>
@@ -450,7 +450,7 @@ export default function Overtime() {
                               <Clock className="w-3 h-3" /> {summary.overtimeHours}h OT
                             </span>
                             <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" /> {summary.offDayHours}h Off-Day
+                              <Calendar className="w-3 h-3" /> {summary.offDayDays} Off-Days
                             </span>
                           </div>
                         </div>
@@ -486,7 +486,7 @@ export default function Overtime() {
                             <tr>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Date</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Type</th>
-                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Hours</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Qty</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Amount</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Status</th>
                               {isAdmin && <th className="text-right px-4 py-2 text-xs font-medium text-muted-foreground">Actions</th>}
@@ -501,7 +501,7 @@ export default function Overtime() {
                                     {entry.type === 'overtime' ? 'Overtime' : 'Off-Day'}
                                   </span>
                                 </td>
-                                <td className="px-4 py-2 text-sm">{entry.hours}h</td>
+                                <td className="px-4 py-2 text-sm">{entry.type === 'overtime' ? `${entry.hours}h` : `${entry.hours} day${entry.hours !== 1 ? 's' : ''}`}</td>
                                 <td className="px-4 py-2 text-sm font-medium">{entry.amount.toFixed(2)} ﷼</td>
                                 <td className="px-4 py-2">
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.is_paid ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
@@ -554,7 +554,7 @@ export default function Overtime() {
                   <SelectContent className="bg-popover">
                     {employees.map(emp => (
                       <SelectItem key={emp.id} value={emp.id}>
-                        {emp.name} ({emp.hourly_rate} ﷼/hr{emp.off_day_rate ? `, off-day: ${emp.off_day_rate} ﷼/hr` : ''})
+                        {emp.name} ({emp.hourly_rate} ﷼/hr{emp.off_day_rate ? `, off-day: ${emp.off_day_rate} ﷼/day` : ''})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -603,23 +603,23 @@ export default function Overtime() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Total Off-Day Hours</Label>
+                <Label>Off-Days Worked</Label>
                 <Input
                   type="number"
-                  value={formData.total_offday_hours || ''}
-                  onChange={e => setFormData(p => ({ ...p, total_offday_hours: parseFloat(e.target.value) || 0 }))}
-                  step={0.5}
+                  value={formData.total_offday_days || ''}
+                  onChange={e => setFormData(p => ({ ...p, total_offday_days: parseInt(e.target.value) || 0 }))}
+                  step={1}
                   min={0}
                   placeholder="0"
                 />
-                {formData.total_offday_hours > 0 && selectedEmployee && (
-                  <p className="text-xs text-muted-foreground">= {offDayAmount.toFixed(2)} ﷼ ({offDayRate} ﷼/hr)</p>
+                {formData.total_offday_days > 0 && selectedEmployee && (
+                  <p className="text-xs text-muted-foreground">= {offDayAmount.toFixed(2)} ﷼ ({offDayRate} ﷼/day)</p>
                 )}
               </div>
             </div>
 
             {/* Total preview */}
-            {(formData.total_overtime_hours > 0 || formData.total_offday_hours > 0) && selectedEmployee && (
+            {(formData.total_overtime_hours > 0 || formData.total_offday_days > 0) && selectedEmployee && (
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-sm font-medium">
                   Total: <span className="text-foreground">{(overtimeAmount + offDayAmount).toFixed(2)} ﷼</span>
@@ -652,11 +652,11 @@ export default function Overtime() {
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-xs text-muted-foreground">Daily Breakdown</Label>
                   <div className="text-xs text-muted-foreground">
-                    OT: {dailyOTTotal}h | Off: {dailyODTotal}h
+                    OT: {dailyOTTotal}h | Off: {dailyODTotal} days
                   </div>
                 </div>
                 {dailyBreakdown.map((row, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_80px_80px_32px] gap-2 items-end">
+                  <div key={i} className="grid grid-cols-[1fr_80px_60px_32px] gap-2 items-center">
                     <div>
                       <Input
                         type="date"
@@ -670,22 +670,22 @@ export default function Overtime() {
                         type="number"
                         value={row.overtime_hours || ''}
                         onChange={e => updateDailyRow(i, 'overtime_hours', parseFloat(e.target.value) || 0)}
-                        placeholder="OT"
+                        placeholder="OT hrs"
                         step={0.5}
                         min={0}
                         className="h-8 text-sm"
                       />
                     </div>
-                    <div>
-                      <Input
-                        type="number"
-                        value={row.offday_hours || ''}
-                        onChange={e => updateDailyRow(i, 'offday_hours', parseFloat(e.target.value) || 0)}
-                        placeholder="Off"
-                        step={0.5}
-                        min={0}
-                        className="h-8 text-sm"
-                      />
+                    <div className="flex items-center justify-center">
+                      <label className="flex items-center gap-1 text-xs cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={row.is_offday}
+                          onChange={e => updateDailyRow(i, 'is_offday', e.target.checked)}
+                          className="rounded"
+                        />
+                        Off
+                      </label>
                     </div>
                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeDailyRow(i)}>
                       <Trash2 className="w-3 h-3" />
