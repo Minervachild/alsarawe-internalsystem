@@ -178,16 +178,35 @@ export function AddEmployeeDialog({
           });
         }
 
-        // Insert employee (the trigger won't create a duplicate since we link profile_id)
-        const employeeData: any = { ...formData };
+        // Insert or update employee
+        // When an account was created, the trigger may have auto-created an employee with this profile_id.
+        // In that case, update that employee instead of inserting a new one.
         if (profileId) {
-          employeeData.profile_id = profileId;
-        }
+          const { data: existingEmp } = await supabase
+            .from('employees')
+            .select('id')
+            .eq('profile_id', profileId)
+            .maybeSingle();
 
-        const { error } = await supabase
-          .from('employees')
-          .insert(employeeData);
-        if (error) throw error;
+          if (existingEmp) {
+            // Update the trigger-created employee with the form data
+            const { error } = await supabase
+              .from('employees')
+              .update(formData)
+              .eq('id', existingEmp.id);
+            if (error) throw error;
+          } else {
+            const { error } = await supabase
+              .from('employees')
+              .insert({ ...formData, profile_id: profileId });
+            if (error) throw error;
+          }
+        } else {
+          const { error } = await supabase
+            .from('employees')
+            .insert(formData);
+          if (error) throw error;
+        }
         toast({ title: 'Employee added' });
       }
 
