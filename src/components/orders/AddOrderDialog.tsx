@@ -20,6 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { notifyNewOrder } from '@/lib/orderNotifications';
 
 interface BoardColumn {
   id: string;
@@ -102,27 +103,8 @@ export function AddOrderDialog({ open, onOpenChange, groupId, columns, onSuccess
       const clientColumn = columns.find(c => c.type === 'relation' || c.name.toLowerCase().includes('client'));
       const clientName = clientColumn ? formData[clientColumn.id] : 'Unknown';
 
-      // Create notification for all users
-      const { data: allProfiles } = await supabase.from('profiles_public').select('id');
-      if (allProfiles && allProfiles.length > 0) {
-        const notifications = allProfiles.map(profile => ({
-          user_id: profile.id,
-          title: 'New B2B Order',
-          message: `New order from ${clientName} has been added.`,
-          is_read: false,
-        }));
-        
-        await supabase.from('notifications').insert(notifications);
-
-        // Send ntfy push notification
-        supabase.functions.invoke('send-ntfy', {
-          body: {
-            title: 'New B2B Order',
-            message: `New order from ${clientName} has been added.`,
-            tags: 'package,new',
-          },
-        }).catch(err => console.warn('ntfy notification failed:', err));
-      }
+      // Send in-app + ntfy notifications
+      notifyNewOrder(clientName);
 
       toast({
         title: 'Order created',
