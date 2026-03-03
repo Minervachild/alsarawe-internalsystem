@@ -113,6 +113,15 @@ export function AddOrderDialog({ open, onOpenChange, groupId, columns, onSuccess
         }));
         
         await supabase.from('notifications').insert(notifications);
+
+        // Send ntfy push notification
+        supabase.functions.invoke('send-ntfy', {
+          body: {
+            title: 'New B2B Order',
+            message: `New order from ${clientName} has been added.`,
+            tags: 'package,new',
+          },
+        }).catch(err => console.warn('ntfy notification failed:', err));
       }
 
       toast({
