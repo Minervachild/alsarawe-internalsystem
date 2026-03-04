@@ -12,7 +12,8 @@ import {
   ClipboardCheck,
   Receipt,
   Coffee,
-  Lock
+  Lock,
+  Wallet,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -95,6 +96,13 @@ const workspaces: WorkspaceItem[] = [
     icon: Coffee,
     href: '/products',
     color: '#D97706',
+  },
+  {
+    title: 'Daily Expenses',
+    description: 'Quick invoice entry',
+    icon: Wallet,
+    href: '/expenses',
+    color: '#E11D48',
   },
   {
     title: 'Accounts',
