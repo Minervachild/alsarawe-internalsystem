@@ -1,6 +1,68 @@
 import { useState, useEffect } from 'react';
 import { Eye, EyeOff, Shield } from 'lucide-react';
-// ... keep existing code
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface AddEmployeeDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  editingEmployee?: {
+    id: string;
+    name: string;
+    phone: string | null;
+    role: string | null;
+    hourly_rate: number;
+    off_day_rate: number | null;
+    avatar_color: string;
+    profile_id: string | null;
+  } | null;
+  onSuccess: () => void;
+}
+
+const AVATAR_COLORS = ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#D2691E', '#B8860B', '#DAA520'];
+
+export function AddEmployeeDialog({
+  open,
+  onOpenChange,
+  editingEmployee,
+  onSuccess,
+}: AddEmployeeDialogProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPasscode, setShowPasscode] = useState(false);
+  const [createAccount, setCreateAccount] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    role: '',
+    hourly_rate: 0,
+    off_day_rate: 0,
+    avatar_color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
+  });
+  const [accountData, setAccountData] = useState({
+    username: '',
+    passcode: '',
+    appRole: 'user' as 'admin' | 'user' | 'viewer',
+    can_edit_columns: false,
+    can_view_reports: false,
+    can_manage_users: false,
+  });
   const { toast } = useToast();
 
   // Sync form data when dialog opens or editingEmployee changes
@@ -120,8 +182,6 @@ import { Eye, EyeOff, Shield } from 'lucide-react';
         }
 
         // Insert or update employee
-        // When an account was created, the trigger may have auto-created an employee with this profile_id.
-        // In that case, update that employee instead of inserting a new one.
         if (profileId) {
           const { data: existingEmp } = await supabase
             .from('employees')
@@ -130,7 +190,6 @@ import { Eye, EyeOff, Shield } from 'lucide-react';
             .maybeSingle();
 
           if (existingEmp) {
-            // Update the trigger-created employee with the form data
             const { error } = await supabase
               .from('employees')
               .update(formData)
