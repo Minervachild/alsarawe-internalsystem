@@ -354,6 +354,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           date: string
+          employee_id: string | null
           id: string
           invoice_number: string | null
           notes: string | null
@@ -367,6 +368,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           date?: string
+          employee_id?: string | null
           id?: string
           invoice_number?: string | null
           notes?: string | null
@@ -380,6 +382,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           date?: string
+          employee_id?: string | null
           id?: string
           invoice_number?: string | null
           notes?: string | null
@@ -393,6 +396,20 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "expense_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_expenses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_expenses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_public"
             referencedColumns: ["id"]
           },
           {

@@ -1,0 +1,1 @@
+ALTER TABLE public.daily_expenses ADD COLUMN employee_id uuid REFERENCES public.employees(id);
