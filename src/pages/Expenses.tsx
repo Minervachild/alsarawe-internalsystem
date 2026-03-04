@@ -28,11 +28,13 @@ import { format } from 'date-fns';
 interface Seller { id: string; name: string }
 interface Account { id: string; name: string }
 interface PaymentMethod { id: string; name: string }
+interface Employee { id: string; name: string }
 interface Expense {
   id: string;
   seller_id: string | null;
   account_id: string | null;
   payment_method_id: string | null;
+  employee_id: string | null;
   invoice_number: string | null;
   amount: number;
   vat_included: boolean;
@@ -43,6 +45,7 @@ interface Expense {
   expense_sellers?: { name: string } | null;
   expense_accounts?: { name: string } | null;
   expense_payment_methods?: { name: string } | null;
+  employees?: { name: string } | null;
 }
 
 export default function Expenses() {
@@ -51,11 +54,13 @@ export default function Expenses() {
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Form state
+  const [employeeId, setEmployeeId] = useState('');
   const [sellerId, setSellerId] = useState('');
   const [accountId, setAccountId] = useState('');
   const [paymentMethodId, setPaymentMethodId] = useState('');
@@ -75,12 +80,13 @@ export default function Expenses() {
 
   const fetchAll = async () => {
     setIsLoading(true);
-    const [s, a, p, e] = await Promise.all([
+    const [s, a, p, emp, e] = await Promise.all([
       supabase.from('expense_sellers').select('id, name').order('name'),
       supabase.from('expense_accounts').select('id, name').order('name'),
       supabase.from('expense_payment_methods').select('id, name').order('name'),
+      supabase.from('employees').select('id, name').order('name'),
       supabase.from('daily_expenses')
-        .select('*, expense_sellers(name), expense_accounts(name), expense_payment_methods(name)')
+        .select('*, expense_sellers(name), expense_accounts(name), expense_payment_methods(name), employees(name)')
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(100),
@@ -88,6 +94,7 @@ export default function Expenses() {
     setSellers(s.data || []);
     setAccounts(a.data || []);
     setPaymentMethods(p.data || []);
+    setEmployees(emp.data || []);
     setExpenses((e.data as any[]) || []);
     setIsLoading(false);
   };
@@ -104,6 +111,7 @@ export default function Expenses() {
         seller_id: sellerId || null,
         account_id: accountId || null,
         payment_method_id: paymentMethodId || null,
+        employee_id: employeeId || null,
         invoice_number: invoiceNumber || null,
         amount: parseFloat(amount),
         vat_included: vatIncluded,
@@ -116,6 +124,7 @@ export default function Expenses() {
       // Reset form (keep date & payment method for quick repeat)
       setSellerId('');
       setAccountId('');
+      setEmployeeId('');
       setInvoiceNumber('');
       setAmount('');
       setNotes('');
@@ -245,6 +254,17 @@ export default function Expenses() {
               </Select>
             </div>
             <div className="space-y-1.5">
+              <Label className="text-xs">Purchased By</Label>
+              <Select value={employeeId} onValueChange={setEmployeeId}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Select employee..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map(emp => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
               <Label className="text-xs">Payment Method</Label>
               <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
                 <SelectTrigger className="h-9">
@@ -294,6 +314,7 @@ export default function Expenses() {
                   <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Seller</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Account</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">By</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Invoice #</th>
                   <th className="text-right p-3 font-medium text-muted-foreground">Amount</th>
                   <th className="text-center p-3 font-medium text-muted-foreground">VAT</th>
@@ -303,13 +324,14 @@ export default function Expenses() {
               </thead>
               <tbody>
                 {expenses.length === 0 ? (
-                  <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No expenses yet</td></tr>
+                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No expenses yet</td></tr>
                 ) : (
                   expenses.map(exp => (
                     <tr key={exp.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                       <td className="p-3">{format(new Date(exp.date), 'MMM dd')}</td>
                       <td className="p-3 font-medium">{exp.expense_sellers?.name || '—'}</td>
                       <td className="p-3 text-muted-foreground">{exp.expense_accounts?.name || '—'}</td>
+                      <td className="p-3 text-muted-foreground">{exp.employees?.name || '—'}</td>
                       <td className="p-3 text-muted-foreground">{exp.invoice_number || '—'}</td>
                       <td className="p-3 text-right font-semibold">﷼{Number(exp.amount).toLocaleString()}</td>
                       <td className="p-3 text-center">
