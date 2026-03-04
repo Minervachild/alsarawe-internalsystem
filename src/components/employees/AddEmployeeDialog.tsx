@@ -1,73 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Eye, EyeOff, Shield } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-
-interface AddEmployeeDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  editingEmployee?: {
-    id: string;
-    name: string;
-    phone: string | null;
-    role: string | null;
-    hourly_rate: number;
-    off_day_rate: number | null;
-    avatar_color: string;
-    profile_id: string | null;
-  } | null;
-  onSuccess: () => void;
-}
-
-const AVATAR_COLORS = ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#D2691E', '#B8860B', '#DAA520'];
-
-export function AddEmployeeDialog({
-  open,
-  onOpenChange,
-  editingEmployee,
-  onSuccess,
-}: AddEmployeeDialogProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPasscode, setShowPasscode] = useState(false);
-  const [createAccount, setCreateAccount] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    role: '',
-    hourly_rate: 0,
-    off_day_rate: 0,
-    avatar_color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
-  });
-  const [accountData, setAccountData] = useState({
-    username: '',
-    passcode: '',
-    appRole: 'user' as 'admin' | 'user' | 'viewer',
-    can_edit_columns: false,
-    can_view_reports: false,
-    can_manage_users: false,
-  });
+// ... keep existing code
   const { toast } = useToast();
 
-  // Reset form when dialog opens/closes or editingEmployee changes
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen && editingEmployee) {
+  // Sync form data when dialog opens or editingEmployee changes
+  useEffect(() => {
+    if (open && editingEmployee) {
       setFormData({
         name: editingEmployee.name,
         phone: editingEmployee.phone || '',
@@ -77,7 +15,7 @@ export function AddEmployeeDialog({
         avatar_color: editingEmployee.avatar_color,
       });
       setCreateAccount(false);
-    } else if (isOpen) {
+    } else if (open) {
       setFormData({
         name: '',
         phone: '',
@@ -96,6 +34,9 @@ export function AddEmployeeDialog({
       });
       setCreateAccount(false);
     }
+  }, [open, editingEmployee]);
+
+  const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
   };
 
