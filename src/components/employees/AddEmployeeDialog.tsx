@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Eye, EyeOff, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,9 +65,9 @@ export function AddEmployeeDialog({
   });
   const { toast } = useToast();
 
-  // Reset form when dialog opens/closes or editingEmployee changes
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen && editingEmployee) {
+  // Sync form data when dialog opens or editingEmployee changes
+  useEffect(() => {
+    if (open && editingEmployee) {
       setFormData({
         name: editingEmployee.name,
         phone: editingEmployee.phone || '',
@@ -77,7 +77,7 @@ export function AddEmployeeDialog({
         avatar_color: editingEmployee.avatar_color,
       });
       setCreateAccount(false);
-    } else if (isOpen) {
+    } else if (open) {
       setFormData({
         name: '',
         phone: '',
@@ -96,6 +96,9 @@ export function AddEmployeeDialog({
       });
       setCreateAccount(false);
     }
+  }, [open, editingEmployee]);
+
+  const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
   };
 
@@ -179,8 +182,6 @@ export function AddEmployeeDialog({
         }
 
         // Insert or update employee
-        // When an account was created, the trigger may have auto-created an employee with this profile_id.
-        // In that case, update that employee instead of inserting a new one.
         if (profileId) {
           const { data: existingEmp } = await supabase
             .from('employees')
@@ -189,7 +190,6 @@ export function AddEmployeeDialog({
             .maybeSingle();
 
           if (existingEmp) {
-            // Update the trigger-created employee with the form data
             const { error } = await supabase
               .from('employees')
               .update(formData)
