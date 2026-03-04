@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { QuickAddOrderDialog } from '@/components/orders/QuickAddOrderDialog';
 import { SmartQuickAdd } from '@/components/orders/SmartQuickAdd';
 import { DeliveryProofDialog } from '@/components/orders/DeliveryProofDialog';
-import { notifyNewOrder } from '@/lib/orderNotifications';
+import { notifyNewOrder, buildOrderSummary } from '@/lib/orderNotifications';
 
 interface BoardGroup {
   id: string;
@@ -715,7 +715,8 @@ export default function Orders() {
             // Find client name from cells
             const clientCol = columns.find(c => c.type === 'relation' || c.name.toLowerCase().includes('client'));
             const clientName = clientCol ? (cells[clientCol.id] as string) || 'Unknown' : 'Unknown';
-            notifyNewOrder(clientName);
+            const summary = buildOrderSummary(cells, columns);
+            notifyNewOrder(clientName, summary);
             toast({ title: 'Order added!' });
           } catch (error: any) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -769,7 +770,8 @@ export default function Orders() {
             await fetchData();
             const clientCol2 = columns.find(c => c.type === 'relation' || c.name.toLowerCase().includes('client'));
             const clientName2 = clientCol2 ? (cells[clientCol2.id] as string) || 'Unknown' : 'Unknown';
-            notifyNewOrder(clientName2);
+            const summary2 = buildOrderSummary(cells, columns);
+            notifyNewOrder(clientName2, summary2);
             toast({ title: 'Order added via Smart Add!' });
           } catch (error: any) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
