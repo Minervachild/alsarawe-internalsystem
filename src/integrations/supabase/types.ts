@@ -347,6 +347,70 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_expenses: {
+        Row: {
+          account_id: string | null
+          amount: number
+          created_at: string
+          created_by: string | null
+          date: string
+          id: string
+          invoice_number: string | null
+          notes: string | null
+          payment_method_id: string | null
+          seller_id: string | null
+          vat_included: boolean
+        }
+        Insert: {
+          account_id?: string | null
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          payment_method_id?: string | null
+          seller_id?: string | null
+          vat_included?: boolean
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          payment_method_id?: string | null
+          seller_id?: string | null
+          vat_included?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_expenses_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "expense_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_expenses_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "expense_payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_expenses_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "expense_sellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       duties: {
         Row: {
           category_id: string
@@ -590,6 +654,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      expense_accounts: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      expense_payment_methods: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      expense_sellers: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
       inventory_categories: {
         Row: {

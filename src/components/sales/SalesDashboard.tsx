@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, Filter, DollarSign, CreditCard, Hash, Building2, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Calendar, Filter, DollarSign, CreditCard, Hash, Building2, CheckCircle, XCircle, Clock, Archive, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,6 +45,7 @@ export function SalesDashboard() {
   const [filterBranch, setFilterBranch] = useState('all');
   const [filterShift, setFilterShift] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showArchive, setShowArchive] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<SalesEntry | null>(null);
   const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
@@ -94,15 +95,24 @@ export function SalesDashboard() {
     return null;
   };
 
+  const activeEntries = useMemo(() => {
+    return entries.filter(e => e.status !== 'rejected');
+  }, [entries]);
+
+  const archivedEntries = useMemo(() => {
+    return entries.filter(e => e.status === 'rejected');
+  }, [entries]);
+
   const filteredEntries = useMemo(() => {
-    return entries.filter((entry) => {
+    const source = showArchive ? archivedEntries : activeEntries;
+    return source.filter((entry) => {
       if (filterDate && entry.date !== filterDate) return false;
       if (filterBranch !== 'all' && entry.branch_id !== filterBranch) return false;
       if (filterShift !== 'all' && entry.shift !== filterShift) return false;
-      if (filterStatus !== 'all' && entry.status !== filterStatus) return false;
+      if (!showArchive && filterStatus !== 'all' && entry.status !== filterStatus) return false;
       return true;
     });
-  }, [entries, filterDate, filterBranch, filterShift, filterStatus]);
+  }, [activeEntries, archivedEntries, showArchive, filterDate, filterBranch, filterShift, filterStatus]);
 
   const handleApprove = async (entry: SalesEntry) => {
     if (!user) return;
@@ -146,7 +156,25 @@ export function SalesDashboard() {
       if (error) throw error;
 
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'rejected' } : e));
-      toast({ title: 'Sale rejected' });
+      toast({ title: 'Sale rejected & archived' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(entry.id); return n; });
+    }
+  };
+
+  const handleRestore = async (entry: SalesEntry) => {
+    setProcessingIds(prev => new Set(prev).add(entry.id));
+    try {
+      const { error } = await supabase
+        .from('sales_entries')
+        .update({ status: 'pending' })
+        .eq('id', entry.id);
+      if (error) throw error;
+
+      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'pending' } : e));
+      toast({ title: 'Sale restored to pending' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -281,8 +309,19 @@ export function SalesDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales Table */}
         <div className="card-premium overflow-hidden">
-          <div className="p-4 border-b border-border">
-            <h3 className="font-semibold">Sales Entries ({filteredEntries.length})</h3>
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <h3 className="font-semibold">
+              {showArchive ? 'Archived (Rejected)' : 'Sales Entries'} ({filteredEntries.length})
+            </h3>
+            <Button
+              variant={showArchive ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => setShowArchive(!showArchive)}
+            >
+              <Archive className="w-3.5 h-3.5" />
+              {showArchive ? 'Back to Active' : `Archive (${archivedEntries.length})`}
+            </Button>
           </div>
           <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
             <table className="w-full text-sm">
@@ -365,7 +404,18 @@ export function SalesDashboard() {
                         </Button>
                       </td>
                       <td className="p-3 text-center">
-                        {entry.status === 'pending' ? (
+                        {showArchive ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs gap-1"
+                            disabled={processingIds.has(entry.id)}
+                            onClick={(e) => { e.stopPropagation(); handleRestore(entry); }}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Restore
+                          </Button>
+                        ) : entry.status === 'pending' ? (
                           <div className="flex items-center justify-center gap-1">
                             <Button
                               variant="ghost"

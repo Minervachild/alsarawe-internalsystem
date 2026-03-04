@@ -93,19 +93,20 @@ export function BoardTable({
   const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
-  // Memoize average cycle calculation
-  const avgCycle = useMemo(() => {
-    if (rows.length === 0) return 0;
+  // Memoize average cycle calculation (hours when < 24h, days otherwise)
+  const avgCycleLabel = useMemo(() => {
+    if (rows.length === 0) return '0h';
     const now = new Date();
-    const totalDays = rows.reduce((sum, row) => {
+    const totalHours = rows.reduce((sum, row) => {
       if (row.created_at) {
         const created = new Date(row.created_at);
-        const diffDays = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
-        return sum + diffDays;
+        return sum + (now.getTime() - created.getTime()) / (1000 * 60 * 60);
       }
       return sum;
     }, 0);
-    return Math.round(totalDays / rows.length);
+    const avgHours = totalHours / rows.length;
+    if (avgHours < 24) return `${Math.round(avgHours)}h`;
+    return `${Math.round(avgHours / 24)}d`;
   }, [rows]);
 
   const handleDragStart = (e: React.DragEvent, rowId: string) => {
@@ -176,7 +177,7 @@ export function BoardTable({
           {group.name}
         </h3>
         <span className="px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-primary/10 text-primary">
-          Avg {avgCycle}d
+          Avg {avgCycleLabel}
         </span>
         <CycleTargetEditor
           groupId={group.id}
