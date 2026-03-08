@@ -127,8 +127,8 @@ export function SalesDashboard() {
         .eq('id', entry.id);
       if (error) throw error;
 
-      // Send to Telegram
-      supabase.functions.invoke('send-sales-telegram', {
+      // Send to n8n webhook (Zoho agent)
+      const { data: webhookResult } = await supabase.functions.invoke('send-sales-telegram', {
         body: {
           date: entry.date,
           shift: entry.shift,
@@ -138,10 +138,18 @@ export function SalesDashboard() {
           cardAmount: entry.card_amount,
           transactionCount: entry.transaction_count,
         },
-      }).catch(err => console.error('Telegram notification failed:', err));
+      });
 
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'approved' } : e));
-      toast({ title: 'Sale approved & sent to Telegram' });
+
+      if (webhookResult?.response) {
+        const agentResponse = typeof webhookResult.response === 'string'
+          ? webhookResult.response
+          : JSON.stringify(webhookResult.response, null, 2);
+        toast({ title: 'Sale approved', description: agentResponse });
+      } else {
+        toast({ title: 'Sale approved & sent to Zoho agent' });
+      }
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
