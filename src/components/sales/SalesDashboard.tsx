@@ -432,6 +432,14 @@ export function SalesDashboard() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                              onClick={(e) => { e.stopPropagation(); setEditEntry(entry); setEditOpen(true); }}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                               disabled={processingIds.has(entry.id)}
                               onClick={(e) => { e.stopPropagation(); handleReject(entry); }}
@@ -440,7 +448,16 @@ export function SalesDashboard() {
                             </Button>
                           </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                              onClick={(e) => { e.stopPropagation(); setEditEntry(entry); setEditOpen(true); }}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         )}
                       </td>
                     </tr>
