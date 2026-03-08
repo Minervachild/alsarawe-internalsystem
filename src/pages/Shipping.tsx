@@ -84,7 +84,7 @@ export default function Shipping() {
       toast({ title: 'Fill all customer fields first', variant: 'destructive' });
       return;
     }
-    const { error } = await supabase.from('shipping_customers').insert({
+    const { error } = await (supabase as any).from('shipping_customers').insert({
       name, phone, city, address,
     });
     if (error) {

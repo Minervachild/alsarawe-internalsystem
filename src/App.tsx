@@ -119,6 +119,7 @@ function AppRoutes() {
       <Route path="/sales" element={<PageProtectedRoute page="sales"><Sales /></PageProtectedRoute>} />
       <Route path="/products" element={<PageProtectedRoute page="products"><Products /></PageProtectedRoute>} />
       <Route path="/expenses" element={<PageProtectedRoute page="expenses"><Expenses /></PageProtectedRoute>} />
+      <Route path="/shipping" element={<PageProtectedRoute page="shipping"><Shipping /></PageProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

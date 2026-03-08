@@ -106,6 +106,13 @@ const workspaces: WorkspaceItem[] = [
     color: '#E11D48',
   },
   {
+    title: 'Shipping',
+    description: 'SMSA Express labels',
+    icon: Truck,
+    href: '/shipping',
+    color: '#0EA5E9',
+  },
+  {
     title: 'Accounts',
     description: 'Passwords & credentials',
     icon: Lock,
