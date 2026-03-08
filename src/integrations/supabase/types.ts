@@ -1455,6 +1455,36 @@ export type Database = {
           },
         ]
       }
+      shipping_customers: {
+        Row: {
+          address: string
+          city: string
+          created_at: string | null
+          id: string
+          name: string
+          phone: string
+          updated_at: string | null
+        }
+        Insert: {
+          address: string
+          city: string
+          created_at?: string | null
+          id?: string
+          name: string
+          phone: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string
+          city?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          phone?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_page_access: {
         Row: {
           created_at: string
