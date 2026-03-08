@@ -476,6 +476,14 @@ export function SalesDashboard() {
           />
         </div>
       </div>
+
+      <EditSalesEntryDialog
+        entry={editEntry}
+        branches={branches}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onUpdated={fetchData}
+      />
     </div>
   );
 }

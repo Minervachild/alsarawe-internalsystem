@@ -405,6 +405,17 @@ export default function Employees() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Page Access Dialog */}
+      {pageAccessEmployee?.profile_id && profiles[pageAccessEmployee.profile_id] && (
+        <PageAccessDialog
+          open={pageAccessOpen}
+          onOpenChange={setPageAccessOpen}
+          userId={profiles[pageAccessEmployee.profile_id].user_id}
+          username={pageAccessEmployee.name}
+          onSuccess={fetchEmployees}
+        />
+      )}
     </AppLayout>
   );
 }
