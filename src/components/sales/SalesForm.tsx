@@ -122,7 +122,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
       cashAmount &&
       cardAmount &&
       transactionCount &&
-      proofImageUrl &&
+      (proofImageUrl || isAdmin) &&
       hasEmployee
     );
   };
