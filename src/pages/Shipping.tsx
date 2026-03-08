@@ -1,0 +1,362 @@
+import { useState, useEffect } from 'react';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { Package, FileText, Download, Plus, UserCheck, Loader2, Truck, X } from 'lucide-react';
+import { format } from 'date-fns';
+
+const CITIES = [
+  'Riyadh', 'Jeddah', 'Dammam', 'Makkah', 'Madinah', 'Tabuk',
+  'Abha', 'Hail', 'Jizan', 'Najran', 'Buraidah', 'Khamis Mushait', 'Taif',
+];
+
+interface ShipmentRecord {
+  awb: string;
+  name: string;
+  city: string;
+  cod: number;
+  date: string;
+}
+
+interface SavedCustomer {
+  id: string;
+  name: string;
+  phone: string;
+  city: string;
+  address: string;
+}
+
+export default function Shipping() {
+  const { toast } = useToast();
+
+  // Form state
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [city, setCity] = useState('');
+  const [address, setAddress] = useState('');
+  const [pieces, setPieces] = useState('1');
+  const [weight, setWeight] = useState('0.5');
+  const [codAmount, setCodAmount] = useState('0');
+
+  // UI state
+  const [creating, setCreating] = useState(false);
+  const [lastAwb, setLastAwb] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState<string | null>(null);
+  const [pdfData, setPdfData] = useState<string | null>(null);
+  const [pdfAwb, setPdfAwb] = useState<string | null>(null);
+  const [history, setHistory] = useState<ShipmentRecord[]>([]);
+
+  // Saved customers
+  const [savedCustomers, setSavedCustomers] = useState<SavedCustomer[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    const { data } = await (supabase as any)
+      .from('shipping_customers')
+      .select('*')
+      .order('name');
+    if (data) setSavedCustomers(data as SavedCustomer[]);
+  };
+
+  const selectCustomer = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    const c = savedCustomers.find(c => c.id === customerId);
+    if (c) {
+      setName(c.name);
+      setPhone(c.phone);
+      setCity(c.city);
+      setAddress(c.address);
+    }
+  };
+
+  const saveCustomer = async () => {
+    if (!name || !phone || !city || !address) {
+      toast({ title: 'Fill all customer fields first', variant: 'destructive' });
+      return;
+    }
+    const { error } = await (supabase as any).from('shipping_customers').insert({
+      name, phone, city, address,
+    });
+    if (error) {
+      toast({ title: 'Failed to save customer', variant: 'destructive' });
+    } else {
+      toast({ title: 'Customer saved!' });
+      fetchCustomers();
+    }
+  };
+
+  const clearForm = () => {
+    setSelectedCustomerId('');
+    setName('');
+    setPhone('');
+    setCity('');
+    setAddress('');
+    setPieces('1');
+    setWeight('0.5');
+    setCodAmount('0');
+    setLastAwb(null);
+  };
+
+  const createShipment = async () => {
+    if (!name || !phone || !city || !address) {
+      toast({ title: 'Please fill all required fields', variant: 'destructive' });
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await fetch('https://n8n.srv1149238.hstgr.cloud/webhook/smsa-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cName: name,
+          cMobile: phone,
+          cCity: city,
+          cAddr1: address,
+          PCs: pieces,
+          weight,
+          codAmt: codAmount,
+        }),
+      });
+      const data = await res.json();
+      const awb = data?.awbNo || data?.awb || data?.AWBNo || data?.tracking || (typeof data === 'string' ? data : JSON.stringify(data));
+      setLastAwb(awb);
+      setHistory(prev => [{
+        awb,
+        name,
+        city,
+        cod: parseFloat(codAmount) || 0,
+        date: format(new Date(), 'yyyy-MM-dd HH:mm'),
+      }, ...prev]);
+      toast({ title: `Shipment created! AWB: ${awb}` });
+    } catch (err: any) {
+      toast({ title: 'Failed to create shipment', description: err.message, variant: 'destructive' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const getPdf = async (awbNo: string) => {
+    setPdfLoading(awbNo);
+    try {
+      const res = await fetch('https://n8n.srv1149238.hstgr.cloud/webhook/smsa-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ awbNo }),
+      });
+      const data = await res.json();
+      const base64 = data?.pdf || data?.data || data?.base64 || (typeof data === 'string' ? data : '');
+      if (!base64) {
+        toast({ title: 'No PDF data received', variant: 'destructive' });
+        return;
+      }
+      setPdfData(base64);
+      setPdfAwb(awbNo);
+    } catch (err: any) {
+      toast({ title: 'Failed to get PDF', description: err.message, variant: 'destructive' });
+    } finally {
+      setPdfLoading(null);
+    }
+  };
+
+  const downloadPdf = () => {
+    if (!pdfData || !pdfAwb) return;
+    const link = document.createElement('a');
+    link.href = `data:application/pdf;base64,${pdfData}`;
+    link.download = `AWB-${pdfAwb}.pdf`;
+    link.click();
+  };
+
+  return (
+    <AppLayout>
+      <div className="p-4 lg:p-6 max-w-[1200px] mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Truck className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Shipping Labels</h1>
+            <p className="text-sm text-muted-foreground">SMSA Express shipment creator</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Form */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                Create Shipment
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Saved customer selector */}
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Label>Saved Customer</Label>
+                  <Select value={selectedCustomerId} onValueChange={selectCustomer}>
+                    <SelectTrigger><SelectValue placeholder="Select a customer..." /></SelectTrigger>
+                    <SelectContent>
+                      {savedCustomers.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name} — {c.city}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button variant="outline" size="icon" onClick={saveCustomer} title="Save current as customer">
+                  <Plus className="w-4 h-4" />
+                </Button>
+                {selectedCustomerId && (
+                  <Button variant="ghost" size="icon" onClick={clearForm} title="Clear">
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Customer Name *</Label>
+                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" />
+                </div>
+                <div>
+                  <Label>Customer Phone *</Label>
+                  <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="05XXXXXXXX" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>City *</Label>
+                  <Select value={city} onValueChange={setCity}>
+                    <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
+                    <SelectContent>
+                      {CITIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>COD Amount (SAR)</Label>
+                  <Input type="number" value={codAmount} onChange={e => setCodAmount(e.target.value)} min="0" step="0.01" />
+                </div>
+              </div>
+
+              <div>
+                <Label>Address *</Label>
+                <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Full address" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Pieces</Label>
+                  <Input type="number" value={pieces} onChange={e => setPieces(e.target.value)} min="1" />
+                </div>
+                <div>
+                  <Label>Weight (KG)</Label>
+                  <Input type="number" value={weight} onChange={e => setWeight(e.target.value)} min="0.1" step="0.1" />
+                </div>
+              </div>
+
+              <Button onClick={createShipment} disabled={creating} className="w-full">
+                {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Package className="w-4 h-4 mr-2" />}
+                Create Shipment
+              </Button>
+
+              {lastAwb && (
+                <div className="rounded-xl border border-border bg-secondary/50 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="w-5 h-5 text-primary" />
+                    <span className="font-semibold text-foreground">AWB: {lastAwb}</span>
+                  </div>
+                  <Button variant="outline" onClick={() => getPdf(lastAwb)} disabled={pdfLoading === lastAwb}>
+                    {pdfLoading === lastAwb ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileText className="w-4 h-4 mr-2" />}
+                    Get PDF
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* PDF Viewer */}
+          <Card className="min-h-[400px]">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Label Preview
+                </CardTitle>
+                {pdfData && (
+                  <Button variant="outline" size="sm" onClick={downloadPdf}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download AWB-{pdfAwb}.pdf
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {pdfData ? (
+                <iframe
+                  src={`data:application/pdf;base64,${pdfData}`}
+                  className="w-full h-[500px] rounded-lg border border-border"
+                  title="Shipping Label PDF"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground">
+                  <FileText className="w-12 h-12 mb-3 opacity-30" />
+                  <p>Create a shipment and click "Get PDF" to preview the label here</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* History */}
+        {history.length > 0 && (
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Session History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>AWB</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>City</TableHead>
+                    <TableHead>COD</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {history.map((h, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-mono font-medium">{h.awb}</TableCell>
+                      <TableCell>{h.name}</TableCell>
+                      <TableCell>{h.city}</TableCell>
+                      <TableCell>{h.cod > 0 ? `${h.cod} SAR` : '—'}</TableCell>
+                      <TableCell className="text-muted-foreground">{h.date}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" onClick={() => getPdf(h.awb)} disabled={pdfLoading === h.awb}>
+                          {pdfLoading === h.awb ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </AppLayout>
+  );
+}

@@ -14,6 +14,7 @@ import {
   Coffee,
   Lock,
   Wallet,
+  Truck,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -103,6 +104,13 @@ const workspaces: WorkspaceItem[] = [
     icon: Wallet,
     href: '/expenses',
     color: '#E11D48',
+  },
+  {
+    title: 'Shipping',
+    description: 'SMSA Express labels',
+    icon: Truck,
+    href: '/shipping',
+    color: '#0EA5E9',
   },
   {
     title: 'Accounts',
