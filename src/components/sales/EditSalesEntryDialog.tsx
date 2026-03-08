@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,7 +60,7 @@ export function EditSalesEntryDialog({
   const { toast } = useToast();
 
   // Sync state when entry changes
-  const resetForm = () => {
+  useEffect(() => {
     if (entry) {
       setDate(entry.date);
       setShift(entry.shift);
@@ -69,7 +69,7 @@ export function EditSalesEntryDialog({
       setCardAmount(String(entry.card_amount));
       setTransactionCount(String(entry.transaction_count));
     }
-  };
+  }, [entry]);
 
   const handleSave = async () => {
     if (!entry) return;
@@ -100,7 +100,7 @@ export function EditSalesEntryDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (v) resetForm(); }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Sales Entry</DialogTitle>
