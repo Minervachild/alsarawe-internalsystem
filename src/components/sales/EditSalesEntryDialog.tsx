@@ -60,7 +60,7 @@ export function EditSalesEntryDialog({
   const { toast } = useToast();
 
   // Sync state when entry changes
-  const resetForm = () => {
+  useEffect(() => {
     if (entry) {
       setDate(entry.date);
       setShift(entry.shift);
@@ -69,7 +69,7 @@ export function EditSalesEntryDialog({
       setCardAmount(String(entry.card_amount));
       setTransactionCount(String(entry.transaction_count));
     }
-  };
+  }, [entry]);
 
   const handleSave = async () => {
     if (!entry) return;
