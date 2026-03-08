@@ -63,6 +63,8 @@ export default function Employees() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
   const [employeeToRevoke, setEmployeeToRevoke] = useState<Employee | null>(null);
+  const [pageAccessOpen, setPageAccessOpen] = useState(false);
+  const [pageAccessEmployee, setPageAccessEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
   const { isAdmin } = useAuth();
 
