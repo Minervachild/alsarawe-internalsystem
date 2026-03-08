@@ -14,6 +14,7 @@ import {
   Coffee,
   Lock,
   Wallet,
+  Truck,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
