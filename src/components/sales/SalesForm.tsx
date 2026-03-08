@@ -143,7 +143,8 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
         cash_amount: parseFloat(cashAmount),
         card_amount: parseFloat(cardAmount),
         transaction_count: parseInt(transactionCount),
-        proof_image_url: proofImageUrl!,
+        proof_image_url: proofImageUrl || 'no-proof',
+        ...(isAdmin ? { status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() } : {}),
       });
 
       if (error) throw error;
