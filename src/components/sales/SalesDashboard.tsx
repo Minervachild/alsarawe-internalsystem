@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { BotRegister } from './BotRegister';
+import { EditSalesEntryDialog } from './EditSalesEntryDialog';
 
 interface SalesEntry {
   id: string;
