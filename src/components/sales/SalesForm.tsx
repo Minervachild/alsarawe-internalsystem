@@ -122,7 +122,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
       cashAmount &&
       cardAmount &&
       transactionCount &&
-      proofImageUrl &&
+      (proofImageUrl || isAdmin) &&
       hasEmployee
     );
   };
@@ -143,7 +143,8 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
         cash_amount: parseFloat(cashAmount),
         card_amount: parseFloat(cardAmount),
         transaction_count: parseInt(transactionCount),
-        proof_image_url: proofImageUrl!,
+        proof_image_url: proofImageUrl || 'no-proof',
+        ...(isAdmin ? { status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() } : {}),
       });
 
       if (error) throw error;
@@ -329,7 +330,9 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
 
           {/* Proof Image Upload */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Proof Image (POS Report) *</Label>
+            <Label className="text-sm font-medium">
+              Proof Image (POS Report) {isAdmin ? '(optional)' : '*'}
+            </Label>
             <div className="border-2 border-dashed border-border rounded-xl p-4 text-center">
               {proofFileName ? (
                 <div className="flex items-center justify-center gap-2 text-sm text-foreground">
@@ -344,7 +347,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
                     <Upload className="w-8 h-8 text-muted-foreground" />
                   )}
                   <span className="text-sm text-muted-foreground">
-                    {uploadingImage ? 'Uploading...' : 'Click to upload proof image'}
+                    {uploadingImage ? 'Uploading...' : isAdmin ? 'Click to upload proof image (optional)' : 'Click to upload proof image'}
                   </span>
                   <input
                     type="file"

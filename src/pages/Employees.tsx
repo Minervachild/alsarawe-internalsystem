@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Phone, MoreHorizontal, Pencil, Trash2, UserPlus, UserX, Shield } from 'lucide-react';
+import { Plus, Search, Phone, MoreHorizontal, Pencil, Trash2, UserPlus, UserX, Shield, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,7 @@ import { CreateUserAccountDialog } from '@/components/employees/CreateUserAccoun
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { PageAccessDialog } from '@/components/users/PageAccessDialog';
 
 interface Employee {
   id: string;
@@ -62,6 +63,8 @@ export default function Employees() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
   const [employeeToRevoke, setEmployeeToRevoke] = useState<Employee | null>(null);
+  const [pageAccessOpen, setPageAccessOpen] = useState(false);
+  const [pageAccessEmployee, setPageAccessEmployee] = useState<Employee | null>(null);
   const { toast } = useToast();
   const { isAdmin } = useAuth();
 
@@ -294,6 +297,15 @@ export default function Employees() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
+                                  setPageAccessEmployee(employee);
+                                  setPageAccessOpen(true);
+                                }}
+                              >
+                                <LayoutGrid className="w-4 h-4 mr-2" />
+                                Page Access
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
                                   setEmployeeToRevoke(employee);
                                   setRevokeDialogOpen(true);
                                 }}
@@ -393,6 +405,17 @@ export default function Employees() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Page Access Dialog */}
+      {pageAccessEmployee?.profile_id && profiles[pageAccessEmployee.profile_id] && (
+        <PageAccessDialog
+          open={pageAccessOpen}
+          onOpenChange={setPageAccessOpen}
+          userId={profiles[pageAccessEmployee.profile_id].user_id}
+          username={pageAccessEmployee.name}
+          onSuccess={fetchEmployees}
+        />
+      )}
     </AppLayout>
   );
 }
