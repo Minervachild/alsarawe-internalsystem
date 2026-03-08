@@ -178,23 +178,28 @@ export default function Shipping() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-6 max-w-[1200px] mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Truck className="w-5 h-5 text-primary" />
+      <style>{`
+        .smsa-page { --smsa-purple: 270 60% 40%; --smsa-orange: 25 95% 53%; --smsa-purple-light: 270 50% 95%; --smsa-orange-light: 30 90% 95%; }
+        .dark .smsa-page { --smsa-purple-light: 270 40% 18%; --smsa-orange-light: 25 50% 15%; }
+      `}</style>
+      <div className="smsa-page p-4 lg:p-6 max-w-[1200px] mx-auto space-y-6">
+        {/* Header with gradient */}
+        <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: 'linear-gradient(135deg, hsl(270 60% 40% / 0.1), hsl(25 95% 53% / 0.1))' }}>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'hsl(270 60% 40%)' }}>
+            <Truck className="w-6 h-6 text-white" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Shipping Labels</h1>
-            <p className="text-sm text-muted-foreground">SMSA Express shipment creator</p>
+            <p className="text-sm" style={{ color: 'hsl(270 60% 40%)' }}>SMSA Express shipment creator</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Form */}
-          <Card>
+          <Card className="border-t-4" style={{ borderTopColor: 'hsl(270 60% 40%)' }}>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Package className="w-5 h-5" />
+                <Package className="w-5 h-5" style={{ color: 'hsl(270 60% 40%)' }} />
                 Create Shipment
               </CardTitle>
             </CardHeader>
@@ -212,7 +217,7 @@ export default function Shipping() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button variant="outline" size="icon" onClick={saveCustomer} title="Save current as customer">
+                <Button variant="outline" size="icon" onClick={saveCustomer} title="Save current as customer" className="border-border hover:border-[hsl(270_60%_40%)] hover:text-[hsl(270_60%_40%)]">
                   <Plus className="w-4 h-4" />
                 </Button>
                 {selectedCustomerId && (
@@ -265,18 +270,29 @@ export default function Shipping() {
                 </div>
               </div>
 
-              <Button onClick={createShipment} disabled={creating} className="w-full">
+              <Button
+                onClick={createShipment}
+                disabled={creating}
+                className="w-full text-white font-semibold"
+                style={{ background: 'linear-gradient(135deg, hsl(270 60% 40%), hsl(270 50% 50%))' }}
+              >
                 {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Package className="w-4 h-4 mr-2" />}
                 Create Shipment
               </Button>
 
               {lastAwb && (
-                <div className="rounded-xl border border-border bg-secondary/50 p-4 space-y-3">
+                <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'hsl(25 95% 53% / 0.4)', backgroundColor: 'hsl(25 95% 53% / 0.06)' }}>
                   <div className="flex items-center gap-2">
-                    <UserCheck className="w-5 h-5 text-primary" />
+                    <UserCheck className="w-5 h-5" style={{ color: 'hsl(25 95% 53%)' }} />
                     <span className="font-semibold text-foreground">AWB: {lastAwb}</span>
                   </div>
-                  <Button variant="outline" onClick={() => getPdf(lastAwb)} disabled={pdfLoading === lastAwb}>
+                  <Button
+                    variant="outline"
+                    onClick={() => getPdf(lastAwb)}
+                    disabled={pdfLoading === lastAwb}
+                    className="hover:text-white"
+                    style={{ borderColor: 'hsl(25 95% 53%)', color: 'hsl(25 95% 53%)' }}
+                  >
                     {pdfLoading === lastAwb ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileText className="w-4 h-4 mr-2" />}
                     Get PDF
                   </Button>
@@ -286,17 +302,22 @@ export default function Shipping() {
           </Card>
 
           {/* PDF Viewer */}
-          <Card className="min-h-[400px]">
+          <Card className="min-h-[400px] border-t-4" style={{ borderTopColor: 'hsl(25 95% 53%)' }}>
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
+                  <FileText className="w-5 h-5" style={{ color: 'hsl(25 95% 53%)' }} />
                   Label Preview
                 </CardTitle>
                 {pdfData && (
-                  <Button variant="outline" size="sm" onClick={downloadPdf}>
+                  <Button
+                    size="sm"
+                    onClick={downloadPdf}
+                    className="text-white"
+                    style={{ background: 'hsl(25 95% 53%)' }}
+                  >
                     <Download className="w-4 h-4 mr-2" />
-                    Download AWB-{pdfAwb}.pdf
+                    AWB-{pdfAwb}.pdf
                   </Button>
                 )}
               </div>
@@ -310,8 +331,8 @@ export default function Shipping() {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground">
-                  <FileText className="w-12 h-12 mb-3 opacity-30" />
-                  <p>Create a shipment and click "Get PDF" to preview the label here</p>
+                  <Truck className="w-16 h-16 mb-3 opacity-20" style={{ color: 'hsl(270 60% 40%)' }} />
+                  <p className="text-center">Create a shipment and click "Get PDF" to preview the label</p>
                 </div>
               )}
             </CardContent>
@@ -322,7 +343,10 @@ export default function Shipping() {
         {history.length > 0 && (
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Session History</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'hsl(270 60% 40%)' }} />
+                Session History
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -339,13 +363,19 @@ export default function Shipping() {
                 <TableBody>
                   {history.map((h, i) => (
                     <TableRow key={i}>
-                      <TableCell className="font-mono font-medium">{h.awb}</TableCell>
+                      <TableCell className="font-mono font-medium" style={{ color: 'hsl(270 60% 40%)' }}>{h.awb}</TableCell>
                       <TableCell>{h.name}</TableCell>
                       <TableCell>{h.city}</TableCell>
                       <TableCell>{h.cod > 0 ? `${h.cod} SAR` : '—'}</TableCell>
                       <TableCell className="text-muted-foreground">{h.date}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => getPdf(h.awb)} disabled={pdfLoading === h.awb}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => getPdf(h.awb)}
+                          disabled={pdfLoading === h.awb}
+                          style={{ color: 'hsl(25 95% 53%)' }}
+                        >
                           {pdfLoading === h.awb ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                         </Button>
                       </TableCell>
