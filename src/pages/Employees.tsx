@@ -297,6 +297,15 @@ export default function Employees() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
+                                  setPageAccessEmployee(employee);
+                                  setPageAccessOpen(true);
+                                }}
+                              >
+                                <LayoutGrid className="w-4 h-4 mr-2" />
+                                Page Access
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
                                   setEmployeeToRevoke(employee);
                                   setRevokeDialogOpen(true);
                                 }}
