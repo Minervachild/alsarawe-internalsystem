@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Pencil, Save, X, Receipt, Store, Wallet, CreditCard, Settings2 } from 'lucide-react';
+import { Plus, Trash2, Pencil, Save, X, Receipt, Store, Wallet, CreditCard, Settings2, Zap, Loader2, Send, BookTemplate, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,8 +29,21 @@ interface Seller { id: string; name: string }
 interface Account { id: string; name: string }
 interface PaymentMethod { id: string; name: string }
 interface Employee { id: string; name: string }
+interface ExpenseTemplate {
+  id: string;
+  name: string;
+  seller_id: string | null;
+  account_id: string | null;
+  payment_method_id: string | null;
+  default_amount: number | null;
+  vat_included: boolean;
+  notes: string | null;
+  webhook_prompt_template: string | null;
+  position: number;
+}
 interface Expense {
   id: string;
+  title: string | null;
   seller_id: string | null;
   account_id: string | null;
   payment_method_id: string | null;
@@ -56,10 +69,12 @@ export default function Expenses() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [templates, setTemplates] = useState<ExpenseTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Form state
+  const [title, setTitle] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [sellerId, setSellerId] = useState('');
   const [accountId, setAccountId] = useState('');
@@ -71,6 +86,19 @@ export default function Expenses() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Template form state (settings)
+  const [tplName, setTplName] = useState('');
+  const [tplSellerId, setTplSellerId] = useState('');
+  const [tplAccountId, setTplAccountId] = useState('');
+  const [tplPaymentMethodId, setTplPaymentMethodId] = useState('');
+  const [tplDefaultAmount, setTplDefaultAmount] = useState('');
+  const [tplVatIncluded, setTplVatIncluded] = useState(true);
+  const [tplNotes, setTplNotes] = useState('');
+  const [tplPrompt, setTplPrompt] = useState('');
+
+  // Webhook state
+  const [sendingWebhook, setSendingWebhook] = useState<string | null>(null);
+
   // Settings inline add
   const [newSeller, setNewSeller] = useState('');
   const [newAccount, setNewAccount] = useState('');
@@ -80,23 +108,75 @@ export default function Expenses() {
 
   const fetchAll = async () => {
     setIsLoading(true);
-    const [s, a, p, emp, e] = await Promise.all([
+    const [s, a, p, emp, e, t] = await Promise.all([
       supabase.from('expense_sellers').select('id, name').order('name'),
       supabase.from('expense_accounts').select('id, name').order('name'),
       supabase.from('expense_payment_methods').select('id, name').order('name'),
       supabase.from('employees').select('id, name').order('name'),
-      supabase.from('daily_expenses')
+      (supabase as any).from('daily_expenses')
         .select('*, expense_sellers(name), expense_accounts(name), expense_payment_methods(name), employees(name)')
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(100),
+      (supabase as any).from('expense_templates').select('*').order('position'),
     ]);
     setSellers(s.data || []);
     setAccounts(a.data || []);
     setPaymentMethods(p.data || []);
     setEmployees(emp.data || []);
     setExpenses((e.data as any[]) || []);
+    setTemplates((t.data as ExpenseTemplate[]) || []);
     setIsLoading(false);
+  };
+
+  const applyTemplate = (tpl: ExpenseTemplate) => {
+    setTitle(tpl.name);
+    if (tpl.seller_id) setSellerId(tpl.seller_id);
+    if (tpl.account_id) setAccountId(tpl.account_id);
+    if (tpl.payment_method_id) setPaymentMethodId(tpl.payment_method_id);
+    if (tpl.default_amount) setAmount(String(tpl.default_amount));
+    setVatIncluded(tpl.vat_included);
+    if (tpl.notes) setNotes(tpl.notes);
+    toast({ title: `Template "${tpl.name}" applied` });
+  };
+
+  const sendTemplateToAgent = async (tpl: ExpenseTemplate) => {
+    if (!tpl.webhook_prompt_template) {
+      toast({ title: 'No prompt template configured', variant: 'destructive' });
+      return;
+    }
+    setSendingWebhook(tpl.id);
+    try {
+      // Replace placeholders in prompt
+      const sellerName = sellers.find(s => s.id === tpl.seller_id)?.name || '';
+      const accountName = accounts.find(a => a.id === tpl.account_id)?.name || '';
+      const prompt = tpl.webhook_prompt_template
+        .replace('{seller}', sellerName)
+        .replace('{account}', accountName)
+        .replace('{amount}', String(tpl.default_amount || 0))
+        .replace('{name}', tpl.name)
+        .replace('{date}', format(new Date(), 'yyyy-MM-dd'))
+        .replace('{notes}', tpl.notes || '');
+
+      const { data, error } = await supabase.functions.invoke('send-expense-webhook', {
+        body: { prompt },
+      });
+
+      if (error) throw error;
+
+      if (data?.response) {
+        const agentResponse = typeof data.response === 'string'
+          ? data.response
+          : JSON.stringify(data.response, null, 2);
+        toast({ title: 'Agent Response', description: agentResponse });
+      } else {
+        toast({ title: 'Sent to agent successfully' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Failed to send to agent', description: err.message, variant: 'destructive' });
+    } finally {
+      setSendingWebhook(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,7 +187,8 @@ export default function Expenses() {
     }
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('daily_expenses').insert({
+      const { error } = await (supabase as any).from('daily_expenses').insert({
+        title: title || null,
         seller_id: sellerId || null,
         account_id: accountId || null,
         payment_method_id: paymentMethodId || null,
@@ -121,7 +202,7 @@ export default function Expenses() {
       });
       if (error) throw error;
 
-      // Reset form (keep date & payment method for quick repeat)
+      setTitle('');
       setSellerId('');
       setAccountId('');
       setEmployeeId('');
@@ -145,6 +226,35 @@ export default function Expenses() {
       setExpenses(prev => prev.filter(e => e.id !== id));
       toast({ title: 'Expense deleted' });
     }
+  };
+
+  // Template management
+  const addTemplate = async () => {
+    if (!tplName.trim()) return;
+    const { error } = await (supabase as any).from('expense_templates').insert({
+      name: tplName.trim(),
+      seller_id: tplSellerId || null,
+      account_id: tplAccountId || null,
+      payment_method_id: tplPaymentMethodId || null,
+      default_amount: tplDefaultAmount ? parseFloat(tplDefaultAmount) : 0,
+      vat_included: tplVatIncluded,
+      notes: tplNotes || null,
+      webhook_prompt_template: tplPrompt || null,
+    });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setTplName(''); setTplSellerId(''); setTplAccountId(''); setTplPaymentMethodId('');
+    setTplDefaultAmount(''); setTplVatIncluded(true); setTplNotes(''); setTplPrompt('');
+    toast({ title: 'Template saved' });
+    const { data } = await (supabase as any).from('expense_templates').select('*').order('position');
+    setTemplates(data || []);
+  };
+
+  const deleteTemplate = async (id: string) => {
+    await (supabase as any).from('expense_templates').delete().eq('id', id);
+    setTemplates(prev => prev.filter(t => t.id !== id));
   };
 
   // Settings helpers
@@ -224,6 +334,40 @@ export default function Expenses() {
           </div>
         </div>
 
+        {/* Quick Templates */}
+        {templates.length > 0 && (
+          <div className="mb-4">
+            <p className="text-xs text-muted-foreground mb-2 font-medium">Quick Templates</p>
+            <div className="flex flex-wrap gap-2">
+              {templates.map(tpl => (
+                <div key={tpl.id} className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={() => applyTemplate(tpl)}
+                  >
+                    <Zap className="w-3 h-3 text-primary" />
+                    {tpl.name}
+                  </Button>
+                  {isAdmin && tpl.webhook_prompt_template && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-primary"
+                      disabled={sendingWebhook === tpl.id}
+                      onClick={() => sendTemplateToAgent(tpl)}
+                      title="Send to accountant agent"
+                    >
+                      {sendingWebhook === tpl.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Quick Add Form */}
         <form onSubmit={handleSubmit} className="card-premium p-5 mb-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
@@ -231,6 +375,10 @@ export default function Expenses() {
             Add Expense
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+              <Label className="text-xs">Title</Label>
+              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Zadi Dhabi daily purchase" className="h-9" />
+            </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Seller *</Label>
               <Select value={sellerId} onValueChange={setSellerId}>
@@ -312,10 +460,10 @@ export default function Expenses() {
               <thead className="bg-muted/50 sticky top-0">
                 <tr>
                   <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Title</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Seller</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Account</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">By</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Invoice #</th>
                   <th className="text-right p-3 font-medium text-muted-foreground">Amount</th>
                   <th className="text-center p-3 font-medium text-muted-foreground">VAT</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Payment</th>
@@ -329,10 +477,10 @@ export default function Expenses() {
                   expenses.map(exp => (
                     <tr key={exp.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                       <td className="p-3">{format(new Date(exp.date), 'MMM dd')}</td>
-                      <td className="p-3 font-medium">{exp.expense_sellers?.name || '—'}</td>
+                      <td className="p-3 font-medium text-foreground">{exp.title || '—'}</td>
+                      <td className="p-3">{exp.expense_sellers?.name || '—'}</td>
                       <td className="p-3 text-muted-foreground">{exp.expense_accounts?.name || '—'}</td>
                       <td className="p-3 text-muted-foreground">{exp.employees?.name || '—'}</td>
-                      <td className="p-3 text-muted-foreground">{exp.invoice_number || '—'}</td>
                       <td className="p-3 text-right font-semibold">﷼{Number(exp.amount).toLocaleString()}</td>
                       <td className="p-3 text-center">
                         <span className={`px-1.5 py-0.5 rounded text-xs ${exp.vat_included ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
@@ -354,18 +502,77 @@ export default function Expenses() {
         </div>
       </div>
 
-      {/* Settings Dialog - Manage sellers, accounts, payment methods */}
+      {/* Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Manage Expense Options</DialogTitle>
           </DialogHeader>
-          <Tabs defaultValue="sellers" className="mt-2">
+          <Tabs defaultValue="templates" className="mt-2">
             <TabsList className="w-full">
+              <TabsTrigger value="templates" className="flex-1 gap-1"><FileText className="w-3.5 h-3.5" /> Templates</TabsTrigger>
               <TabsTrigger value="sellers" className="flex-1 gap-1"><Store className="w-3.5 h-3.5" /> Sellers</TabsTrigger>
               <TabsTrigger value="accounts" className="flex-1 gap-1"><Wallet className="w-3.5 h-3.5" /> Accounts</TabsTrigger>
               <TabsTrigger value="methods" className="flex-1 gap-1"><CreditCard className="w-3.5 h-3.5" /> Payment</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="templates" className="space-y-3 mt-3">
+              <div className="space-y-3 rounded-lg border border-border p-3">
+                <Input value={tplName} onChange={e => setTplName(e.target.value)} placeholder="Template name (e.g. Zadi Dhabi)" className="h-9" />
+                <div className="grid grid-cols-2 gap-2">
+                  <Select value={tplSellerId} onValueChange={setTplSellerId}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Seller" /></SelectTrigger>
+                    <SelectContent>
+                      {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={tplAccountId} onValueChange={setTplAccountId}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Account" /></SelectTrigger>
+                    <SelectContent>
+                      {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Select value={tplPaymentMethodId} onValueChange={setTplPaymentMethodId}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Payment" /></SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Input type="number" step="0.01" value={tplDefaultAmount} onChange={e => setTplDefaultAmount(e.target.value)} placeholder="Default amount" className="h-9" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Agent Prompt Template (placeholders: {'{name}'}, {'{seller}'}, {'{account}'}, {'{amount}'}, {'{date}'}, {'{notes}'})</Label>
+                  <Textarea
+                    value={tplPrompt}
+                    onChange={e => setTplPrompt(e.target.value)}
+                    placeholder="e.g. سجل مصروف {name} من {seller} بمبلغ {amount} في حساب {account} بتاريخ {date}"
+                    className="mt-1 text-sm"
+                    rows={3}
+                  />
+                </div>
+                <Button size="sm" className="w-full gap-1" onClick={addTemplate}>
+                  <Plus className="w-4 h-4" /> Add Template
+                </Button>
+              </div>
+              <div className="space-y-1">
+                {templates.map(t => (
+                  <div key={t.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-muted/50">
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium">{t.name}</span>
+                      {t.webhook_prompt_template && (
+                        <span className="ml-2 text-xs text-primary">⚡ Agent</span>
+                      )}
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteTemplate(t.id)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                {templates.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No templates yet</p>}
+              </div>
+            </TabsContent>
 
             <TabsContent value="sellers" className="space-y-3 mt-3">
               <div className="flex gap-2">
@@ -429,4 +636,3 @@ export default function Expenses() {
     </AppLayout>
   );
 }
-

@@ -360,6 +360,7 @@ export type Database = {
           notes: string | null
           payment_method_id: string | null
           seller_id: string | null
+          title: string | null
           vat_included: boolean
         }
         Insert: {
@@ -374,6 +375,7 @@ export type Database = {
           notes?: string | null
           payment_method_id?: string | null
           seller_id?: string | null
+          title?: string | null
           vat_included?: boolean
         }
         Update: {
@@ -388,6 +390,7 @@ export type Database = {
           notes?: string | null
           payment_method_id?: string | null
           seller_id?: string | null
+          title?: string | null
           vat_included?: boolean
         }
         Relationships: [
@@ -725,6 +728,73 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      expense_templates: {
+        Row: {
+          account_id: string | null
+          created_at: string | null
+          default_amount: number | null
+          id: string
+          name: string
+          notes: string | null
+          payment_method_id: string | null
+          position: number | null
+          seller_id: string | null
+          updated_at: string | null
+          vat_included: boolean | null
+          webhook_prompt_template: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string | null
+          default_amount?: number | null
+          id?: string
+          name: string
+          notes?: string | null
+          payment_method_id?: string | null
+          position?: number | null
+          seller_id?: string | null
+          updated_at?: string | null
+          vat_included?: boolean | null
+          webhook_prompt_template?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string | null
+          default_amount?: number | null
+          id?: string
+          name?: string
+          notes?: string | null
+          payment_method_id?: string | null
+          position?: number | null
+          seller_id?: string | null
+          updated_at?: string | null
+          vat_included?: boolean | null
+          webhook_prompt_template?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_templates_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "expense_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_templates_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "expense_payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_templates_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "expense_sellers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory_categories: {
         Row: {
