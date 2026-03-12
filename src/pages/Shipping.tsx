@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, FileText, Download, Plus, UserCheck, Loader2, Truck, X } from 'lucide-react';
+import { Package, FileText, Download, Plus, UserCheck, Loader2, Truck, X, Pencil, Trash2, Save } from 'lucide-react';
 import { format } from 'date-fns';
 
 const CITIES = [
@@ -55,6 +55,7 @@ export default function Shipping() {
   // Saved customers
   const [savedCustomers, setSavedCustomers] = useState<SavedCustomer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCustomers();
@@ -93,6 +94,41 @@ export default function Shipping() {
       toast({ title: 'Customer saved!' });
       fetchCustomers();
     }
+  };
+
+  const updateCustomer = async () => {
+    if (!editingCustomerId || !name || !phone || !city || !address) {
+      toast({ title: 'Fill all customer fields first', variant: 'destructive' });
+      return;
+    }
+    const { error } = await (supabase as any).from('shipping_customers')
+      .update({ name, phone, city, address })
+      .eq('id', editingCustomerId);
+    if (error) {
+      toast({ title: 'Failed to update customer', variant: 'destructive' });
+    } else {
+      toast({ title: 'Customer updated!' });
+      setEditingCustomerId(null);
+      fetchCustomers();
+    }
+  };
+
+  const deleteCustomer = async (customerId: string) => {
+    const { error } = await (supabase as any).from('shipping_customers')
+      .delete()
+      .eq('id', customerId);
+    if (error) {
+      toast({ title: 'Failed to delete customer', variant: 'destructive' });
+    } else {
+      toast({ title: 'Customer deleted' });
+      if (selectedCustomerId === customerId) clearForm();
+      fetchCustomers();
+    }
+  };
+
+  const startEditCustomer = () => {
+    if (!selectedCustomerId) return;
+    setEditingCustomerId(selectedCustomerId);
   };
 
   const clearForm = () => {
@@ -217,15 +253,34 @@ export default function Shipping() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button variant="outline" size="icon" onClick={saveCustomer} title="Save current as customer" className="border-border hover:border-[hsl(270_60%_40%)] hover:text-[hsl(270_60%_40%)]">
-                  <Plus className="w-4 h-4" />
-                </Button>
-                {selectedCustomerId && (
-                  <Button variant="ghost" size="icon" onClick={clearForm} title="Clear">
+                {editingCustomerId ? (
+                  <Button variant="outline" size="icon" onClick={updateCustomer} title="Save changes" className="border-green-500 text-green-600 hover:bg-green-50">
+                    <Save className="w-4 h-4" />
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="icon" onClick={saveCustomer} title="Save current as new customer" className="border-border hover:border-[hsl(270_60%_40%)] hover:text-[hsl(270_60%_40%)]">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                )}
+                {selectedCustomerId && !editingCustomerId && (
+                  <>
+                    <Button variant="ghost" size="icon" onClick={startEditCustomer} title="Edit customer">
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => deleteCustomer(selectedCustomerId)} title="Delete customer" className="text-destructive hover:text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+                {(selectedCustomerId || editingCustomerId) && (
+                  <Button variant="ghost" size="icon" onClick={() => { clearForm(); setEditingCustomerId(null); }} title="Clear">
                     <X className="w-4 h-4" />
                   </Button>
                 )}
               </div>
+              {editingCustomerId && (
+                <p className="text-xs text-amber-600 font-medium">✏️ Editing customer — modify fields above then click save</p>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
