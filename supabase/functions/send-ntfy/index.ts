@@ -21,12 +21,16 @@ serve(async (req) => {
 
     if (!title) throw new Error('title is required');
 
+    // Encode title to handle emojis/non-ASCII in HTTP headers
+    const encodedTitle = encodeURIComponent(title);
+    
     const ntfyResponse = await fetch(`${NTFY_URL}/${NTFY_TOPIC}`, {
       method: 'POST',
       headers: {
-        'Title': title,
+        'Title': encodedTitle,
         'Priority': priority || 'default',
         'Tags': tags || 'bell',
+        'X-Title-Encoding': 'url',
       },
       body: message || title,
     });
