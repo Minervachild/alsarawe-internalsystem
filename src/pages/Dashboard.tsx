@@ -5,7 +5,7 @@ import {
   ClipboardList,
   Warehouse,
   UserCog,
-  Building2,
+  
   Clock,
   Settings,
   CheckSquare,
