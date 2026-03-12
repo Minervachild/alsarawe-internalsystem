@@ -253,15 +253,34 @@ export default function Shipping() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button variant="outline" size="icon" onClick={saveCustomer} title="Save current as customer" className="border-border hover:border-[hsl(270_60%_40%)] hover:text-[hsl(270_60%_40%)]">
-                  <Plus className="w-4 h-4" />
-                </Button>
-                {selectedCustomerId && (
-                  <Button variant="ghost" size="icon" onClick={clearForm} title="Clear">
+                {editingCustomerId ? (
+                  <Button variant="outline" size="icon" onClick={updateCustomer} title="Save changes" className="border-green-500 text-green-600 hover:bg-green-50">
+                    <Save className="w-4 h-4" />
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="icon" onClick={saveCustomer} title="Save current as new customer" className="border-border hover:border-[hsl(270_60%_40%)] hover:text-[hsl(270_60%_40%)]">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                )}
+                {selectedCustomerId && !editingCustomerId && (
+                  <>
+                    <Button variant="ghost" size="icon" onClick={startEditCustomer} title="Edit customer">
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => deleteCustomer(selectedCustomerId)} title="Delete customer" className="text-destructive hover:text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+                {(selectedCustomerId || editingCustomerId) && (
+                  <Button variant="ghost" size="icon" onClick={() => { clearForm(); setEditingCustomerId(null); }} title="Clear">
                     <X className="w-4 h-4" />
                   </Button>
                 )}
               </div>
+              {editingCustomerId && (
+                <p className="text-xs text-amber-600 font-medium">✏️ Editing customer — modify fields above then click save</p>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
