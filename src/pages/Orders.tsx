@@ -616,6 +616,15 @@ export default function Orders() {
                 <Package className="w-4 h-4" />
                 <span className="hidden sm:inline">Products</span>
               </Button>
+              <Button
+                variant="ghost"
+                className="rounded-xl gap-1.5 shrink-0"
+                onClick={() => setClientsOpen(true)}
+                title="Clients"
+              >
+                <Users className="w-4 h-4" />
+                <span className="hidden sm:inline">Clients</span>
+              </Button>
             </div>
 
             {/* Recently Deleted */}
