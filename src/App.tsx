@@ -9,7 +9,7 @@ import { usePageAccess } from "@/hooks/usePageAccess";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
-import Clients from "./pages/Clients";
+
 import Employees from "./pages/Employees";
 import Inventory from "./pages/Inventory";
 import Overtime from "./pages/Overtime";
