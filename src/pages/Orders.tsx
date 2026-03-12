@@ -19,6 +19,7 @@ import { QuickAddOrderDialog } from '@/components/orders/QuickAddOrderDialog';
 import { SmartQuickAdd } from '@/components/orders/SmartQuickAdd';
 import { DeliveryProofDialog } from '@/components/orders/DeliveryProofDialog';
 import { notifyNewOrder, buildOrderSummary } from '@/lib/orderNotifications';
+import { ProductsDialog } from '@/components/orders/ProductsDialog';
 
 interface BoardGroup {
   id: string;
