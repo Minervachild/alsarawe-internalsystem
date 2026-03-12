@@ -164,7 +164,23 @@ export default function Shipping() {
         }),
       });
       const data = await res.json();
-      const awb = data?.awbNo || data?.awb || data?.AWBNo || data?.tracking || (typeof data === 'string' ? data : JSON.stringify(data));
+      
+      // Check for error responses from n8n
+      if (data?.message && !data?.awbNo && !data?.awb && !data?.AWBNo && !data?.tracking) {
+        toast({ title: 'Workflow error', description: data.message, variant: 'destructive' });
+        return;
+      }
+      if (!res.ok) {
+        toast({ title: 'Request failed', description: `Status ${res.status}`, variant: 'destructive' });
+        return;
+      }
+      
+      const awb = data?.awbNo || data?.awb || data?.AWBNo || data?.tracking;
+      if (!awb) {
+        toast({ title: 'No AWB received', description: JSON.stringify(data), variant: 'destructive' });
+        return;
+      }
+      
       setLastAwb(awb);
       setHistory(prev => [{
         awb,
