@@ -11,7 +11,7 @@ import {
   CheckSquare,
   ClipboardCheck,
   Receipt,
-  Coffee,
+  
   Lock,
   Wallet,
   Truck,
