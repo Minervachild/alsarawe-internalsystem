@@ -588,7 +588,7 @@ export default function Orders() {
               >
                 {broadcasting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
                 <span className="hidden sm:inline">Broadcast</span>
-              {undoInfo && (
+              </Button>
                 <Button variant="outline" className="rounded-xl gap-1.5 shrink-0 border-warning text-warning" onClick={handleUndoDelete}>
                   <Undo2 className="w-4 h-4" />
                   Undo
