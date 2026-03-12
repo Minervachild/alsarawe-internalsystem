@@ -72,8 +72,58 @@ export default function Orders() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [undoInfo, setUndoInfo] = useState<{ rowId: string; timeout: NodeJS.Timeout } | null>(null);
   const [deliveryProofTarget, setDeliveryProofTarget] = useState<{ rowId: string; groupId: string } | null>(null);
+  const [broadcasting, setBroadcasting] = useState(false);
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
+
+  const handleBroadcastNewOrders = async () => {
+    const newGroup = groups.find(g => g.name === 'New');
+    if (!newGroup) {
+      toast({ title: 'No "New" group found', variant: 'destructive' });
+      return;
+    }
+    const newRows = rows.filter(r => r.group_id === newGroup.id && !r.deleted);
+    if (newRows.length === 0) {
+      toast({ title: 'No orders in "New" to broadcast' });
+      return;
+    }
+
+    setBroadcasting(true);
+    try {
+      // Build order list from client column
+      const clientCol = columns.find(c => c.type === 'relation' || c.name.toLowerCase() === 'client');
+      const orderNames = newRows.map(r => {
+        const clientName = clientCol ? (r.cells[clientCol.id] || 'Unknown') : 'Unknown';
+        return clientName;
+      });
+
+      const title = `📋 ${newRows.length} order${newRows.length > 1 ? 's' : ''} in New`;
+      const message = orderNames.join(', ');
+
+      // Send in-app notifications to all users
+      const { data: allProfiles } = await supabase.from('profiles_public').select('id');
+      if (allProfiles && allProfiles.length > 0) {
+        const notifications = allProfiles.map(p => ({
+          user_id: p.id,
+          title,
+          message,
+          is_read: false,
+        }));
+        await supabase.from('notifications').insert(notifications);
+      }
+
+      // Also send ntfy push
+      supabase.functions.invoke('send-ntfy', {
+        body: { title, message, tags: 'clipboard,loudspeaker' },
+      }).catch(err => console.warn('ntfy failed:', err));
+
+      toast({ title: `Broadcast sent — ${newRows.length} order${newRows.length > 1 ? 's' : ''}` });
+    } catch (err: any) {
+      toast({ title: 'Broadcast failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setBroadcasting(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
