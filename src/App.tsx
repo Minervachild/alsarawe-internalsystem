@@ -19,7 +19,7 @@ import SettingsPage from "./pages/Settings";
 import DailyDuties from "./pages/DailyDuties";
 import QualityCheck from "./pages/QualityCheck";
 import Sales from "./pages/Sales";
-import Products from "./pages/Products";
+
 import Expenses from "./pages/Expenses";
 import Shipping from "./pages/Shipping";
 import NotFound from "./pages/NotFound";
