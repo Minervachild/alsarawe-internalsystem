@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2, Zap, Sparkles, Undo2, Trash2, Bell, Loader2 } from 'lucide-react';
+import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2, Zap, Sparkles, Undo2, Trash2, Bell, Loader2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
