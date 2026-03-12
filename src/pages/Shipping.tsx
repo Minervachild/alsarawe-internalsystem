@@ -392,6 +392,37 @@ export default function Shipping() {
                 </div>
               </div>
 
+              {/* Multiple AWB toggle */}
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={multipleMode}
+                      onChange={e => setMultipleMode(e.target.checked)}
+                      className="rounded"
+                    />
+                    Multiple AWBs
+                  </Label>
+                  {multipleMode && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Count:</Label>
+                      <Input
+                        type="number"
+                        value={awbCount}
+                        onChange={e => setAwbCount(e.target.value)}
+                        min="2"
+                        max="20"
+                        className="w-20 h-8 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+                {multipleMode && (
+                  <p className="text-xs text-muted-foreground">Will create {parseInt(awbCount) || 2} shipments for the same customer</p>
+                )}
+              </div>
+
               <Button
                 onClick={createShipment}
                 disabled={creating}
@@ -399,9 +430,10 @@ export default function Shipping() {
                 style={{ background: 'linear-gradient(135deg, hsl(270 60% 40%), hsl(270 50% 50%))' }}
               >
                 {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Package className="w-4 h-4 mr-2" />}
-                Create Shipment
+                {creating ? creatingProgress || 'Creating...' : multipleMode ? `Create ${parseInt(awbCount) || 2} Shipments` : 'Create Shipment'}
               </Button>
 
+              {/* Single AWB result */}
               {lastAwb && (
                 <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'hsl(25 95% 53% / 0.4)', backgroundColor: 'hsl(25 95% 53% / 0.06)' }}>
                   <div className="flex items-center gap-2">
@@ -417,6 +449,31 @@ export default function Shipping() {
                   >
                     {pdfLoading === lastAwb ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileText className="w-4 h-4 mr-2" />}
                     Get PDF
+                  </Button>
+                </div>
+              )}
+
+              {/* Multiple AWBs result */}
+              {lastAwbs.length > 0 && (
+                <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'hsl(25 95% 53% / 0.4)', backgroundColor: 'hsl(25 95% 53% / 0.06)' }}>
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="w-5 h-5" style={{ color: 'hsl(25 95% 53%)' }} />
+                    <span className="font-semibold text-foreground">{lastAwbs.length} AWBs Created</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {lastAwbs.map(a => (
+                      <span key={a} className="text-xs font-mono px-2 py-1 rounded bg-muted">{a}</span>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => getAllPdfs(lastAwbs)}
+                    disabled={multiPdfLoading}
+                    className="hover:text-white"
+                    style={{ borderColor: 'hsl(25 95% 53%)', color: 'hsl(25 95% 53%)' }}
+                  >
+                    {multiPdfLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileText className="w-4 h-4 mr-2" />}
+                    Get All {lastAwbs.length} PDFs
                   </Button>
                 </div>
               )}
