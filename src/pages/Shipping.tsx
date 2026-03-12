@@ -55,6 +55,7 @@ export default function Shipping() {
   // Saved customers
   const [savedCustomers, setSavedCustomers] = useState<SavedCustomer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCustomers();
