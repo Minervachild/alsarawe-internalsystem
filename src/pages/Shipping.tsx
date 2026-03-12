@@ -147,6 +147,8 @@ export default function Shipping() {
     setWeight('0.5');
     setCodAmount('0');
     setLastAwb(null);
+    setLastAwbs([]);
+    setMultiPdfData([]);
   };
 
   const createShipment = async () => {
