@@ -34,6 +34,7 @@ interface BoardRow {
   position: number;
   cells: Record<string, any>;
   created_at?: string;
+  deleted?: boolean;
 }
 
 interface BoardColumn {
