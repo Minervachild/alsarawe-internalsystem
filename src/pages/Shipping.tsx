@@ -151,57 +151,100 @@ export default function Shipping() {
     setMultiPdfData([]);
   };
 
+  const createSingleShipment = async (): Promise<string | null> => {
+    const res = await fetch('https://n8n.srv1149238.hstgr.cloud/webhook/smsa-create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cName: name,
+        cMobile: phone,
+        cCity: city,
+        cAddr1: address,
+        PCs: pieces,
+        weight,
+        codAmt: codAmount,
+      }),
+    });
+    const data = await res.json();
+    if (data?.message && !data?.awbNo && !data?.awb && !data?.AWBNo && !data?.tracking) {
+      throw new Error(data.message);
+    }
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const awb = data?.awbNo || data?.awb || data?.AWBNo || data?.tracking || data?.data;
+    if (!awb) throw new Error(`No AWB: ${JSON.stringify(data)}`);
+    return awb;
+  };
+
   const createShipment = async () => {
     if (!name || !phone || !city || !address) {
       toast({ title: 'Please fill all required fields', variant: 'destructive' });
       return;
     }
     setCreating(true);
+    setLastAwbs([]);
+    setMultiPdfData([]);
+
+    const count = multipleMode ? Math.max(1, parseInt(awbCount) || 1) : 1;
+
     try {
-      const res = await fetch('https://n8n.srv1149238.hstgr.cloud/webhook/smsa-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cName: name,
-          cMobile: phone,
-          cCity: city,
-          cAddr1: address,
-          PCs: pieces,
-          weight,
-          codAmt: codAmount,
-        }),
-      });
-      const data = await res.json();
-      
-      // Check for error responses from n8n
-      if (data?.message && !data?.awbNo && !data?.awb && !data?.AWBNo && !data?.tracking) {
-        toast({ title: 'Workflow error', description: data.message, variant: 'destructive' });
-        return;
+      const awbs: string[] = [];
+      for (let i = 0; i < count; i++) {
+        setCreatingProgress(`Creating ${i + 1} of ${count}...`);
+        const awb = await createSingleShipment();
+        if (awb) {
+          awbs.push(awb);
+          setHistory(prev => [{
+            awb,
+            name,
+            city,
+            cod: parseFloat(codAmount) || 0,
+            date: format(new Date(), 'yyyy-MM-dd HH:mm'),
+          }, ...prev]);
+        }
       }
-      if (!res.ok) {
-        toast({ title: 'Request failed', description: `Status ${res.status}`, variant: 'destructive' });
-        return;
+      setCreatingProgress('');
+
+      if (awbs.length === 1) {
+        setLastAwb(awbs[0]);
+        toast({ title: `Shipment created! AWB: ${awbs[0]}` });
+      } else if (awbs.length > 1) {
+        setLastAwbs(awbs);
+        setLastAwb(null);
+        toast({ title: `${awbs.length} shipments created!` });
       }
-      
-      const awb = data?.awbNo || data?.awb || data?.AWBNo || data?.tracking || data?.data;
-      if (!awb) {
-        toast({ title: 'No AWB received', description: JSON.stringify(data), variant: 'destructive' });
-        return;
-      }
-      
-      setLastAwb(awb);
-      setHistory(prev => [{
-        awb,
-        name,
-        city,
-        cod: parseFloat(codAmount) || 0,
-        date: format(new Date(), 'yyyy-MM-dd HH:mm'),
-      }, ...prev]);
-      toast({ title: `Shipment created! AWB: ${awb}` });
     } catch (err: any) {
       toast({ title: 'Failed to create shipment', description: err.message, variant: 'destructive' });
     } finally {
       setCreating(false);
+      setCreatingProgress('');
+    }
+  };
+
+  const getAllPdfs = async (awbs: string[]) => {
+    setMultiPdfLoading(true);
+    setMultiPdfData([]);
+    const pdfs: string[] = [];
+    try {
+      for (const awbNo of awbs) {
+        const res = await fetch('https://n8n.srv1149238.hstgr.cloud/webhook/smsa-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ awbNo }),
+        });
+        const data = await res.json();
+        const base64 = data?.pdf || data?.data || data?.base64 || (typeof data === 'string' ? data : '');
+        if (base64) pdfs.push(base64);
+      }
+      if (pdfs.length === 0) {
+        toast({ title: 'No PDF data received', variant: 'destructive' });
+        return;
+      }
+      setMultiPdfData(pdfs);
+      toast({ title: `${pdfs.length} labels loaded!` });
+    } catch (err: any) {
+      toast({ title: 'Failed to get PDFs', description: err.message, variant: 'destructive' });
+    } finally {
+      setMultiPdfLoading(false);
     }
   };
 
