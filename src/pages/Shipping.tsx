@@ -175,7 +175,7 @@ export default function Shipping() {
         return;
       }
       
-      const awb = data?.awbNo || data?.awb || data?.AWBNo || data?.tracking;
+      const awb = data?.awbNo || data?.awb || data?.AWBNo || data?.tracking || data?.data;
       if (!awb) {
         toast({ title: 'No AWB received', description: JSON.stringify(data), variant: 'destructive' });
         return;
