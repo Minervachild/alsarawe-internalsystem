@@ -858,6 +858,9 @@ export default function Orders() {
         rowId={deliveryProofTarget?.rowId || ''}
         onConfirm={handleDeliveryProofConfirm}
       />
+
+      {/* Products Dialog */}
+      <ProductsDialog open={productsOpen} onOpenChange={setProductsOpen} />
     </AppLayout>
   );
 }
