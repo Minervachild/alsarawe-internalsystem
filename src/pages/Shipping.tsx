@@ -43,13 +43,19 @@ export default function Shipping() {
   const [pieces, setPieces] = useState('1');
   const [weight, setWeight] = useState('0.5');
   const [codAmount, setCodAmount] = useState('0');
+  const [multipleMode, setMultipleMode] = useState(false);
+  const [awbCount, setAwbCount] = useState('2');
 
   // UI state
   const [creating, setCreating] = useState(false);
+  const [creatingProgress, setCreatingProgress] = useState('');
   const [lastAwb, setLastAwb] = useState<string | null>(null);
+  const [lastAwbs, setLastAwbs] = useState<string[]>([]);
   const [pdfLoading, setPdfLoading] = useState<string | null>(null);
   const [pdfData, setPdfData] = useState<string | null>(null);
   const [pdfAwb, setPdfAwb] = useState<string | null>(null);
+  const [multiPdfData, setMultiPdfData] = useState<string[]>([]);
+  const [multiPdfLoading, setMultiPdfLoading] = useState(false);
   const [history, setHistory] = useState<ShipmentRecord[]>([]);
 
   // Saved customers
@@ -141,6 +147,32 @@ export default function Shipping() {
     setWeight('0.5');
     setCodAmount('0');
     setLastAwb(null);
+    setLastAwbs([]);
+    setMultiPdfData([]);
+  };
+
+  const createSingleShipment = async (): Promise<string | null> => {
+    const res = await fetch('https://n8n.srv1149238.hstgr.cloud/webhook/smsa-create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cName: name,
+        cMobile: phone,
+        cCity: city,
+        cAddr1: address,
+        PCs: pieces,
+        weight,
+        codAmt: codAmount,
+      }),
+    });
+    const data = await res.json();
+    if (data?.message && !data?.awbNo && !data?.awb && !data?.AWBNo && !data?.tracking) {
+      throw new Error(data.message);
+    }
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const awb = data?.awbNo || data?.awb || data?.AWBNo || data?.tracking || data?.data;
+    if (!awb) throw new Error(`No AWB: ${JSON.stringify(data)}`);
+    return awb;
   };
 
   const createShipment = async () => {
@@ -149,51 +181,70 @@ export default function Shipping() {
       return;
     }
     setCreating(true);
+    setLastAwbs([]);
+    setMultiPdfData([]);
+
+    const count = multipleMode ? Math.max(1, parseInt(awbCount) || 1) : 1;
+
     try {
-      const res = await fetch('https://n8n.srv1149238.hstgr.cloud/webhook/smsa-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cName: name,
-          cMobile: phone,
-          cCity: city,
-          cAddr1: address,
-          PCs: pieces,
-          weight,
-          codAmt: codAmount,
-        }),
-      });
-      const data = await res.json();
-      
-      // Check for error responses from n8n
-      if (data?.message && !data?.awbNo && !data?.awb && !data?.AWBNo && !data?.tracking) {
-        toast({ title: 'Workflow error', description: data.message, variant: 'destructive' });
-        return;
+      const awbs: string[] = [];
+      for (let i = 0; i < count; i++) {
+        setCreatingProgress(`Creating ${i + 1} of ${count}...`);
+        const awb = await createSingleShipment();
+        if (awb) {
+          awbs.push(awb);
+          setHistory(prev => [{
+            awb,
+            name,
+            city,
+            cod: parseFloat(codAmount) || 0,
+            date: format(new Date(), 'yyyy-MM-dd HH:mm'),
+          }, ...prev]);
+        }
       }
-      if (!res.ok) {
-        toast({ title: 'Request failed', description: `Status ${res.status}`, variant: 'destructive' });
-        return;
+      setCreatingProgress('');
+
+      if (awbs.length === 1) {
+        setLastAwb(awbs[0]);
+        toast({ title: `Shipment created! AWB: ${awbs[0]}` });
+      } else if (awbs.length > 1) {
+        setLastAwbs(awbs);
+        setLastAwb(null);
+        toast({ title: `${awbs.length} shipments created!` });
       }
-      
-      const awb = data?.awbNo || data?.awb || data?.AWBNo || data?.tracking || data?.data;
-      if (!awb) {
-        toast({ title: 'No AWB received', description: JSON.stringify(data), variant: 'destructive' });
-        return;
-      }
-      
-      setLastAwb(awb);
-      setHistory(prev => [{
-        awb,
-        name,
-        city,
-        cod: parseFloat(codAmount) || 0,
-        date: format(new Date(), 'yyyy-MM-dd HH:mm'),
-      }, ...prev]);
-      toast({ title: `Shipment created! AWB: ${awb}` });
     } catch (err: any) {
       toast({ title: 'Failed to create shipment', description: err.message, variant: 'destructive' });
     } finally {
       setCreating(false);
+      setCreatingProgress('');
+    }
+  };
+
+  const getAllPdfs = async (awbs: string[]) => {
+    setMultiPdfLoading(true);
+    setMultiPdfData([]);
+    const pdfs: string[] = [];
+    try {
+      for (const awbNo of awbs) {
+        const res = await fetch('https://n8n.srv1149238.hstgr.cloud/webhook/smsa-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ awbNo }),
+        });
+        const data = await res.json();
+        const base64 = data?.pdf || data?.data || data?.base64 || (typeof data === 'string' ? data : '');
+        if (base64) pdfs.push(base64);
+      }
+      if (pdfs.length === 0) {
+        toast({ title: 'No PDF data received', variant: 'destructive' });
+        return;
+      }
+      setMultiPdfData(pdfs);
+      toast({ title: `${pdfs.length} labels loaded!` });
+    } catch (err: any) {
+      toast({ title: 'Failed to get PDFs', description: err.message, variant: 'destructive' });
+    } finally {
+      setMultiPdfLoading(false);
     }
   };
 
@@ -341,6 +392,37 @@ export default function Shipping() {
                 </div>
               </div>
 
+              {/* Multiple AWB toggle */}
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={multipleMode}
+                      onChange={e => setMultipleMode(e.target.checked)}
+                      className="rounded"
+                    />
+                    Multiple AWBs
+                  </Label>
+                  {multipleMode && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Count:</Label>
+                      <Input
+                        type="number"
+                        value={awbCount}
+                        onChange={e => setAwbCount(e.target.value)}
+                        min="2"
+                        max="20"
+                        className="w-20 h-8 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+                {multipleMode && (
+                  <p className="text-xs text-muted-foreground">Will create {parseInt(awbCount) || 2} shipments for the same customer</p>
+                )}
+              </div>
+
               <Button
                 onClick={createShipment}
                 disabled={creating}
@@ -348,9 +430,10 @@ export default function Shipping() {
                 style={{ background: 'linear-gradient(135deg, hsl(270 60% 40%), hsl(270 50% 50%))' }}
               >
                 {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Package className="w-4 h-4 mr-2" />}
-                Create Shipment
+                {creating ? creatingProgress || 'Creating...' : multipleMode ? `Create ${parseInt(awbCount) || 2} Shipments` : 'Create Shipment'}
               </Button>
 
+              {/* Single AWB result */}
               {lastAwb && (
                 <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'hsl(25 95% 53% / 0.4)', backgroundColor: 'hsl(25 95% 53% / 0.06)' }}>
                   <div className="flex items-center gap-2">
@@ -369,6 +452,31 @@ export default function Shipping() {
                   </Button>
                 </div>
               )}
+
+              {/* Multiple AWBs result */}
+              {lastAwbs.length > 0 && (
+                <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'hsl(25 95% 53% / 0.4)', backgroundColor: 'hsl(25 95% 53% / 0.06)' }}>
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="w-5 h-5" style={{ color: 'hsl(25 95% 53%)' }} />
+                    <span className="font-semibold text-foreground">{lastAwbs.length} AWBs Created</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {lastAwbs.map(a => (
+                      <span key={a} className="text-xs font-mono px-2 py-1 rounded bg-muted">{a}</span>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => getAllPdfs(lastAwbs)}
+                    disabled={multiPdfLoading}
+                    className="hover:text-white"
+                    style={{ borderColor: 'hsl(25 95% 53%)', color: 'hsl(25 95% 53%)' }}
+                  >
+                    {multiPdfLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileText className="w-4 h-4 mr-2" />}
+                    Get All {lastAwbs.length} PDFs
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -378,9 +486,9 @@ export default function Shipping() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <FileText className="w-5 h-5" style={{ color: 'hsl(25 95% 53%)' }} />
-                  Label Preview
+                  Label Preview {multiPdfData.length > 1 && `(${multiPdfData.length} labels)`}
                 </CardTitle>
-                {pdfData && (
+                {pdfData && !multiPdfData.length && (
                   <Button
                     size="sm"
                     onClick={downloadPdf}
@@ -393,8 +501,34 @@ export default function Shipping() {
                 )}
               </div>
             </CardHeader>
-            <CardContent>
-              {pdfData ? (
+            <CardContent className="space-y-4">
+              {multiPdfData.length > 0 ? (
+                multiPdfData.map((pdf, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-foreground">Label {i + 1}{lastAwbs[i] ? ` — AWB: ${lastAwbs[i]}` : ''}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = `data:application/pdf;base64,${pdf}`;
+                          link.download = `AWB-${lastAwbs[i] || i + 1}.pdf`;
+                          link.click();
+                        }}
+                      >
+                        <Download className="w-3 h-3 mr-1" />
+                        Download
+                      </Button>
+                    </div>
+                    <iframe
+                      src={`data:application/pdf;base64,${pdf}`}
+                      className="w-full h-[500px] rounded-lg border border-border"
+                      title={`Shipping Label ${i + 1}`}
+                    />
+                  </div>
+                ))
+              ) : pdfData ? (
                 <iframe
                   src={`data:application/pdf;base64,${pdfData}`}
                   className="w-full h-[500px] rounded-lg border border-border"
