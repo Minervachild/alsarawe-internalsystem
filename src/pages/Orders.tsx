@@ -605,6 +605,15 @@ export default function Orders() {
                 <Trash2 className="w-4 h-4" />
                 <span className="hidden sm:inline">Deleted ({deletedRows.length})</span>
               </Button>
+              <Button
+                variant="ghost"
+                className="rounded-xl gap-1.5 shrink-0"
+                onClick={() => setProductsOpen(true)}
+                title="Product Catalog"
+              >
+                <Package className="w-4 h-4" />
+                <span className="hidden sm:inline">Products</span>
+              </Button>
             </div>
 
             {/* Recently Deleted */}
