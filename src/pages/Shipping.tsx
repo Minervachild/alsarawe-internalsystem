@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, FileText, Download, Plus, UserCheck, Loader2, Truck, X, Pencil, Trash2, Save } from 'lucide-react';
+import { Package, FileText, Download, Plus, UserCheck, Loader2, Truck, X, Pencil, Trash2, Save, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 
 const CITIES = [
@@ -488,17 +488,44 @@ export default function Shipping() {
                   <FileText className="w-5 h-5" style={{ color: 'hsl(25 95% 53%)' }} />
                   Label Preview {multiPdfData.length > 1 && `(${multiPdfData.length} labels)`}
                 </CardTitle>
-                {pdfData && !multiPdfData.length && (
-                  <Button
-                    size="sm"
-                    onClick={downloadPdf}
-                    className="text-white"
-                    style={{ background: 'hsl(25 95% 53%)' }}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    AWB-{pdfAwb}.pdf
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {multiPdfData.length > 1 && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const printWindow = window.open('', '_blank');
+                        if (!printWindow) {
+                          toast({ title: 'Pop-up blocked', description: 'Please allow pop-ups to print labels.', variant: 'destructive' });
+                          return;
+                        }
+                        const iframes = multiPdfData.map((pdf, i) => 
+                          `<div style="page-break-after: always;">
+                            <h3 style="margin:0 0 8px;font-family:sans-serif;font-size:14px;">Label ${i + 1}${lastAwbs[i] ? ` — AWB: ${lastAwbs[i]}` : ''}</h3>
+                            <iframe src="data:application/pdf;base64,${pdf}" style="width:100%;height:95vh;border:none;" onload="this.style.visibility='visible'"></iframe>
+                          </div>`
+                        ).join('');
+                        printWindow.document.write(`<html><head><title>Print All Labels</title></head><body style="margin:0;">${iframes}<script>setTimeout(()=>window.print(),1000)<\/script></body></html>`);
+                        printWindow.document.close();
+                      }}
+                      className="text-white"
+                      style={{ background: 'hsl(270 60% 40%)' }}
+                    >
+                      <Printer className="w-4 h-4 mr-2" />
+                      Print All
+                    </Button>
+                  )}
+                  {pdfData && !multiPdfData.length && (
+                    <Button
+                      size="sm"
+                      onClick={downloadPdf}
+                      className="text-white"
+                      style={{ background: 'hsl(25 95% 53%)' }}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      AWB-{pdfAwb}.pdf
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
