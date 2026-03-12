@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, FileText, Download, Plus, UserCheck, Loader2, Truck, X, Pencil, Trash2, Save } from 'lucide-react';
+import { Package, FileText, Download, Plus, UserCheck, Loader2, Truck, X, Pencil, Trash2, Save, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 
 const CITIES = [
