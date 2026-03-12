@@ -486,9 +486,9 @@ export default function Shipping() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <FileText className="w-5 h-5" style={{ color: 'hsl(25 95% 53%)' }} />
-                  Label Preview
+                  Label Preview {multiPdfData.length > 1 && `(${multiPdfData.length} labels)`}
                 </CardTitle>
-                {pdfData && (
+                {pdfData && !multiPdfData.length && (
                   <Button
                     size="sm"
                     onClick={downloadPdf}
@@ -501,8 +501,34 @@ export default function Shipping() {
                 )}
               </div>
             </CardHeader>
-            <CardContent>
-              {pdfData ? (
+            <CardContent className="space-y-4">
+              {multiPdfData.length > 0 ? (
+                multiPdfData.map((pdf, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-foreground">Label {i + 1}{lastAwbs[i] ? ` — AWB: ${lastAwbs[i]}` : ''}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = `data:application/pdf;base64,${pdf}`;
+                          link.download = `AWB-${lastAwbs[i] || i + 1}.pdf`;
+                          link.click();
+                        }}
+                      >
+                        <Download className="w-3 h-3 mr-1" />
+                        Download
+                      </Button>
+                    </div>
+                    <iframe
+                      src={`data:application/pdf;base64,${pdf}`}
+                      className="w-full h-[500px] rounded-lg border border-border"
+                      title={`Shipping Label ${i + 1}`}
+                    />
+                  </div>
+                ))
+              ) : pdfData ? (
                 <iframe
                   src={`data:application/pdf;base64,${pdfData}`}
                   className="w-full h-[500px] rounded-lg border border-border"
