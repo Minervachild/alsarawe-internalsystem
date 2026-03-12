@@ -75,6 +75,7 @@ export default function Orders() {
   const [undoInfo, setUndoInfo] = useState<{ rowId: string; timeout: NodeJS.Timeout } | null>(null);
   const [deliveryProofTarget, setDeliveryProofTarget] = useState<{ rowId: string; groupId: string } | null>(null);
   const [broadcasting, setBroadcasting] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
 
