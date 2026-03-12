@@ -57,13 +57,6 @@ const workspaces: WorkspaceItem[] = [
     adminOnly: true,
   },
   {
-    title: 'Clients',
-    description: 'Customer database',
-    icon: Building2,
-    href: '/clients',
-    color: '#F59E0B',
-  },
-  {
     title: 'Overtime',
     description: 'Hours tracking',
     icon: Clock,

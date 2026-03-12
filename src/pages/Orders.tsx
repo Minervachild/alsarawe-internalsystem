@@ -872,6 +872,7 @@ export default function Orders() {
 
       {/* Products Dialog */}
       <ProductsDialog open={productsOpen} onOpenChange={setProductsOpen} />
+      <ClientsDialog open={clientsOpen} onOpenChange={setClientsOpen} />
     </AppLayout>
   );
 }
