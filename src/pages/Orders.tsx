@@ -20,6 +20,7 @@ import { SmartQuickAdd } from '@/components/orders/SmartQuickAdd';
 import { DeliveryProofDialog } from '@/components/orders/DeliveryProofDialog';
 import { notifyNewOrder, buildOrderSummary } from '@/lib/orderNotifications';
 import { ProductsDialog } from '@/components/orders/ProductsDialog';
+import { ClientsDialog } from '@/components/orders/ClientsDialog';
 
 interface BoardGroup {
   id: string;
@@ -76,6 +77,7 @@ export default function Orders() {
   const [deliveryProofTarget, setDeliveryProofTarget] = useState<{ rowId: string; groupId: string } | null>(null);
   const [broadcasting, setBroadcasting] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
+  const [clientsOpen, setClientsOpen] = useState(false);
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
 
@@ -614,6 +616,15 @@ export default function Orders() {
                 <Package className="w-4 h-4" />
                 <span className="hidden sm:inline">Products</span>
               </Button>
+              <Button
+                variant="ghost"
+                className="rounded-xl gap-1.5 shrink-0"
+                onClick={() => setClientsOpen(true)}
+                title="Clients"
+              >
+                <Users className="w-4 h-4" />
+                <span className="hidden sm:inline">Clients</span>
+              </Button>
             </div>
 
             {/* Recently Deleted */}
@@ -861,6 +872,7 @@ export default function Orders() {
 
       {/* Products Dialog */}
       <ProductsDialog open={productsOpen} onOpenChange={setProductsOpen} />
+      <ClientsDialog open={clientsOpen} onOpenChange={setClientsOpen} />
     </AppLayout>
   );
 }

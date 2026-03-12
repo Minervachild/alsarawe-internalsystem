@@ -5,7 +5,7 @@ import {
   ClipboardList,
   Warehouse,
   UserCog,
-  Building2,
+  
   Clock,
   Settings,
   CheckSquare,
@@ -55,13 +55,6 @@ const workspaces: WorkspaceItem[] = [
     href: '/employees',
     color: '#8B5CF6',
     adminOnly: true,
-  },
-  {
-    title: 'Clients',
-    description: 'Customer database',
-    icon: Building2,
-    href: '/clients',
-    color: '#F59E0B',
   },
   {
     title: 'Overtime',
