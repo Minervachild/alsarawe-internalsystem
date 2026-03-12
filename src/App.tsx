@@ -19,7 +19,7 @@ import SettingsPage from "./pages/Settings";
 import DailyDuties from "./pages/DailyDuties";
 import QualityCheck from "./pages/QualityCheck";
 import Sales from "./pages/Sales";
-import Products from "./pages/Products";
+
 import Expenses from "./pages/Expenses";
 import Shipping from "./pages/Shipping";
 import NotFound from "./pages/NotFound";
@@ -117,7 +117,7 @@ function AppRoutes() {
       <Route path="/daily-duties" element={<PageProtectedRoute page="daily-duties"><DailyDuties /></PageProtectedRoute>} />
       <Route path="/quality-check" element={<PageProtectedRoute page="quality-check"><QualityCheck /></PageProtectedRoute>} />
       <Route path="/sales" element={<PageProtectedRoute page="sales"><Sales /></PageProtectedRoute>} />
-      <Route path="/products" element={<PageProtectedRoute page="products"><Products /></PageProtectedRoute>} />
+      
       <Route path="/expenses" element={<PageProtectedRoute page="expenses"><Expenses /></PageProtectedRoute>} />
       <Route path="/shipping" element={<PageProtectedRoute page="shipping"><Shipping /></PageProtectedRoute>} />
       <Route path="*" element={<NotFound />} />

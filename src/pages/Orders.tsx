@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2, Zap, Sparkles, Undo2, Trash2, Bell, Loader2 } from 'lucide-react';
+import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2, Zap, Sparkles, Undo2, Trash2, Bell, Loader2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,7 @@ import { QuickAddOrderDialog } from '@/components/orders/QuickAddOrderDialog';
 import { SmartQuickAdd } from '@/components/orders/SmartQuickAdd';
 import { DeliveryProofDialog } from '@/components/orders/DeliveryProofDialog';
 import { notifyNewOrder, buildOrderSummary } from '@/lib/orderNotifications';
+import { ProductsDialog } from '@/components/orders/ProductsDialog';
 
 interface BoardGroup {
   id: string;
@@ -74,6 +75,7 @@ export default function Orders() {
   const [undoInfo, setUndoInfo] = useState<{ rowId: string; timeout: NodeJS.Timeout } | null>(null);
   const [deliveryProofTarget, setDeliveryProofTarget] = useState<{ rowId: string; groupId: string } | null>(null);
   const [broadcasting, setBroadcasting] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
 
@@ -603,6 +605,15 @@ export default function Orders() {
                 <Trash2 className="w-4 h-4" />
                 <span className="hidden sm:inline">Deleted ({deletedRows.length})</span>
               </Button>
+              <Button
+                variant="ghost"
+                className="rounded-xl gap-1.5 shrink-0"
+                onClick={() => setProductsOpen(true)}
+                title="Product Catalog"
+              >
+                <Package className="w-4 h-4" />
+                <span className="hidden sm:inline">Products</span>
+              </Button>
             </div>
 
             {/* Recently Deleted */}
@@ -847,6 +858,9 @@ export default function Orders() {
         rowId={deliveryProofTarget?.rowId || ''}
         onConfirm={handleDeliveryProofConfirm}
       />
+
+      {/* Products Dialog */}
+      <ProductsDialog open={productsOpen} onOpenChange={setProductsOpen} />
     </AppLayout>
   );
 }
