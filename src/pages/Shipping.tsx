@@ -43,13 +43,19 @@ export default function Shipping() {
   const [pieces, setPieces] = useState('1');
   const [weight, setWeight] = useState('0.5');
   const [codAmount, setCodAmount] = useState('0');
+  const [multipleMode, setMultipleMode] = useState(false);
+  const [awbCount, setAwbCount] = useState('2');
 
   // UI state
   const [creating, setCreating] = useState(false);
+  const [creatingProgress, setCreatingProgress] = useState('');
   const [lastAwb, setLastAwb] = useState<string | null>(null);
+  const [lastAwbs, setLastAwbs] = useState<string[]>([]);
   const [pdfLoading, setPdfLoading] = useState<string | null>(null);
   const [pdfData, setPdfData] = useState<string | null>(null);
   const [pdfAwb, setPdfAwb] = useState<string | null>(null);
+  const [multiPdfData, setMultiPdfData] = useState<string[]>([]);
+  const [multiPdfLoading, setMultiPdfLoading] = useState(false);
   const [history, setHistory] = useState<ShipmentRecord[]>([]);
 
   // Saved customers
