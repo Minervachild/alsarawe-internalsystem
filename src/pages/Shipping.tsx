@@ -96,6 +96,41 @@ export default function Shipping() {
     }
   };
 
+  const updateCustomer = async () => {
+    if (!editingCustomerId || !name || !phone || !city || !address) {
+      toast({ title: 'Fill all customer fields first', variant: 'destructive' });
+      return;
+    }
+    const { error } = await (supabase as any).from('shipping_customers')
+      .update({ name, phone, city, address })
+      .eq('id', editingCustomerId);
+    if (error) {
+      toast({ title: 'Failed to update customer', variant: 'destructive' });
+    } else {
+      toast({ title: 'Customer updated!' });
+      setEditingCustomerId(null);
+      fetchCustomers();
+    }
+  };
+
+  const deleteCustomer = async (customerId: string) => {
+    const { error } = await (supabase as any).from('shipping_customers')
+      .delete()
+      .eq('id', customerId);
+    if (error) {
+      toast({ title: 'Failed to delete customer', variant: 'destructive' });
+    } else {
+      toast({ title: 'Customer deleted' });
+      if (selectedCustomerId === customerId) clearForm();
+      fetchCustomers();
+    }
+  };
+
+  const startEditCustomer = () => {
+    if (!selectedCustomerId) return;
+    setEditingCustomerId(selectedCustomerId);
+  };
+
   const clearForm = () => {
     setSelectedCustomerId('');
     setName('');
