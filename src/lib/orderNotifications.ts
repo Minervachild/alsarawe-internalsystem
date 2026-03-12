@@ -2,14 +2,15 @@ import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Send in-app + ntfy notifications when a new B2B order is created.
+ * Message format: "Hey you got 1 new order for ClientName: Item1 x5kg, Item2 x3pcs"
  * Fire-and-forget – errors are logged but never thrown.
  */
 export async function notifyNewOrder(clientName: string, orderSummary?: string) {
   try {
     const title = 'New B2B Order 🛒';
-    const parts = [`New order from ${clientName || 'Unknown'}`];
-    if (orderSummary) parts.push(orderSummary);
-    const message = parts.join(' — ');
+    const client = clientName || 'Unknown';
+    let message = `Hey you got 1 new order for ${client}`;
+    if (orderSummary) message += `: ${orderSummary}`;
 
     // In-app notifications for every user
     const { data: allProfiles } = await supabase.from('profiles_public').select('id');
@@ -33,11 +34,10 @@ export async function notifyNewOrder(clientName: string, orderSummary?: string) 
 }
 
 /**
- * Build a short order summary from items_qty cell data.
- * Returns e.g. "3 items, 150kg" or null if no items data.
+ * Build a detailed order summary from items_qty cell data.
+ * Returns e.g. "Saffron x5kg, Honey x3pcs" or null if no items data.
  */
 export function buildOrderSummary(cells: Record<string, any>, columns: { id: string; name: string; type: string }[]): string | undefined {
-  // Look for items_qty column
   const itemsCol = columns.find(c => c.type === 'items_qty');
   if (!itemsCol) return undefined;
 
@@ -48,11 +48,14 @@ export function buildOrderSummary(cells: Record<string, any>, columns: { id: str
     const items = typeof itemsData === 'string' ? JSON.parse(itemsData) : itemsData;
     if (!Array.isArray(items) || items.length === 0) return undefined;
 
-    const totalItems = items.length;
-    const totalQty = items.reduce((sum: number, item: any) => sum + (Number(item.qty) || 0), 0);
-    const unit = items[0]?.unit || 'pcs';
-
-    return `${totalItems} item${totalItems > 1 ? 's' : ''}, ${totalQty}${unit}`;
+    return items
+      .map((item: any) => {
+        const name = item.name || item.product || 'Item';
+        const qty = item.qty ?? item.quantity ?? '';
+        const unit = item.unit || 'pcs';
+        return `${name} x${qty}${unit}`;
+      })
+      .join(', ');
   } catch {
     return undefined;
   }
