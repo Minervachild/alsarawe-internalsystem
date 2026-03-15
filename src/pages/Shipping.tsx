@@ -328,12 +328,35 @@ export default function Shipping() {
     }
   };
 
-  const downloadPdf = () => {
-    if (!pdfData || !pdfAwb) return;
+  const base64ToBlob = (base64: string, type = 'application/pdf') => {
+    const binStr = atob(base64);
+    const len = binStr.length;
+    const arr = new Uint8Array(len);
+    for (let i = 0; i < len; i++) arr[i] = binStr.charCodeAt(i);
+    return new Blob([arr], { type });
+  };
+
+  const downloadPdf = (base64?: string, awb?: string) => {
+    const pdfBase64 = base64 || pdfData;
+    const pdfName = awb || pdfAwb;
+    if (!pdfBase64 || !pdfName) return;
+    const blob = base64ToBlob(pdfBase64);
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = `data:application/pdf;base64,${pdfData}`;
-    link.download = `AWB-${pdfAwb}.pdf`;
+    link.href = url;
+    link.download = `AWB-${pdfName}.pdf`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  };
+
+  const openPdfInNewTab = (base64?: string) => {
+    const pdfBase64 = base64 || pdfData;
+    if (!pdfBase64) return;
+    const blob = base64ToBlob(pdfBase64);
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
   };
 
   return (
