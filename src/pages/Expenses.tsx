@@ -1,29 +1,26 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Pencil, Save, X, Receipt, Store, Wallet, CreditCard, Settings2, Zap, Loader2, Send, BookTemplate, FileText } from 'lucide-react';
+import { Plus, Trash2, Pencil, Save, X, Receipt, Store, Wallet, CreditCard, Settings2, Zap, Loader2, Send, FileText, CheckCircle, XCircle, Clock, Archive, RotateCcw, MoreVertical, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { ExpenseBotRegister } from '@/components/expenses/ExpenseBotRegister';
 
 interface Seller { id: string; name: string }
 interface Account { id: string; name: string }
@@ -55,6 +52,9 @@ interface Expense {
   notes: string | null;
   created_by: string | null;
   created_at: string;
+  status: string;
+  approved_by: string | null;
+  approved_at: string | null;
   expense_sellers?: { name: string } | null;
   expense_accounts?: { name: string } | null;
   expense_payment_methods?: { name: string } | null;
@@ -72,6 +72,9 @@ export default function Expenses() {
   const [templates, setTemplates] = useState<ExpenseTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
   // Form state
   const [title, setTitle] = useState('');
@@ -117,7 +120,7 @@ export default function Expenses() {
         .select('*, expense_sellers(name), expense_accounts(name), expense_payment_methods(name), employees(name)')
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(100),
+        .limit(200),
       (supabase as any).from('expense_templates').select('*').order('position'),
     ]);
     setSellers(s.data || []);
@@ -147,7 +150,6 @@ export default function Expenses() {
     }
     setSendingWebhook(tpl.id);
     try {
-      // Replace placeholders in prompt
       const sellerName = sellers.find(s => s.id === tpl.seller_id)?.name || '';
       const accountName = accounts.find(a => a.id === tpl.account_id)?.name || '';
       const prompt = tpl.webhook_prompt_template
@@ -199,17 +201,13 @@ export default function Expenses() {
         date,
         notes: notes || null,
         created_by: user?.id,
+        status: 'pending',
       });
       if (error) throw error;
 
-      setTitle('');
-      setSellerId('');
-      setAccountId('');
-      setEmployeeId('');
-      setInvoiceNumber('');
-      setAmount('');
-      setNotes('');
-      toast({ title: 'Expense added' });
+      setTitle(''); setSellerId(''); setAccountId(''); setEmployeeId('');
+      setInvoiceNumber(''); setAmount(''); setNotes('');
+      toast({ title: 'Expense added (pending approval)' });
       fetchAll();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -218,13 +216,136 @@ export default function Expenses() {
     }
   };
 
+  // Approval workflow
+  const handleApprove = async (exp: Expense) => {
+    if (!user) return;
+    setProcessingIds(prev => new Set(prev).add(exp.id));
+    try {
+      const { error } = await (supabase as any)
+        .from('daily_expenses')
+        .update({ status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() })
+        .eq('id', exp.id);
+      if (error) throw error;
+
+      // Send to webhook
+      const sellerName = exp.expense_sellers?.name || '';
+      const accountName = exp.expense_accounts?.name || '';
+      const employeeName = exp.employees?.name || '';
+      const paymentName = exp.expense_payment_methods?.name || '';
+
+      const prompt = `سجل مصروف "${exp.title || ''}" من ${sellerName} بمبلغ ${exp.amount} ريال (${exp.vat_included ? 'شامل الضريبة' : 'غير شامل'}) في حساب ${accountName} بطريقة دفع ${paymentName} بواسطة ${employeeName} بتاريخ ${exp.date}${exp.notes ? ` ملاحظات: ${exp.notes}` : ''}${exp.invoice_number ? ` رقم الفاتورة: ${exp.invoice_number}` : ''}`;
+
+      const { data: webhookResult } = await supabase.functions.invoke('send-expense-webhook', {
+        body: { prompt },
+      });
+
+      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() } : e));
+
+      if (webhookResult?.response) {
+        const agentResponse = typeof webhookResult.response === 'string'
+          ? webhookResult.response
+          : JSON.stringify(webhookResult.response, null, 2);
+        toast({ title: 'Expense approved', description: agentResponse });
+      } else {
+        toast({ title: 'Expense approved & sent to agent' });
+      }
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(exp.id); return n; });
+    }
+  };
+
+  const handleReject = async (exp: Expense) => {
+    setProcessingIds(prev => new Set(prev).add(exp.id));
+    try {
+      const { error } = await (supabase as any)
+        .from('daily_expenses')
+        .update({ status: 'rejected' })
+        .eq('id', exp.id);
+      if (error) throw error;
+
+      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'rejected' } : e));
+      toast({ title: 'Expense rejected & archived' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(exp.id); return n; });
+    }
+  };
+
+  const handleRestore = async (exp: Expense) => {
+    setProcessingIds(prev => new Set(prev).add(exp.id));
+    try {
+      const { error } = await (supabase as any)
+        .from('daily_expenses')
+        .update({ status: 'pending' })
+        .eq('id', exp.id);
+      if (error) throw error;
+
+      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'pending' } : e));
+      toast({ title: 'Expense restored to pending' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(exp.id); return n; });
+    }
+  };
+
+  const handleRevoke = async (exp: Expense) => {
+    setProcessingIds(prev => new Set(prev).add(exp.id));
+    try {
+      const { error } = await (supabase as any)
+        .from('daily_expenses')
+        .update({ status: 'pending', approved_by: null, approved_at: null })
+        .eq('id', exp.id);
+      if (error) throw error;
+
+      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'pending', approved_by: null, approved_at: null } : e));
+      toast({ title: 'Approval revoked — expense is pending again' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(exp.id); return n; });
+    }
+  };
+
+  const handleResendWebhook = async (exp: Expense) => {
+    setProcessingIds(prev => new Set(prev).add(exp.id));
+    try {
+      const sellerName = exp.expense_sellers?.name || '';
+      const accountName = exp.expense_accounts?.name || '';
+      const employeeName = exp.employees?.name || '';
+      const paymentName = exp.expense_payment_methods?.name || '';
+
+      const prompt = `سجل مصروف "${exp.title || ''}" من ${sellerName} بمبلغ ${exp.amount} ريال (${exp.vat_included ? 'شامل الضريبة' : 'غير شامل'}) في حساب ${accountName} بطريقة دفع ${paymentName} بواسطة ${employeeName} بتاريخ ${exp.date}${exp.notes ? ` ملاحظات: ${exp.notes}` : ''}${exp.invoice_number ? ` رقم الفاتورة: ${exp.invoice_number}` : ''}`;
+
+      const { data: webhookResult } = await supabase.functions.invoke('send-expense-webhook', {
+        body: { prompt },
+      });
+
+      if (webhookResult?.response) {
+        const agentResponse = typeof webhookResult.response === 'string'
+          ? webhookResult.response
+          : JSON.stringify(webhookResult.response, null, 2);
+        toast({ title: 'Webhook resent', description: agentResponse });
+      } else {
+        toast({ title: 'Webhook resent successfully' });
+      }
+    } catch (error: any) {
+      toast({ title: 'Error resending', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(exp.id); return n; });
+    }
+  };
+
   const handleDeleteExpense = async (id: string) => {
-    const { error } = await supabase.from('daily_expenses').delete().eq('id', id);
+    const { error } = await (supabase as any).from('daily_expenses').update({ status: 'rejected' }).eq('id', id);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      setExpenses(prev => prev.filter(e => e.id !== id));
-      toast({ title: 'Expense deleted' });
+      setExpenses(prev => prev.map(e => e.id === id ? { ...e, status: 'rejected' } : e));
+      toast({ title: 'Expense archived' });
     }
   };
 
@@ -295,11 +416,15 @@ export default function Expenses() {
     setPaymentMethods(prev => prev.filter(p => p.id !== id));
   };
 
-  // Today's total
+  // Computed
+  const activeExpenses = useMemo(() => expenses.filter(e => e.status !== 'rejected'), [expenses]);
+  const archivedExpenses = useMemo(() => expenses.filter(e => e.status === 'rejected'), [expenses]);
+  const displayedExpenses = showArchive ? archivedExpenses : activeExpenses;
+
   const todayTotal = useMemo(() => {
     const today = format(new Date(), 'yyyy-MM-dd');
     return expenses
-      .filter(e => e.date === today)
+      .filter(e => e.date === today && e.status !== 'rejected')
       .reduce((sum, e) => sum + Number(e.amount), 0);
   }, [expenses]);
 
@@ -315,7 +440,7 @@ export default function Expenses() {
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-6 max-w-full">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Daily Expenses</h1>
@@ -341,24 +466,12 @@ export default function Expenses() {
             <div className="flex flex-wrap gap-2">
               {templates.map(tpl => (
                 <div key={tpl.id} className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs gap-1.5"
-                    onClick={() => applyTemplate(tpl)}
-                  >
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => applyTemplate(tpl)}>
                     <Zap className="w-3 h-3 text-primary" />
                     {tpl.name}
                   </Button>
                   {isAdmin && tpl.webhook_prompt_template && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-primary"
-                      disabled={sendingWebhook === tpl.id}
-                      onClick={() => sendTemplateToAgent(tpl)}
-                      title="Send to accountant agent"
-                    >
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-primary" disabled={sendingWebhook === tpl.id} onClick={() => sendTemplateToAgent(tpl)} title="Send to accountant agent">
                       {sendingWebhook === tpl.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                     </Button>
                   )}
@@ -382,45 +495,29 @@ export default function Expenses() {
             <div className="space-y-1.5">
               <Label className="text-xs">Seller *</Label>
               <Select value={sellerId} onValueChange={setSellerId}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select seller..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                </SelectContent>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select seller..." /></SelectTrigger>
+                <SelectContent>{sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Account *</Label>
               <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select account..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                </SelectContent>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select account..." /></SelectTrigger>
+                <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Purchased By</Label>
               <Select value={employeeId} onValueChange={setEmployeeId}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select employee..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map(emp => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
-                </SelectContent>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select employee..." /></SelectTrigger>
+                <SelectContent>{employees.map(emp => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Payment Method</Label>
               <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select method..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {paymentMethods.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select method..." /></SelectTrigger>
+                <SelectContent>{paymentMethods.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
@@ -450,54 +547,134 @@ export default function Expenses() {
           </Button>
         </form>
 
-        {/* Expenses List */}
-        <div className="card-premium overflow-hidden">
-          <div className="p-4 border-b border-border">
-            <h3 className="font-semibold">Recent Expenses ({expenses.length})</h3>
+        {/* Dual View: Table + Bot Register */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Expenses Table */}
+          <div className="card-premium overflow-hidden">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h3 className="font-semibold">
+                {showArchive ? 'Archived (Rejected)' : 'Expenses'} ({displayedExpenses.length})
+              </h3>
+              <Button
+                variant={showArchive ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={() => setShowArchive(!showArchive)}
+              >
+                <Archive className="w-3.5 h-3.5" />
+                {showArchive ? 'Back to Active' : `Archive (${archivedExpenses.length})`}
+              </Button>
+            </div>
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 sticky top-0">
+                  <tr>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Title</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Seller</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Amount</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayedExpenses.length === 0 ? (
+                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No expenses found</td></tr>
+                  ) : (
+                    displayedExpenses.map(exp => (
+                      <tr
+                        key={exp.id}
+                        className={`border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors ${selectedExpense?.id === exp.id ? 'bg-primary/5' : ''}`}
+                        onClick={() => setSelectedExpense(exp)}
+                      >
+                        <td className="p-3">{format(new Date(exp.date), 'MMM dd')}</td>
+                        <td className="p-3 font-medium text-foreground max-w-[150px] truncate">{exp.title || '—'}</td>
+                        <td className="p-3 text-muted-foreground">{exp.expense_sellers?.name || '—'}</td>
+                        <td className="p-3 text-right font-semibold">﷼{Number(exp.amount).toLocaleString()}</td>
+                        <td className="p-3 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1 ${
+                            exp.status === 'approved'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                              : exp.status === 'rejected'
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                          }`}>
+                            {exp.status === 'approved' ? <CheckCircle className="w-3 h-3" /> :
+                             exp.status === 'rejected' ? <XCircle className="w-3 h-3" /> :
+                             <Clock className="w-3 h-3" />}
+                            {exp.status === 'approved' ? 'Approved' : exp.status === 'rejected' ? 'Rejected' : 'Pending'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          {showArchive ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs gap-1"
+                              disabled={processingIds.has(exp.id)}
+                              onClick={(e) => { e.stopPropagation(); handleRestore(exp); }}
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Restore
+                            </Button>
+                          ) : exp.status === 'pending' && isAdmin ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                disabled={processingIds.has(exp.id)}
+                                onClick={(e) => { e.stopPropagation(); handleApprove(exp); }}
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                disabled={processingIds.has(exp.id)}
+                                onClick={(e) => { e.stopPropagation(); handleReject(exp); }}
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : exp.status === 'approved' && isAdmin ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleResendWebhook(exp); }} disabled={processingIds.has(exp.id)}>
+                                  <Send className="w-3.5 h-3.5 mr-2" />
+                                  Resend to Webhook
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleRevoke(exp); }} disabled={processingIds.has(exp.id)} className="text-amber-600 focus:text-amber-600">
+                                  <Undo2 className="w-3.5 h-3.5 mr-2" />
+                                  Revoke Approval
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleReject(exp); }} disabled={processingIds.has(exp.id)} className="text-destructive focus:text-destructive">
+                                  <XCircle className="w-3.5 h-3.5 mr-2" />
+                                  Reject & Archive
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : exp.status === 'pending' ? (
+                            <span className="text-xs text-muted-foreground">Awaiting</span>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 sticky top-0">
-                <tr>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Title</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Seller</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Account</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">By</th>
-                  <th className="text-right p-3 font-medium text-muted-foreground">Amount</th>
-                  <th className="text-center p-3 font-medium text-muted-foreground">VAT</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Payment</th>
-                  <th className="text-center p-3 font-medium text-muted-foreground"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.length === 0 ? (
-                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No expenses yet</td></tr>
-                ) : (
-                  expenses.map(exp => (
-                    <tr key={exp.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                      <td className="p-3">{format(new Date(exp.date), 'MMM dd')}</td>
-                      <td className="p-3 font-medium text-foreground">{exp.title || '—'}</td>
-                      <td className="p-3">{exp.expense_sellers?.name || '—'}</td>
-                      <td className="p-3 text-muted-foreground">{exp.expense_accounts?.name || '—'}</td>
-                      <td className="p-3 text-muted-foreground">{exp.employees?.name || '—'}</td>
-                      <td className="p-3 text-right font-semibold">﷼{Number(exp.amount).toLocaleString()}</td>
-                      <td className="p-3 text-center">
-                        <span className={`px-1.5 py-0.5 rounded text-xs ${exp.vat_included ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                          {exp.vat_included ? 'Incl.' : 'Excl.'}
-                        </span>
-                      </td>
-                      <td className="p-3 text-muted-foreground">{exp.expense_payment_methods?.name || '—'}</td>
-                      <td className="p-3 text-center">
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => handleDeleteExpense(exp.id)}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+
+          {/* Bot Register */}
+          <div>
+            <ExpenseBotRegister entry={selectedExpense} />
           </div>
         </div>
       </div>
@@ -522,23 +699,17 @@ export default function Expenses() {
                 <div className="grid grid-cols-2 gap-2">
                   <Select value={tplSellerId} onValueChange={setTplSellerId}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Seller" /></SelectTrigger>
-                    <SelectContent>
-                      {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                   </Select>
                   <Select value={tplAccountId} onValueChange={setTplAccountId}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Account" /></SelectTrigger>
-                    <SelectContent>
-                      {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Select value={tplPaymentMethodId} onValueChange={setTplPaymentMethodId}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Payment" /></SelectTrigger>
-                    <SelectContent>
-                      {paymentMethods.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{paymentMethods.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                   </Select>
                   <Input type="number" step="0.01" value={tplDefaultAmount} onChange={e => setTplDefaultAmount(e.target.value)} placeholder="Default amount" className="h-9" />
                 </div>
@@ -561,9 +732,7 @@ export default function Expenses() {
                   <div key={t.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-muted/50">
                     <div className="min-w-0">
                       <span className="text-sm font-medium">{t.name}</span>
-                      {t.webhook_prompt_template && (
-                        <span className="ml-2 text-xs text-primary">⚡ Agent</span>
-                      )}
+                      {t.webhook_prompt_template && <span className="ml-2 text-xs text-primary">⚡ Agent</span>}
                     </div>
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteTemplate(t.id)}>
                       <Trash2 className="w-3.5 h-3.5" />

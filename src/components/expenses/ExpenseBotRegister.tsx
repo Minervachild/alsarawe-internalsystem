@@ -7,21 +7,25 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
-interface SalesEntry {
+interface ExpenseEntry {
   id: string;
+  title: string | null;
+  amount: number;
+  vat_included: boolean;
   date: string;
-  shift: string;
-  cash_amount: number;
-  card_amount: number;
-  transaction_count: number;
+  notes: string | null;
+  invoice_number: string | null;
+  expense_sellers?: { name: string } | null;
+  expense_accounts?: { name: string } | null;
+  expense_payment_methods?: { name: string } | null;
+  employees?: { name: string } | null;
 }
 
-interface BotRegisterProps {
-  entry: SalesEntry | null;
-  branchName?: string;
+interface ExpenseBotRegisterProps {
+  entry: ExpenseEntry | null;
 }
 
-export function BotRegister({ entry, branchName }: BotRegisterProps) {
+export function ExpenseBotRegister({ entry }: ExpenseBotRegisterProps) {
   const [template, setTemplate] = useState('');
   const [editingTemplate, setEditingTemplate] = useState(false);
   const [editedTemplate, setEditedTemplate] = useState('');
@@ -38,7 +42,7 @@ export function BotRegister({ entry, branchName }: BotRegisterProps) {
     const { data } = await (supabase as any)
       .from('bot_register_templates')
       .select('*')
-      .eq('type', 'sales')
+      .eq('type', 'expense')
       .limit(1)
       .maybeSingle();
 
@@ -49,45 +53,47 @@ export function BotRegister({ entry, branchName }: BotRegisterProps) {
   };
 
   const saveTemplate = async () => {
-    if (!templateId || !user) return;
+    if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('bot_register_templates')
-        .update({ template_text: editedTemplate, updated_by: user.id })
-        .eq('id', templateId);
-
-      if (error) throw error;
+      if (templateId) {
+        const { error } = await (supabase as any)
+          .from('bot_register_templates')
+          .update({ template_text: editedTemplate, updated_by: user.id })
+          .eq('id', templateId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await (supabase as any)
+          .from('bot_register_templates')
+          .insert({ template_text: editedTemplate, updated_by: user.id, type: 'expense' })
+          .select()
+          .single();
+        if (error) throw error;
+        setTemplateId(data.id);
+      }
 
       setTemplate(editedTemplate);
       setEditingTemplate(false);
       toast({ title: 'Template updated' });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   };
 
   const generateOutput = () => {
     if (!entry || !template) return '';
 
-    const total = Number(entry.cash_amount) + Number(entry.card_amount);
-    const dateFormatted = format(new Date(entry.date), 'yyyy M/d');
-    const shiftLabel = entry.shift === 'morning' ? 'صباحي' : 'مسائي';
-    const cardLabel = 'الإنماء اساسي';
-
     return template
-      .replace(/{branch}/g, branchName || '')
-      .replace(/{date}/g, dateFormatted)
-      .replace(/{shift}/g, shiftLabel)
-      .replace(/{cash}/g, String(Number(entry.cash_amount)))
-      .replace(/{card}/g, String(Number(entry.card_amount)))
-      .replace(/{card_label}/g, cardLabel)
-      .replace(/{total}/g, String(total))
-      .replace(/{transactions}/g, String(entry.transaction_count));
+      .replace(/{title}/g, entry.title || '')
+      .replace(/{seller}/g, entry.expense_sellers?.name || '')
+      .replace(/{account}/g, entry.expense_accounts?.name || '')
+      .replace(/{payment}/g, entry.expense_payment_methods?.name || '')
+      .replace(/{employee}/g, entry.employees?.name || '')
+      .replace(/{amount}/g, String(Number(entry.amount)))
+      .replace(/{vat}/g, entry.vat_included ? 'شامل' : 'غير شامل')
+      .replace(/{date}/g, format(new Date(entry.date), 'yyyy-MM-dd'))
+      .replace(/{invoice}/g, entry.invoice_number || '')
+      .replace(/{notes}/g, entry.notes || '');
   };
 
   const handleCopy = () => {
@@ -101,7 +107,7 @@ export function BotRegister({ entry, branchName }: BotRegisterProps) {
   return (
     <div className="card-premium overflow-hidden h-full flex flex-col">
       <div className="p-4 border-b border-border flex items-center justify-between">
-        <h3 className="font-semibold">Bot Register</h3>
+        <h3 className="font-semibold">Expense Bot Register</h3>
         {isAdmin && (
           <Button
             variant="ghost"
@@ -117,15 +123,9 @@ export function BotRegister({ entry, branchName }: BotRegisterProps) {
             }}
           >
             {editingTemplate ? (
-              <>
-                <Save className="w-3 h-3" />
-                Save Template
-              </>
+              <><Save className="w-3 h-3" /> Save Template</>
             ) : (
-              <>
-                <Edit3 className="w-3 h-3" />
-                Edit Template
-              </>
+              <><Edit3 className="w-3 h-3" /> Edit Template</>
             )}
           </Button>
         )}
@@ -135,7 +135,7 @@ export function BotRegister({ entry, branchName }: BotRegisterProps) {
         {editingTemplate ? (
           <div className="space-y-3 flex-1 flex flex-col">
             <p className="text-xs text-muted-foreground">
-              Available variables: {'{branch}'}, {'{date}'}, {'{shift}'}, {'{cash}'}, {'{card}'}, {'{card_label}'}, {'{total}'}, {'{transactions}'}
+              Variables: {'{title}'}, {'{seller}'}, {'{account}'}, {'{payment}'}, {'{employee}'}, {'{amount}'}, {'{vat}'}, {'{date}'}, {'{invoice}'}, {'{notes}'}
             </p>
             <Textarea
               value={editedTemplate}
@@ -143,40 +143,24 @@ export function BotRegister({ entry, branchName }: BotRegisterProps) {
               className="flex-1 min-h-[200px] font-mono text-sm"
               dir="rtl"
             />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditingTemplate(false)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setEditingTemplate(false)}>
               Cancel
             </Button>
           </div>
         ) : entry ? (
           <div className="space-y-3 flex-1 flex flex-col">
             <div className="bg-muted/50 rounded-xl p-4 flex-1 font-mono text-sm whitespace-pre-wrap" dir="rtl">
-              {generateOutput()}
+              {generateOutput() || <span className="text-muted-foreground">No template configured. Click "Edit Template" to set one up.</span>}
             </div>
-            <Button
-              onClick={handleCopy}
-              className="w-full gap-2"
-              variant="outline"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  Copy to Clipboard
-                </>
-              )}
-            </Button>
+            {template && (
+              <Button onClick={handleCopy} className="w-full gap-2" variant="outline">
+                {copied ? <><Check className="w-4 h-4" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy to Clipboard</>}
+              </Button>
+            )}
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm text-center">
-            Select a sales entry from the table to generate the accounting journal
+            Select an expense entry to generate the accounting journal
           </div>
         )}
       </div>
