@@ -236,18 +236,21 @@ export type Database = {
         Row: {
           id: string
           template_text: string
+          type: string
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           id?: string
           template_text: string
+          type?: string
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           id?: string
           template_text?: string
+          type?: string
           updated_at?: string
           updated_by?: string | null
         }
