@@ -617,30 +617,54 @@ export default function Shipping() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          const link = document.createElement('a');
-                          link.href = `data:application/pdf;base64,${pdf}`;
-                          link.download = `AWB-${lastAwbs[i] || i + 1}.pdf`;
-                          link.click();
-                        }}
+                        onClick={() => downloadPdf(pdf, lastAwbs[i] || String(i + 1))}
                       >
                         <Download className="w-3 h-3 mr-1" />
                         Download
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => openPdfInNewTab(pdf)}
+                        className="text-xs"
+                      >
+                        Open
+                      </Button>
                     </div>
                     <iframe
                       src={`data:application/pdf;base64,${pdf}`}
-                      className="w-full h-[500px] rounded-lg border border-border"
+                      className="w-full h-[500px] rounded-lg border border-border hidden sm:block"
                       title={`Shipping Label ${i + 1}`}
                     />
+                    <div className="sm:hidden text-center py-8 border border-border rounded-lg bg-muted/30">
+                      <p className="text-sm text-muted-foreground mb-3">PDF preview not available on mobile</p>
+                      <Button onClick={() => downloadPdf(pdf, lastAwbs[i] || String(i + 1))} className="text-white" style={{ background: 'hsl(25 95% 53%)' }}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Download PDF
+                      </Button>
+                    </div>
                   </div>
                 ))
               ) : pdfData ? (
-                <iframe
-                  src={`data:application/pdf;base64,${pdfData}`}
-                  className="w-full h-[500px] rounded-lg border border-border"
-                  title="Shipping Label PDF"
-                />
+                <>
+                  <iframe
+                    src={`data:application/pdf;base64,${pdfData}`}
+                    className="w-full h-[500px] rounded-lg border border-border hidden sm:block"
+                    title="Shipping Label PDF"
+                  />
+                  <div className="sm:hidden text-center py-8 border border-border rounded-lg bg-muted/30">
+                    <p className="text-sm text-muted-foreground mb-3">PDF preview not available on mobile</p>
+                    <div className="flex flex-col gap-2 items-center">
+                      <Button onClick={() => downloadPdf()} className="text-white" style={{ background: 'hsl(25 95% 53%)' }}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Download PDF
+                      </Button>
+                      <Button variant="outline" onClick={() => openPdfInNewTab()}>
+                        Open in Browser
+                      </Button>
+                    </div>
+                  </div>
+                </>
               ) : (
                 <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground">
                   <Truck className="w-16 h-16 mb-3 opacity-20" style={{ color: 'hsl(270 60% 40%)' }} />
