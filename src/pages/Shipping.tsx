@@ -151,6 +151,24 @@ export default function Shipping() {
     setMultiPdfData([]);
   };
 
+  // Recursively search for AWB number in any nested response structure
+  const extractAwb = (obj: any): string | null => {
+    if (!obj || typeof obj !== 'object') return null;
+    const awbKeys = ['awbNo', 'awb', 'AWBNo', 'tracking', 'sawb', 'shipmentNo'];
+    for (const key of awbKeys) {
+      if (obj[key] && typeof obj[key] === 'string') return obj[key];
+      if (obj[key] && typeof obj[key] === 'number') return String(obj[key]);
+    }
+    // Search nested objects (e.g. data.data.awbNo)
+    for (const key of Object.keys(obj)) {
+      if (typeof obj[key] === 'object' && obj[key] !== null) {
+        const found = extractAwb(obj[key]);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
   const createSingleShipment = async (): Promise<string | null> => {
     const res = await fetch('https://n8n.srv1149238.hstgr.cloud/webhook/smsa-create', {
       method: 'POST',
@@ -166,13 +184,13 @@ export default function Shipping() {
       }),
     });
     const data = await res.json();
-    if (data?.message && !data?.awbNo && !data?.awb && !data?.AWBNo && !data?.tracking) {
-      throw new Error(data.message);
-    }
-    if (!res.ok) throw new Error(`Status ${res.status}`);
-    const awb = data?.awbNo || data?.awb || data?.AWBNo || data?.tracking || data?.data;
-    if (!awb) throw new Error(`No AWB: ${JSON.stringify(data)}`);
-    return awb;
+    console.log('SMSA create response:', JSON.stringify(data));
+    const awb = extractAwb(data);
+    if (awb) return awb;
+    // If response is just a string/number itself
+    if (typeof data === 'string' && data.length > 3) return data;
+    if (typeof data === 'number') return String(data);
+    throw new Error(`Could not find AWB in response: ${JSON.stringify(data).slice(0, 200)}`);
   };
 
   const createShipment = async () => {
