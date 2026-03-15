@@ -189,7 +189,7 @@ export default function Shipping() {
     try {
       const awbs: string[] = [];
       for (let i = 0; i < count; i++) {
-        setCreatingProgress(`Creating ${i + 1} of ${count}...`);
+        setCreatingProgress(`Creating shipment ${i + 1} of ${count}...`);
         const awb = await createSingleShipment();
         if (awb) {
           awbs.push(awb);
@@ -202,15 +202,54 @@ export default function Shipping() {
           }, ...prev]);
         }
       }
-      setCreatingProgress('');
 
+      // Auto-fetch PDFs right after creation
       if (awbs.length === 1) {
         setLastAwb(awbs[0]);
-        toast({ title: `Shipment created! AWB: ${awbs[0]}` });
+        toast({ title: `Shipment created! AWB: ${awbs[0]}. Fetching label...` });
+        setCreatingProgress('Fetching PDF label...');
+        try {
+          const res = await fetch('https://n8n.srv1149238.hstgr.cloud/webhook/smsa-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ awbNo: awbs[0] }),
+          });
+          const data = await res.json();
+          const base64 = data?.pdf || data?.data || data?.base64 || (typeof data === 'string' ? data : '');
+          if (base64) {
+            setPdfData(base64);
+            setPdfAwb(awbs[0]);
+            toast({ title: 'Label ready!' });
+          } else {
+            toast({ title: 'AWB created but PDF not available', description: 'Try fetching it manually', variant: 'destructive' });
+          }
+        } catch {
+          toast({ title: 'AWB created but failed to fetch PDF', variant: 'destructive' });
+        }
       } else if (awbs.length > 1) {
         setLastAwbs(awbs);
         setLastAwb(null);
-        toast({ title: `${awbs.length} shipments created!` });
+        toast({ title: `${awbs.length} shipments created! Fetching labels...` });
+        setCreatingProgress('Fetching PDF labels...');
+        const pdfs: string[] = [];
+        for (const awbNo of awbs) {
+          try {
+            const res = await fetch('https://n8n.srv1149238.hstgr.cloud/webhook/smsa-pdf', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ awbNo }),
+            });
+            const data = await res.json();
+            const base64 = data?.pdf || data?.data || data?.base64 || (typeof data === 'string' ? data : '');
+            if (base64) pdfs.push(base64);
+          } catch {}
+        }
+        if (pdfs.length > 0) {
+          setMultiPdfData(pdfs);
+          toast({ title: `${pdfs.length} labels ready!` });
+        } else {
+          toast({ title: 'AWBs created but PDFs not available', variant: 'destructive' });
+        }
       }
     } catch (err: any) {
       toast({ title: 'Failed to create shipment', description: err.message, variant: 'destructive' });
