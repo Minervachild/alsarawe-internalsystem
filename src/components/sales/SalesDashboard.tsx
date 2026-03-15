@@ -199,6 +199,54 @@ export function SalesDashboard() {
     }
   };
 
+  const handleRevoke = async (entry: SalesEntry) => {
+    setProcessingIds(prev => new Set(prev).add(entry.id));
+    try {
+      const { error } = await supabase
+        .from('sales_entries')
+        .update({ status: 'pending', approved_by: null, approved_at: null })
+        .eq('id', entry.id);
+      if (error) throw error;
+
+      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'pending', approved_by: null, approved_at: null } as any : e));
+      toast({ title: 'Approval revoked — entry is pending again' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(entry.id); return n; });
+    }
+  };
+
+  const handleResendWebhook = async (entry: SalesEntry) => {
+    setProcessingIds(prev => new Set(prev).add(entry.id));
+    try {
+      const { data: webhookResult } = await supabase.functions.invoke('send-sales-telegram', {
+        body: {
+          date: entry.date,
+          shift: entry.shift,
+          branchName: (entry as any).branches?.name || '',
+          employeeName: (entry as any).employees?.name || '',
+          cashAmount: entry.cash_amount,
+          cardAmount: entry.card_amount,
+          transactionCount: entry.transaction_count,
+        },
+      });
+
+      if (webhookResult?.response) {
+        const agentResponse = typeof webhookResult.response === 'string'
+          ? webhookResult.response
+          : JSON.stringify(webhookResult.response, null, 2);
+        toast({ title: 'Webhook resent', description: agentResponse });
+      } else {
+        toast({ title: 'Webhook resent successfully' });
+      }
+    } catch (error: any) {
+      toast({ title: 'Error resending', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(entry.id); return n; });
+    }
+  };
+
   const stats = useMemo(() => {
     const totalCash = filteredEntries.reduce((sum, e) => sum + Number(e.cash_amount), 0);
     const totalCard = filteredEntries.reduce((sum, e) => sum + Number(e.card_amount), 0);
