@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, Filter, DollarSign, CreditCard, Hash, Building2, CheckCircle, XCircle, Clock, Archive, RotateCcw, Pencil } from 'lucide-react';
+import { Calendar, Filter, DollarSign, CreditCard, Hash, Building2, CheckCircle, XCircle, Clock, Archive, RotateCcw, Pencil, Undo2, Send, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,12 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { BotRegister } from './BotRegister';
 import { EditSalesEntryDialog } from './EditSalesEntryDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface SalesEntry {
   id: string;
@@ -188,6 +194,54 @@ export function SalesDashboard() {
       toast({ title: 'Sale restored to pending' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(entry.id); return n; });
+    }
+  };
+
+  const handleRevoke = async (entry: SalesEntry) => {
+    setProcessingIds(prev => new Set(prev).add(entry.id));
+    try {
+      const { error } = await supabase
+        .from('sales_entries')
+        .update({ status: 'pending', approved_by: null, approved_at: null })
+        .eq('id', entry.id);
+      if (error) throw error;
+
+      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'pending', approved_by: null, approved_at: null } as any : e));
+      toast({ title: 'Approval revoked — entry is pending again' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setProcessingIds(prev => { const n = new Set(prev); n.delete(entry.id); return n; });
+    }
+  };
+
+  const handleResendWebhook = async (entry: SalesEntry) => {
+    setProcessingIds(prev => new Set(prev).add(entry.id));
+    try {
+      const { data: webhookResult } = await supabase.functions.invoke('send-sales-telegram', {
+        body: {
+          date: entry.date,
+          shift: entry.shift,
+          branchName: (entry as any).branches?.name || '',
+          employeeName: (entry as any).employees?.name || '',
+          cashAmount: entry.cash_amount,
+          cardAmount: entry.card_amount,
+          transactionCount: entry.transaction_count,
+        },
+      });
+
+      if (webhookResult?.response) {
+        const agentResponse = typeof webhookResult.response === 'string'
+          ? webhookResult.response
+          : JSON.stringify(webhookResult.response, null, 2);
+        toast({ title: 'Webhook resent', description: agentResponse });
+      } else {
+        toast({ title: 'Webhook resent successfully' });
+      }
+    } catch (error: any) {
+      toast({ title: 'Error resending', description: error.message, variant: 'destructive' });
     } finally {
       setProcessingIds(prev => { const n = new Set(prev); n.delete(entry.id); return n; });
     }
@@ -454,6 +508,52 @@ export function SalesDashboard() {
                             >
                               <XCircle className="w-4 h-4" />
                             </Button>
+                          </div>
+                        ) : entry.status === 'approved' ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={(e) => { e.stopPropagation(); setEditEntry(entry); setEditOpen(true); }}
+                                >
+                                  <Pencil className="w-3.5 h-3.5 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => { e.stopPropagation(); handleResendWebhook(entry); }}
+                                  disabled={processingIds.has(entry.id)}
+                                >
+                                  <Send className="w-3.5 h-3.5 mr-2" />
+                                  Resend to Webhook
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => { e.stopPropagation(); handleRevoke(entry); }}
+                                  disabled={processingIds.has(entry.id)}
+                                  className="text-amber-600 focus:text-amber-600"
+                                >
+                                  <Undo2 className="w-3.5 h-3.5 mr-2" />
+                                  Revoke Approval
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => { e.stopPropagation(); handleReject(entry); }}
+                                  disabled={processingIds.has(entry.id)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <XCircle className="w-3.5 h-3.5 mr-2" />
+                                  Reject & Archive
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         ) : (
                           <div className="flex items-center justify-center gap-1">
