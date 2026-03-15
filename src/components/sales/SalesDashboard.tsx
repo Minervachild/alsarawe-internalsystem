@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, Filter, DollarSign, CreditCard, Hash, Building2, CheckCircle, XCircle, Clock, Archive, RotateCcw, Pencil } from 'lucide-react';
+import { Calendar, Filter, DollarSign, CreditCard, Hash, Building2, CheckCircle, XCircle, Clock, Archive, RotateCcw, Pencil, Undo2, Send, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
