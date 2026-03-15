@@ -509,6 +509,52 @@ export function SalesDashboard() {
                               <XCircle className="w-4 h-4" />
                             </Button>
                           </div>
+                        ) : entry.status === 'approved' ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={(e) => { e.stopPropagation(); setEditEntry(entry); setEditOpen(true); }}
+                                >
+                                  <Pencil className="w-3.5 h-3.5 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => { e.stopPropagation(); handleResendWebhook(entry); }}
+                                  disabled={processingIds.has(entry.id)}
+                                >
+                                  <Send className="w-3.5 h-3.5 mr-2" />
+                                  Resend to Webhook
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => { e.stopPropagation(); handleRevoke(entry); }}
+                                  disabled={processingIds.has(entry.id)}
+                                  className="text-amber-600 focus:text-amber-600"
+                                >
+                                  <Undo2 className="w-3.5 h-3.5 mr-2" />
+                                  Revoke Approval
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => { e.stopPropagation(); handleReject(entry); }}
+                                  disabled={processingIds.has(entry.id)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <XCircle className="w-3.5 h-3.5 mr-2" />
+                                  Reject & Archive
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         ) : (
                           <div className="flex items-center justify-center gap-1">
                             <Button
