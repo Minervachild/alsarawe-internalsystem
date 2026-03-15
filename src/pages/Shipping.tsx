@@ -597,7 +597,7 @@ export default function Shipping() {
                   {pdfData && !multiPdfData.length && (
                     <Button
                       size="sm"
-                      onClick={downloadPdf}
+                      onClick={() => downloadPdf()}
                       className="text-white"
                       style={{ background: 'hsl(25 95% 53%)' }}
                     >
