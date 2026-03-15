@@ -16,6 +16,12 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { BotRegister } from './BotRegister';
 import { EditSalesEntryDialog } from './EditSalesEntryDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface SalesEntry {
   id: string;
