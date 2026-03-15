@@ -351,6 +351,8 @@ export type Database = {
         Row: {
           account_id: string | null
           amount: number
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           created_by: string | null
           date: string
@@ -360,12 +362,15 @@ export type Database = {
           notes: string | null
           payment_method_id: string | null
           seller_id: string | null
+          status: string
           title: string | null
           vat_included: boolean
         }
         Insert: {
           account_id?: string | null
           amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           created_by?: string | null
           date?: string
@@ -375,12 +380,15 @@ export type Database = {
           notes?: string | null
           payment_method_id?: string | null
           seller_id?: string | null
+          status?: string
           title?: string | null
           vat_included?: boolean
         }
         Update: {
           account_id?: string | null
           amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           created_by?: string | null
           date?: string
@@ -390,6 +398,7 @@ export type Database = {
           notes?: string | null
           payment_method_id?: string | null
           seller_id?: string | null
+          status?: string
           title?: string | null
           vat_included?: boolean
         }
