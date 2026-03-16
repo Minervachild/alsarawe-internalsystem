@@ -26,7 +26,7 @@ export async function notifyNewOrder(clientName: string, orderSummary?: string) 
 
     // ntfy push (fire-and-forget)
     supabase.functions.invoke('send-ntfy', {
-      body: { title, message, tags: 'package,new' },
+      body: { title, message, tags: 'package,moneybag' },
     }).catch(err => console.warn('ntfy notification failed:', err));
   } catch (err) {
     console.warn('Order notification failed:', err);
