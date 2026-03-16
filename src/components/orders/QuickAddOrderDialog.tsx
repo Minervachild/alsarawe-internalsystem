@@ -203,7 +203,7 @@ export function QuickAddOrderDialog({
             Quick Add Order
           </DialogTitle>
           <DialogDescription>
-            Add a new order to the pipeline. All fields are optional.
+            Add a new order to the pipeline. Client and Items with quantities are required.
           </DialogDescription>
         </DialogHeader>
 
