@@ -230,16 +230,26 @@ export function SalesDashboard() {
   const handleResendWebhook = async (entry: SalesEntry) => {
     setProcessingIds(prev => new Set(prev).add(entry.id));
     try {
-      const { data: webhookResult } = await supabase.functions.invoke('send-sales-telegram', {
-        body: {
-          date: entry.date,
-          shift: entry.shift,
-          branchName: (entry as any).branches?.name || '',
-          employeeName: (entry as any).employees?.name || '',
-          cashAmount: entry.cash_amount,
-          cardAmount: entry.card_amount,
-          transactionCount: entry.transaction_count,
-        },
+      const branchName = (entry as any).branches?.name || '';
+      const employeeName = (entry as any).employees?.name || '';
+      const total = Number(entry.cash_amount) + Number(entry.card_amount);
+
+      const webhookPayload = {
+        type: 'sales',
+        entry_id: entry.id,
+        branch: branchName,
+        date: entry.date,
+        shift: entry.shift === 'morning' ? 'صباحية' : 'مسائية',
+        cash_amount: entry.cash_amount,
+        card_amount: entry.card_amount,
+        total,
+        transaction_count: entry.transaction_count,
+        employee: employeeName,
+        prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${entry.shift === 'morning' ? 'صباحية' : 'مسائية'} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}`,
+      };
+
+      const { data: webhookResult } = await supabase.functions.invoke('send-to-webhook', {
+        body: webhookPayload,
       });
 
       if (webhookResult?.response) {

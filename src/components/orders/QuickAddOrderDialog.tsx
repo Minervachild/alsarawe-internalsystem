@@ -215,8 +215,13 @@ export function QuickAddOrderDialog({
             </div>
           ))}
 
+          {!canSubmit && (
+            <p className="text-xs text-destructive">Please select a client and add at least one item with a quantity.</p>
+          )}
+
           <Button
             onClick={handleSubmit}
+            disabled={!canSubmit}
             className="w-full rounded-xl bg-destructive hover:bg-destructive/90 text-white"
           >
             <Zap className="w-4 h-4 mr-2" />

@@ -50,12 +50,12 @@ export function buildOrderSummary(cells: Record<string, any>, columns: { id: str
 
     return items
       .map((item: any) => {
-        const name = item.name || item.product || 'Item';
+        const name = item.name || item.product || 'صنف';
         const qty = item.qty ?? item.quantity ?? '';
-        const unit = item.unit || 'pcs';
-        return `${name} x${qty}${unit}`;
+        const unit = item.unit || 'كجم';
+        return `${name} ${qty}${unit}`;
       })
-      .join(', ');
+      .join('، ');
   } catch {
     return undefined;
   }

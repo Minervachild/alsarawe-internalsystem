@@ -332,10 +332,24 @@ export default function Expenses() {
       const employeeName = exp.employees?.name || '';
       const paymentName = exp.expense_payment_methods?.name || '';
 
-      const prompt = `سجل مصروف "${exp.title || ''}" من ${sellerName} بمبلغ ${exp.amount} ريال (${exp.vat_included ? 'شامل الضريبة' : 'غير شامل'}) في حساب ${accountName} بطريقة دفع ${paymentName} بواسطة ${employeeName} بتاريخ ${exp.date}${exp.notes ? ` ملاحظات: ${exp.notes}` : ''}${exp.invoice_number ? ` رقم الفاتورة: ${exp.invoice_number}` : ''}`;
+      const webhookPayload = {
+        type: 'expense',
+        entry_id: exp.id,
+        title: exp.title || '',
+        seller: sellerName,
+        account: accountName,
+        payment_method: paymentName,
+        employee: employeeName,
+        amount: exp.amount,
+        vat_included: exp.vat_included,
+        date: exp.date,
+        invoice_number: exp.invoice_number || '',
+        notes: exp.notes || '',
+        prompt: `سجل مصروف "${exp.title || ''}" من ${sellerName} بمبلغ ${exp.amount} ريال (${exp.vat_included ? 'شامل الضريبة' : 'غير شامل'}) في حساب ${accountName} بطريقة دفع ${paymentName} بواسطة ${employeeName} بتاريخ ${exp.date}${exp.notes ? ` ملاحظات: ${exp.notes}` : ''}${exp.invoice_number ? ` رقم الفاتورة: ${exp.invoice_number}` : ''}`,
+      };
 
-      const { data: webhookResult } = await supabase.functions.invoke('send-expense-webhook', {
-        body: { prompt },
+      const { data: webhookResult } = await supabase.functions.invoke('send-to-webhook', {
+        body: webhookPayload,
       });
 
       if (webhookResult?.response) {
