@@ -68,7 +68,15 @@ export function QuickAddOrderDialog({
     setCells(prev => ({ ...prev, [columnId]: value }));
   };
 
+  const clientCol = columns.find(c => c.type === 'relation' || c.name === 'Client');
+  const itemsCol = columns.find(c => c.type === 'items_qty' || c.name === 'Items');
+
+  const hasClient = !!(clientCol && cells[clientCol.id]);
+  const hasItems = !!(itemsCol && Array.isArray(cells[itemsCol.id]) && cells[itemsCol.id].length > 0 && cells[itemsCol.id].every((i: any) => i.name && i.qty));
+  const canSubmit = hasClient && hasItems;
+
   const handleSubmit = () => {
+    if (!canSubmit) return;
     onSubmit(cells);
     onOpenChange(false);
   };
