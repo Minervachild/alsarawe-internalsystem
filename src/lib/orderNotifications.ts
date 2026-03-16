@@ -7,10 +7,10 @@ import { supabase } from '@/integrations/supabase/client';
  */
 export async function notifyNewOrder(clientName: string, orderSummary?: string) {
   try {
-    const title = 'New B2B Order 🛒';
-    const client = clientName || 'Unknown';
-    let message = `Hey you got 1 new order for ${client}`;
-    if (orderSummary) message += `: ${orderSummary}`;
+    const title = 'طلب B2B جديد';
+    const client = clientName || 'غير معروف';
+    let message = `طلب جديد من ${client}`;
+    if (orderSummary) message += ` — ${orderSummary}`;
 
     // In-app notifications for every user
     const { data: allProfiles } = await supabase.from('profiles_public').select('id');
@@ -26,7 +26,7 @@ export async function notifyNewOrder(clientName: string, orderSummary?: string) 
 
     // ntfy push (fire-and-forget)
     supabase.functions.invoke('send-ntfy', {
-      body: { title, message, tags: 'package,new' },
+      body: { title, message, tags: 'package,moneybag' },
     }).catch(err => console.warn('ntfy notification failed:', err));
   } catch (err) {
     console.warn('Order notification failed:', err);
@@ -50,12 +50,12 @@ export function buildOrderSummary(cells: Record<string, any>, columns: { id: str
 
     return items
       .map((item: any) => {
-        const name = item.name || item.product || 'Item';
+        const name = item.name || item.product || 'صنف';
         const qty = item.qty ?? item.quantity ?? '';
-        const unit = item.unit || 'pcs';
-        return `${name} x${qty}${unit}`;
+        const unit = item.unit || 'كجم';
+        return `${name} ${qty}${unit}`;
       })
-      .join(', ');
+      .join('، ');
   } catch {
     return undefined;
   }

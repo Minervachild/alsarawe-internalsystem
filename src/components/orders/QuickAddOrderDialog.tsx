@@ -68,7 +68,15 @@ export function QuickAddOrderDialog({
     setCells(prev => ({ ...prev, [columnId]: value }));
   };
 
+  const clientCol = columns.find(c => c.type === 'relation' || c.name === 'Client');
+  const itemsCol = columns.find(c => c.type === 'items_qty' || c.name === 'Items');
+
+  const hasClient = !!(clientCol && cells[clientCol.id]);
+  const hasItems = !!(itemsCol && Array.isArray(cells[itemsCol.id]) && cells[itemsCol.id].length > 0 && cells[itemsCol.id].every((i: any) => i.name && i.qty));
+  const canSubmit = hasClient && hasItems;
+
   const handleSubmit = () => {
+    if (!canSubmit) return;
     onSubmit(cells);
     onOpenChange(false);
   };
@@ -195,7 +203,7 @@ export function QuickAddOrderDialog({
             Quick Add Order
           </DialogTitle>
           <DialogDescription>
-            Add a new order to the pipeline. All fields are optional.
+            Add a new order to the pipeline. Client and Items with quantities are required.
           </DialogDescription>
         </DialogHeader>
 
@@ -207,8 +215,13 @@ export function QuickAddOrderDialog({
             </div>
           ))}
 
+          {!canSubmit && (
+            <p className="text-xs text-destructive">Please select a client and add at least one item with a quantity.</p>
+          )}
+
           <Button
             onClick={handleSubmit}
+            disabled={!canSubmit}
             className="w-full rounded-xl bg-destructive hover:bg-destructive/90 text-white"
           >
             <Zap className="w-4 h-4 mr-2" />

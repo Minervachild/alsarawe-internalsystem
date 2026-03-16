@@ -136,8 +136,8 @@ export function SmartQuickAdd({ open, onOpenChange, clients, columns, onSubmit }
   const effectiveClient = effectiveClientId ? clients.find(c => c.id === effectiveClientId) : null;
   const ambiguousFromLines = parsedLines.find(r => (r.parsed.ambiguousClients?.length || 0) > 0);
   const needsClientSelection = !effectiveClientId && !!ambiguousFromLines;
-  const validItems = parsedLines.filter(i => i.parsed.productName || i.parsed.quantity);
-  const canSubmit = validItems.length > 0;
+  const validItems = parsedLines.filter(i => i.parsed.productName && i.parsed.quantity);
+  const canSubmit = validItems.length > 0 && !!effectiveClientId;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
