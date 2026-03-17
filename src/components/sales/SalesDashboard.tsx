@@ -500,7 +500,7 @@ export function SalesDashboard() {
                             <RotateCcw className="w-3.5 h-3.5" />
                             Restore
                           </Button>
-                        ) : entry.status === 'pending' ? (
+                        ) : entry.status === 'submitted' ? (
                           <div className="flex items-center justify-center gap-1">
                             <Button
                               variant="ghost"
