@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Clock, Filter, Banknote, Calendar, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Plus, Clock, Filter, Banknote, Calendar, ChevronDown, ChevronUp, Trash2, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +34,7 @@ interface OvertimeEntry {
   employee_id: string;
   hours: number;
   amount: number;
+  paid_amount: number;
   date: string;
   is_paid: boolean;
   type: string;
@@ -60,6 +61,9 @@ export default function Overtime() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filterEmployee, setFilterEmployee] = useState<string>('all');
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentEntry, setPaymentEntry] = useState<OvertimeEntry | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -199,11 +203,31 @@ export default function Overtime() {
     setShowDailyBreakdown(false);
   };
 
-  const markAsPaid = async (id: string) => {
+  const openPaymentDialog = (entry: OvertimeEntry) => {
+    setPaymentEntry(entry);
+    const remaining = entry.amount - (entry.paid_amount || 0);
+    setPaymentAmount(String(remaining));
+    setPaymentDialogOpen(true);
+  };
+
+  const handleRecordPayment = async () => {
+    if (!paymentEntry) return;
+    const payAmt = parseFloat(paymentAmount) || 0;
+    if (payAmt <= 0) {
+      toast({ title: 'Enter a valid amount', variant: 'destructive' });
+      return;
+    }
+    const newPaidAmount = (paymentEntry.paid_amount || 0) + payAmt;
+    const fullyPaid = newPaidAmount >= paymentEntry.amount;
+
     try {
-      const { error } = await supabase.from('overtime').update({ is_paid: true }).eq('id', id);
+      const { error } = await supabase
+        .from('overtime')
+        .update({ paid_amount: newPaidAmount, is_paid: fullyPaid })
+        .eq('id', paymentEntry.id);
       if (error) throw error;
-      toast({ title: 'Marked as paid' });
+      toast({ title: fullyPaid ? 'Fully paid!' : `Recorded ﷼${payAmt.toFixed(2)} payment` });
+      setPaymentDialogOpen(false);
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -212,17 +236,18 @@ export default function Overtime() {
 
   const markAllPaid = async (employeeId: string) => {
     try {
-      const unpaidIds = filteredEntries
-        .filter(e => e.employee_id === employeeId && !e.is_paid)
-        .map(e => e.id);
-      if (unpaidIds.length === 0) return;
+      const unpaidEntries = filteredEntries
+        .filter(e => e.employee_id === employeeId && !e.is_paid);
+      if (unpaidEntries.length === 0) return;
 
-      const { error } = await supabase
-        .from('overtime')
-        .update({ is_paid: true })
-        .in('id', unpaidIds);
-      if (error) throw error;
-      toast({ title: `Marked ${unpaidIds.length} entries as paid` });
+      // For each unpaid entry, set paid_amount = amount and is_paid = true
+      for (const entry of unpaidEntries) {
+        await supabase
+          .from('overtime')
+          .update({ paid_amount: entry.amount, is_paid: true })
+          .eq('id', entry.id);
+      }
+      toast({ title: `Marked ${unpaidEntries.length} entries as fully paid` });
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -275,13 +300,14 @@ export default function Overtime() {
         summary.offDayAmount += entry.amount;
       }
       summary.totalAmount += entry.amount;
-      if (!entry.is_paid) summary.unpaidAmount += entry.amount;
+      const remaining = entry.amount - (entry.paid_amount || 0);
+      if (remaining > 0) summary.unpaidAmount += remaining;
       summary.entries.push(entry);
     }
     return Array.from(map.values());
   })();
 
-  const totalUnpaid = filteredEntries.filter(e => !e.is_paid).reduce((sum, e) => sum + e.amount, 0);
+  const totalUnpaid = filteredEntries.reduce((sum, e) => sum + Math.max(0, e.amount - (e.paid_amount || 0)), 0);
   const totalOvertimeHours = filteredEntries.filter(e => e.type === 'overtime').reduce((sum, e) => sum + e.hours, 0);
   const totalOffDayDays = filteredEntries.filter(e => e.type === 'off_day').reduce((sum, e) => sum + e.hours, 0);
 
@@ -504,16 +530,17 @@ export default function Overtime() {
                                 <td className="px-4 py-2 text-sm">{entry.type === 'overtime' ? `${entry.hours}h` : `${entry.hours} day${entry.hours !== 1 ? 's' : ''}`}</td>
                                 <td className="px-4 py-2 text-sm font-medium">{entry.amount.toFixed(2)} ﷼</td>
                                 <td className="px-4 py-2">
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.is_paid ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
-                                    {entry.is_paid ? 'Paid' : 'Pending'}
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.is_paid ? 'bg-success/10 text-success' : (entry.paid_amount || 0) > 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-warning/10 text-warning'}`}>
+                                    {entry.is_paid ? 'Paid' : (entry.paid_amount || 0) > 0 ? `Partial (﷼${(entry.paid_amount || 0).toFixed(0)})` : 'Unpaid'}
                                   </span>
                                 </td>
                                 {isAdmin && (
                                   <td className="px-4 py-2 text-right">
                                     <div className="flex items-center justify-end gap-1">
                                       {!entry.is_paid && (
-                                        <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => markAsPaid(entry.id)}>
-                                          Mark Paid
+                                        <Button size="sm" variant="ghost" className="text-xs h-7 gap-1" onClick={() => openPaymentDialog(entry)}>
+                                          <DollarSign className="w-3 h-3" />
+                                          {(entry.paid_amount || 0) > 0 ? 'Add Payment' : 'Record Payment'}
                                         </Button>
                                       )}
                                       <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive" onClick={() => deleteEntry(entry.id)}>
@@ -703,6 +730,60 @@ export default function Overtime() {
               <Button type="submit">Add Entry</Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Partial Payment Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display">Record Payment</DialogTitle>
+          </DialogHeader>
+          {paymentEntry && (
+            <div className="space-y-4 mt-2">
+              <div className="p-3 bg-muted rounded-lg space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total Amount</span>
+                  <span className="font-semibold">{paymentEntry.amount.toFixed(2)} ﷼</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Already Paid</span>
+                  <span className="font-medium text-emerald-600">{(paymentEntry.paid_amount || 0).toFixed(2)} ﷼</span>
+                </div>
+                <div className="flex justify-between text-sm border-t border-border/50 pt-1 mt-1">
+                  <span className="text-muted-foreground">Remaining</span>
+                  <span className="font-bold text-warning">{(paymentEntry.amount - (paymentEntry.paid_amount || 0)).toFixed(2)} ﷼</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Amount</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={paymentEntry.amount - (paymentEntry.paid_amount || 0)}
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setPaymentAmount(String(paymentEntry.amount - (paymentEntry.paid_amount || 0)))}
+                  >
+                    Pay Full Remaining
+                  </Button>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleRecordPayment}>Record Payment</Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>

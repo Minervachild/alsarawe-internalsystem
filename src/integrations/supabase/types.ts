@@ -1075,6 +1075,7 @@ export type Database = {
           hours: number
           id: string
           is_paid: boolean | null
+          paid_amount: number
           type: string
         }
         Insert: {
@@ -1085,6 +1086,7 @@ export type Database = {
           hours: number
           id?: string
           is_paid?: boolean | null
+          paid_amount?: number
           type?: string
         }
         Update: {
@@ -1095,6 +1097,7 @@ export type Database = {
           hours?: number
           id?: string
           is_paid?: boolean | null
+          paid_amount?: number
           type?: string
         }
         Relationships: [
