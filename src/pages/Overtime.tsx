@@ -732,6 +732,60 @@ export default function Overtime() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Partial Payment Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display">Record Payment</DialogTitle>
+          </DialogHeader>
+          {paymentEntry && (
+            <div className="space-y-4 mt-2">
+              <div className="p-3 bg-muted rounded-lg space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total Amount</span>
+                  <span className="font-semibold">{paymentEntry.amount.toFixed(2)} ﷼</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Already Paid</span>
+                  <span className="font-medium text-emerald-600">{(paymentEntry.paid_amount || 0).toFixed(2)} ﷼</span>
+                </div>
+                <div className="flex justify-between text-sm border-t border-border/50 pt-1 mt-1">
+                  <span className="text-muted-foreground">Remaining</span>
+                  <span className="font-bold text-warning">{(paymentEntry.amount - (paymentEntry.paid_amount || 0)).toFixed(2)} ﷼</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Amount</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={paymentEntry.amount - (paymentEntry.paid_amount || 0)}
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setPaymentAmount(String(paymentEntry.amount - (paymentEntry.paid_amount || 0)))}
+                  >
+                    Pay Full Remaining
+                  </Button>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleRecordPayment}>Record Payment</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
