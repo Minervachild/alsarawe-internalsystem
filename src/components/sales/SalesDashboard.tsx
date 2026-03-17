@@ -463,9 +463,11 @@ export function SalesDashboard() {
                       <td className="p-3 text-muted-foreground">
                         {(entry as any).employees?.name || '—'}
                       </td>
+                      {canSeeTotals && (
                       <td className="p-3 text-right font-semibold">
                         ﷼{(Number(entry.cash_amount) + Number(entry.card_amount)).toLocaleString()}
                       </td>
+                      )}
                       <td className="p-3 text-center">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1 ${
                           entry.status === 'approved'
