@@ -311,12 +311,12 @@ export default function Expenses() {
     try {
       const { error } = await (supabase as any)
         .from('daily_expenses')
-        .update({ status: 'pending', approved_by: null, approved_at: null })
+        .update({ status: 'submitted', approved_by: null, approved_at: null })
         .eq('id', exp.id);
       if (error) throw error;
 
-      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'pending', approved_by: null, approved_at: null } : e));
-      toast({ title: 'Approval revoked — expense is pending again' });
+      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'submitted', approved_by: null, approved_at: null } : e));
+      toast({ title: 'Approval revoked — expense is submitted again' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
