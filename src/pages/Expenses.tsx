@@ -293,12 +293,12 @@ export default function Expenses() {
     try {
       const { error } = await (supabase as any)
         .from('daily_expenses')
-        .update({ status: 'pending' })
+        .update({ status: 'submitted' })
         .eq('id', exp.id);
       if (error) throw error;
 
-      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'pending' } : e));
-      toast({ title: 'Expense restored to pending' });
+      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'submitted' } : e));
+      toast({ title: 'Expense restored to submitted' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
