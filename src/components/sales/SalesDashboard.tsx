@@ -196,12 +196,12 @@ export function SalesDashboard() {
     try {
       const { error } = await supabase
         .from('sales_entries')
-        .update({ status: 'pending' })
+        .update({ status: 'submitted' })
         .eq('id', entry.id);
       if (error) throw error;
 
-      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'pending' } : e));
-      toast({ title: 'Sale restored to pending' });
+      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'submitted' } : e));
+      toast({ title: 'Sale restored to submitted' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
