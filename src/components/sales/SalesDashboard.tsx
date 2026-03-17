@@ -422,7 +422,7 @@ export function SalesDashboard() {
                   <th className="text-left p-3 font-medium text-muted-foreground">Branch</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Shift</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Employee</th>
-                  <th className="text-right p-3 font-medium text-muted-foreground">Total</th>
+                  {canSeeTotals && <th className="text-right p-3 font-medium text-muted-foreground">Total</th>}
                   <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
                   <th className="text-center p-3 font-medium text-muted-foreground">Proof</th>
                   <th className="text-center p-3 font-medium text-muted-foreground">Actions</th>
