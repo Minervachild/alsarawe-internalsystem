@@ -61,6 +61,9 @@ export default function Overtime() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filterEmployee, setFilterEmployee] = useState<string>('all');
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentEntry, setPaymentEntry] = useState<OvertimeEntry | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
