@@ -300,7 +300,8 @@ export default function Overtime() {
         summary.offDayAmount += entry.amount;
       }
       summary.totalAmount += entry.amount;
-      if (!entry.is_paid) summary.unpaidAmount += entry.amount;
+      const remaining = entry.amount - (entry.paid_amount || 0);
+      if (remaining > 0) summary.unpaidAmount += remaining;
       summary.entries.push(entry);
     }
     return Array.from(map.values());
