@@ -471,7 +471,7 @@ export function SalesDashboard() {
                           {entry.status === 'approved' ? <CheckCircle className="w-3 h-3" /> :
                            entry.status === 'rejected' ? <XCircle className="w-3 h-3" /> :
                            <Clock className="w-3 h-3" />}
-                          {entry.status === 'approved' ? 'Approved' : entry.status === 'rejected' ? 'Rejected' : 'Pending'}
+                          {entry.status === 'approved' ? 'Approved' : entry.status === 'rejected' ? 'Rejected' : 'Submitted'}
                         </span>
                       </td>
                       <td className="p-3 text-center">
