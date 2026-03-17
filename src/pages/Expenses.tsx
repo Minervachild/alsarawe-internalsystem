@@ -201,7 +201,7 @@ export default function Expenses() {
         date,
         notes: notes || null,
         created_by: user?.id,
-        status: 'pending',
+        status: 'submitted',
       });
       if (error) throw error;
 
