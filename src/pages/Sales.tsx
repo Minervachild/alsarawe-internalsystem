@@ -158,9 +158,6 @@ export default function Sales() {
                       <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                         <Building2 className="w-3 h-3" />
                         {(entry as any).branches?.name || '—'}
-                        <span className="ml-2 font-medium text-foreground">
-                          ﷼{(Number(entry.cash_amount) + Number(entry.card_amount)).toLocaleString()}
-                        </span>
                       </div>
                     </div>
                     {entry.status === 'submitted' && (
