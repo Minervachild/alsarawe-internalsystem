@@ -307,7 +307,7 @@ export default function Overtime() {
     return Array.from(map.values());
   })();
 
-  const totalUnpaid = filteredEntries.filter(e => !e.is_paid).reduce((sum, e) => sum + e.amount, 0);
+  const totalUnpaid = filteredEntries.reduce((sum, e) => sum + Math.max(0, e.amount - (e.paid_amount || 0)), 0);
   const totalOvertimeHours = filteredEntries.filter(e => e.type === 'overtime').reduce((sum, e) => sum + e.hours, 0);
   const totalOffDayDays = filteredEntries.filter(e => e.type === 'off_day').reduce((sum, e) => sum + e.hours, 0);
 
