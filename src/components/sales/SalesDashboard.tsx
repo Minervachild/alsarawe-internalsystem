@@ -58,8 +58,12 @@ export function SalesDashboard() {
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [editEntry, setEditEntry] = useState<SalesEntry | null>(null);
   const [editOpen, setEditOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
+
+  // Only Faris and Abo zeed (CEO) can see sales totals
+  const SALES_TOTAL_ALLOWED_USERS = ['fe6e37be-e84e-484a-9b3d-061f3e3a2215', '140f582c-c377-40b1-8524-e8d5e77adc01'];
+  const canSeeTotals = profile ? SALES_TOTAL_ALLOWED_USERS.includes(profile.id) : false;
 
   useEffect(() => {
     fetchData();
@@ -358,7 +362,8 @@ export function SalesDashboard() {
         )}
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - only for authorized users */}
+      {canSeeTotals && (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
@@ -389,6 +394,7 @@ export function SalesDashboard() {
           <p className="text-xl font-semibold">{stats.avgTransactions}</p>
         </div>
       </div>
+      )}
 
       {/* Dual View: Table + Bot Register */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -416,7 +422,7 @@ export function SalesDashboard() {
                   <th className="text-left p-3 font-medium text-muted-foreground">Branch</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Shift</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Employee</th>
-                  <th className="text-right p-3 font-medium text-muted-foreground">Total</th>
+                  {canSeeTotals && <th className="text-right p-3 font-medium text-muted-foreground">Total</th>}
                   <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
                   <th className="text-center p-3 font-medium text-muted-foreground">Proof</th>
                   <th className="text-center p-3 font-medium text-muted-foreground">Actions</th>
@@ -425,7 +431,7 @@ export function SalesDashboard() {
               <tbody>
                 {filteredEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                    <td colSpan={canSeeTotals ? 8 : 7} className="p-8 text-center text-muted-foreground">
                       No sales entries found
                     </td>
                   </tr>
@@ -457,9 +463,11 @@ export function SalesDashboard() {
                       <td className="p-3 text-muted-foreground">
                         {(entry as any).employees?.name || '—'}
                       </td>
+                      {canSeeTotals && (
                       <td className="p-3 text-right font-semibold">
                         ﷼{(Number(entry.cash_amount) + Number(entry.card_amount)).toLocaleString()}
                       </td>
+                      )}
                       <td className="p-3 text-center">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1 ${
                           entry.status === 'approved'
