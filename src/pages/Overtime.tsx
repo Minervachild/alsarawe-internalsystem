@@ -530,16 +530,17 @@ export default function Overtime() {
                                 <td className="px-4 py-2 text-sm">{entry.type === 'overtime' ? `${entry.hours}h` : `${entry.hours} day${entry.hours !== 1 ? 's' : ''}`}</td>
                                 <td className="px-4 py-2 text-sm font-medium">{entry.amount.toFixed(2)} ﷼</td>
                                 <td className="px-4 py-2">
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.is_paid ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
-                                    {entry.is_paid ? 'Paid' : 'Pending'}
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.is_paid ? 'bg-success/10 text-success' : (entry.paid_amount || 0) > 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-warning/10 text-warning'}`}>
+                                    {entry.is_paid ? 'Paid' : (entry.paid_amount || 0) > 0 ? `Partial (﷼${(entry.paid_amount || 0).toFixed(0)})` : 'Unpaid'}
                                   </span>
                                 </td>
                                 {isAdmin && (
                                   <td className="px-4 py-2 text-right">
                                     <div className="flex items-center justify-end gap-1">
                                       {!entry.is_paid && (
-                                        <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => markAsPaid(entry.id)}>
-                                          Mark Paid
+                                        <Button size="sm" variant="ghost" className="text-xs h-7 gap-1" onClick={() => openPaymentDialog(entry)}>
+                                          <DollarSign className="w-3 h-3" />
+                                          {(entry.paid_amount || 0) > 0 ? 'Add Payment' : 'Record Payment'}
                                         </Button>
                                       )}
                                       <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive" onClick={() => deleteEntry(entry.id)}>
