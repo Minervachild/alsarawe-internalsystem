@@ -44,21 +44,27 @@ export default function Sales() {
     if (user && profile) {
       fetchEmployeeId();
     } else {
+      setEmployeeId(null);
       setIsLoading(false);
     }
   }, [user, profile, authLoading]);
 
   const fetchEmployeeId = async () => {
-    try {
-      const { data } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('profile_id', profile?.id)
-        .maybeSingle();
+    if (!user) {
+      setEmployeeId(null);
+      setIsLoading(false);
+      return;
+    }
 
-      setEmployeeId(data?.id || null);
+    try {
+      const { data, error } = await supabase.rpc('get_employee_id_for_user', {
+        _user_id: user.id,
+      });
+
+      if (error) throw error;
+      setEmployeeId(data || null);
     } catch {
-      // ignore
+      setEmployeeId(null);
     } finally {
       setIsLoading(false);
     }
