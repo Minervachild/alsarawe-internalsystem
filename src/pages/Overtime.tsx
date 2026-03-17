@@ -203,11 +203,31 @@ export default function Overtime() {
     setShowDailyBreakdown(false);
   };
 
-  const markAsPaid = async (id: string) => {
+  const openPaymentDialog = (entry: OvertimeEntry) => {
+    setPaymentEntry(entry);
+    const remaining = entry.amount - (entry.paid_amount || 0);
+    setPaymentAmount(String(remaining));
+    setPaymentDialogOpen(true);
+  };
+
+  const handleRecordPayment = async () => {
+    if (!paymentEntry) return;
+    const payAmt = parseFloat(paymentAmount) || 0;
+    if (payAmt <= 0) {
+      toast({ title: 'Enter a valid amount', variant: 'destructive' });
+      return;
+    }
+    const newPaidAmount = (paymentEntry.paid_amount || 0) + payAmt;
+    const fullyPaid = newPaidAmount >= paymentEntry.amount;
+
     try {
-      const { error } = await supabase.from('overtime').update({ is_paid: true }).eq('id', id);
+      const { error } = await supabase
+        .from('overtime')
+        .update({ paid_amount: newPaidAmount, is_paid: fullyPaid })
+        .eq('id', paymentEntry.id);
       if (error) throw error;
-      toast({ title: 'Marked as paid' });
+      toast({ title: fullyPaid ? 'Fully paid!' : `Recorded ﷼${payAmt.toFixed(2)} payment` });
+      setPaymentDialogOpen(false);
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -216,17 +236,18 @@ export default function Overtime() {
 
   const markAllPaid = async (employeeId: string) => {
     try {
-      const unpaidIds = filteredEntries
-        .filter(e => e.employee_id === employeeId && !e.is_paid)
-        .map(e => e.id);
-      if (unpaidIds.length === 0) return;
+      const unpaidEntries = filteredEntries
+        .filter(e => e.employee_id === employeeId && !e.is_paid);
+      if (unpaidEntries.length === 0) return;
 
-      const { error } = await supabase
-        .from('overtime')
-        .update({ is_paid: true })
-        .in('id', unpaidIds);
-      if (error) throw error;
-      toast({ title: `Marked ${unpaidIds.length} entries as paid` });
+      // For each unpaid entry, set paid_amount = amount and is_paid = true
+      for (const entry of unpaidEntries) {
+        await supabase
+          .from('overtime')
+          .update({ paid_amount: entry.amount, is_paid: true })
+          .eq('id', entry.id);
+      }
+      toast({ title: `Marked ${unpaidEntries.length} entries as fully paid` });
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
