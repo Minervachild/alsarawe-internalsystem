@@ -58,8 +58,12 @@ export function SalesDashboard() {
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [editEntry, setEditEntry] = useState<SalesEntry | null>(null);
   const [editOpen, setEditOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
+
+  // Only Faris and Abo zeed (CEO) can see sales totals
+  const SALES_TOTAL_ALLOWED_USERS = ['fe6e37be-e84e-484a-9b3d-061f3e3a2215', '140f582c-c377-40b1-8524-e8d5e77adc01'];
+  const canSeeTotals = profile ? SALES_TOTAL_ALLOWED_USERS.includes(profile.id) : false;
 
   useEffect(() => {
     fetchData();
