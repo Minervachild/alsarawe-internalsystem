@@ -630,7 +630,7 @@ export default function Expenses() {
                             {exp.status === 'approved' ? <CheckCircle className="w-3 h-3" /> :
                              exp.status === 'rejected' ? <XCircle className="w-3 h-3" /> :
                              <Clock className="w-3 h-3" />}
-                            {exp.status === 'approved' ? 'Approved' : exp.status === 'rejected' ? 'Rejected' : 'Pending'}
+                            {exp.status === 'approved' ? 'Approved' : exp.status === 'rejected' ? 'Rejected' : 'Submitted'}
                           </span>
                         </td>
                         <td className="p-3 text-center">
