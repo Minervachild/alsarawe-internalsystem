@@ -362,7 +362,8 @@ export function SalesDashboard() {
         )}
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - only for authorized users */}
+      {canSeeTotals && (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
@@ -393,6 +394,7 @@ export function SalesDashboard() {
           <p className="text-xl font-semibold">{stats.avgTransactions}</p>
         </div>
       </div>
+      )}
 
       {/* Dual View: Table + Bot Register */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
