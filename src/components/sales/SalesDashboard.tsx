@@ -214,12 +214,12 @@ export function SalesDashboard() {
     try {
       const { error } = await supabase
         .from('sales_entries')
-        .update({ status: 'pending', approved_by: null, approved_at: null })
+        .update({ status: 'submitted', approved_by: null, approved_at: null })
         .eq('id', entry.id);
       if (error) throw error;
 
-      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'pending', approved_by: null, approved_at: null } as any : e));
-      toast({ title: 'Approval revoked — entry is pending again' });
+      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'submitted', approved_by: null, approved_at: null } as any : e));
+      toast({ title: 'Approval revoked — entry is submitted again' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
