@@ -207,7 +207,7 @@ export default function Expenses() {
 
       setTitle(''); setSellerId(''); setAccountId(''); setEmployeeId('');
       setInvoiceNumber(''); setAmount(''); setNotes('');
-      toast({ title: 'Expense added (pending approval)' });
+      toast({ title: 'Expense submitted (awaiting approval)' });
       fetchAll();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
