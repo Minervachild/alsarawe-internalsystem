@@ -688,7 +688,7 @@ export default function Expenses() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                          ) : exp.status === 'pending' ? (
+                          ) : exp.status === 'submitted' ? (
                             <span className="text-xs text-muted-foreground">Awaiting</span>
                           ) : null}
                         </td>
