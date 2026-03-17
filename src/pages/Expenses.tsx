@@ -201,13 +201,13 @@ export default function Expenses() {
         date,
         notes: notes || null,
         created_by: user?.id,
-        status: 'pending',
+        status: 'submitted',
       });
       if (error) throw error;
 
       setTitle(''); setSellerId(''); setAccountId(''); setEmployeeId('');
       setInvoiceNumber(''); setAmount(''); setNotes('');
-      toast({ title: 'Expense added (pending approval)' });
+      toast({ title: 'Expense submitted (awaiting approval)' });
       fetchAll();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -293,12 +293,12 @@ export default function Expenses() {
     try {
       const { error } = await (supabase as any)
         .from('daily_expenses')
-        .update({ status: 'pending' })
+        .update({ status: 'submitted' })
         .eq('id', exp.id);
       if (error) throw error;
 
-      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'pending' } : e));
-      toast({ title: 'Expense restored to pending' });
+      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'submitted' } : e));
+      toast({ title: 'Expense restored to submitted' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -311,12 +311,12 @@ export default function Expenses() {
     try {
       const { error } = await (supabase as any)
         .from('daily_expenses')
-        .update({ status: 'pending', approved_by: null, approved_at: null })
+        .update({ status: 'submitted', approved_by: null, approved_at: null })
         .eq('id', exp.id);
       if (error) throw error;
 
-      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'pending', approved_by: null, approved_at: null } : e));
-      toast({ title: 'Approval revoked — expense is pending again' });
+      setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, status: 'submitted', approved_by: null, approved_at: null } : e));
+      toast({ title: 'Approval revoked — expense is submitted again' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -630,7 +630,7 @@ export default function Expenses() {
                             {exp.status === 'approved' ? <CheckCircle className="w-3 h-3" /> :
                              exp.status === 'rejected' ? <XCircle className="w-3 h-3" /> :
                              <Clock className="w-3 h-3" />}
-                            {exp.status === 'approved' ? 'Approved' : exp.status === 'rejected' ? 'Rejected' : 'Pending'}
+                            {exp.status === 'approved' ? 'Approved' : exp.status === 'rejected' ? 'Rejected' : 'Submitted'}
                           </span>
                         </td>
                         <td className="p-3 text-center">
@@ -645,7 +645,7 @@ export default function Expenses() {
                               <RotateCcw className="w-3.5 h-3.5" />
                               Restore
                             </Button>
-                          ) : exp.status === 'pending' && isAdmin ? (
+                          ) : exp.status === 'submitted' && isAdmin ? (
                             <div className="flex items-center justify-center gap-1">
                               <Button
                                 variant="ghost"
@@ -688,7 +688,7 @@ export default function Expenses() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                          ) : exp.status === 'pending' ? (
+                          ) : exp.status === 'submitted' ? (
                             <span className="text-xs text-muted-foreground">Awaiting</span>
                           ) : null}
                         </td>

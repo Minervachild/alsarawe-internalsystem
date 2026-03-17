@@ -163,7 +163,7 @@ export default function Sales() {
                         </span>
                       </div>
                     </div>
-                    {entry.status === 'pending' && (
+                    {entry.status === 'submitted' && (
                       <Button
                         variant="ghost"
                         size="sm"

@@ -196,12 +196,12 @@ export function SalesDashboard() {
     try {
       const { error } = await supabase
         .from('sales_entries')
-        .update({ status: 'pending' })
+        .update({ status: 'submitted' })
         .eq('id', entry.id);
       if (error) throw error;
 
-      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'pending' } : e));
-      toast({ title: 'Sale restored to pending' });
+      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'submitted' } : e));
+      toast({ title: 'Sale restored to submitted' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -214,12 +214,12 @@ export function SalesDashboard() {
     try {
       const { error } = await supabase
         .from('sales_entries')
-        .update({ status: 'pending', approved_by: null, approved_at: null })
+        .update({ status: 'submitted', approved_by: null, approved_at: null })
         .eq('id', entry.id);
       if (error) throw error;
 
-      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'pending', approved_by: null, approved_at: null } as any : e));
-      toast({ title: 'Approval revoked — entry is pending again' });
+      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'submitted', approved_by: null, approved_at: null } as any : e));
+      toast({ title: 'Approval revoked — entry is submitted again' });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
@@ -339,7 +339,7 @@ export function SalesDashboard() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="submitted">Submitted</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
@@ -471,7 +471,7 @@ export function SalesDashboard() {
                           {entry.status === 'approved' ? <CheckCircle className="w-3 h-3" /> :
                            entry.status === 'rejected' ? <XCircle className="w-3 h-3" /> :
                            <Clock className="w-3 h-3" />}
-                          {entry.status === 'approved' ? 'Approved' : entry.status === 'rejected' ? 'Rejected' : 'Pending'}
+                          {entry.status === 'approved' ? 'Approved' : entry.status === 'rejected' ? 'Rejected' : 'Submitted'}
                         </span>
                       </td>
                       <td className="p-3 text-center">
@@ -500,7 +500,7 @@ export function SalesDashboard() {
                             <RotateCcw className="w-3.5 h-3.5" />
                             Restore
                           </Button>
-                        ) : entry.status === 'pending' ? (
+                        ) : entry.status === 'submitted' ? (
                           <div className="flex items-center justify-center gap-1">
                             <Button
                               variant="ghost"
