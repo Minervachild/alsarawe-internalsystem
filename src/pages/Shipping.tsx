@@ -12,23 +12,30 @@ import { Package, FileText, Download, Plus, UserCheck, Loader2, Truck, X, Pencil
 import { format } from 'date-fns';
 
 const CITIES = [
-  // Major cities
-  'Riyadh', 'Jeddah', 'Makkah', 'Madinah', 'Dammam', 'Taif', 'Tabuk', 'Buraidah', 'Khamis Mushait', 'Abha',
-  'Hail', 'Najran', 'Jizan', 'Al Khobar', 'Jubail', 'Yanbu', 'Al Ahsa', 'Hafar Al Batin', 'Arar', 'Sakaka',
-  // Mid-size cities
-  'Al Qatif', 'Al Kharj', 'Unaizah', 'Ar Rass', 'Al Baha', 'Bisha', 'Al Majmaah', 'Dhahran', 'Ras Tanura',
-  'Al Qunfudhah', 'Wadi Al Dawasir', 'Dawadmi', 'Afif', 'Shaqra', 'Al Zulfi', 'Al Ghat', 'Thadiq',
-  'Hotat Bani Tamim', 'Al Muzahmiyya', 'Rumah', 'Al Hariq', 'Layla', 'Al Aflaj',
-  // Northern region
-  'Turaif', 'Rafha', 'Al Qurayyat', 'Domat Al Jandal', 'Tayma', 'Al Ula', 'Al Wajh', 'Duba', 'Haql',
-  'Umluj', 'Khaybar',
-  // Eastern region
-  'Al Hofuf', 'Al Mubarraz', 'Qatif', 'Saihat', 'Tarout', 'Al Awamiyah', 'Abqaiq', 'Khafji',
-  'Al Nairyah', 'Qaryat Al Ulya', 'Haradh', 'Al Uyun',
-  // Western region
-  'Rabigh', 'Al Lith', 'Badr', 'Khulais', 'Al Kamil', 'Thuwal', 'Mastorah',
-  // Southern region
-  'Al Namas', 'Sarat Abidah', 'Tanomah', 'Rijal Almaa', 'Al Makhwah', 'Baljurashi', 'Al Aqiq',
+  'Abha', 'Abu Arish', 'Adham', 'Afif', 'Aflaj', 'Ahad Al Masarhah', 'Ahad Rafidah',
+  'Al Ais', 'Al Hait', 'Alardhah', 'Anak', 'Aqiq', 'Ar Rayn', 'Arar', 'As Sarrar',
+  'Asfan', 'Ash Shamli', 'Ash Shimasiyah', 'Ash Shinan', 'Asiyah', 'Atawilah', 'Ath Thybiyah',
+  'Badaya', 'Badr', 'Baha', 'Bahr Abu Sukaynah', 'Baqaa', 'Bareq', 'Bashayer', 'Baysh',
+  'Bijadiyah', 'Bikeryah', 'Biljurashi', 'Billasmar', 'Birk', 'Bishah', 'Buqaiq', 'Buraydah',
+  'Dair', 'Dammam', 'Darb', 'Dariyah', 'Dawmat Al Jandal', 'Dhahran', 'Dhahran Aljanoub',
+  'Dhalm', 'Dhamad', 'Dhilam', 'Dhuba', 'Dhurma', 'Dulay Rasheed', 'Duwadimi',
+  'Edabi', 'Farasan Island', 'Fayfa', 'Ghat', 'Ghazalah', 'Gizan',
+  'Habona', 'Hafar Al Baten', 'Hail', 'Hanakiyah', 'Haql', 'Haqu (Mahalah)', 'Haradh',
+  'Harajah', 'Haweyah', 'Hawtat Bani Tamim', 'Hawtat Sudair', 'Hufuf', 'Huraymila',
+  'Jamoum', 'Jeddah', 'Jubail',
+  'Khafji', 'Khamis Mushayt', 'Kharj', 'Khayber', 'Khobar', 'Khulais', 'Khurmah',
+  'Lith', 'Madinah', 'Mahani Mahd Al Dahab', 'Majardah', 'Majmaah', 'Makkah', 'Mandaq',
+  'Marat', 'Medrekah', 'Midhnab', 'Mudhaylif', 'Muhayil', 'Mukhwah', 'Muwayh', 'Muzamiyah',
+  'Nabhaniah', 'Nairiyah', 'Najran', 'Namas', 'Namera', 'Nifi', 'Oyun',
+  'Qahma', 'Qaid', 'Qarya Ulya', 'Qatif', 'Qaysumah', 'Qilwah', 'Qunfudhah', 'Qurayyat', 'Quwayiyah',
+  'Rabigh', 'Rafaya AlGimsh', 'Rafha', 'Rafiah', 'Ranyah', 'Ras Tannurah', 'Rass', 'Rayth', 'Remah',
+  'Rijal Alma', 'Riyadh', 'Riyadh Al Khabra', 'Ruwaidhah',
+  'Sabt Al Alaya', 'Sabt Shamran', 'Sabya', 'Safwa', 'Sajir', 'Samtah', 'Sarat Abida', 'Sayhat',
+  'Shaqra', 'Sharourah', 'Shuqayq', 'Sir', 'Skakah', 'Sulayyil',
+  'Taberjal', 'Tabuk', 'Taif', 'Taima', 'Tanumah', 'Tareeb', 'Taroot', 'Tathleeth', 'Thadiq',
+  'Thuwal', 'Tumair', 'Turayf', 'Turbah',
+  'Ula', 'Umlej', 'Umm As Sahik', 'Unayzah', 'Uqlat As Suqur', 'Uwayqilah', 'Uyayinah', 'Uyun Al Jiwa',
+  'Wadeen', 'Wadi Al Dawasir', 'Wadi Al Foraa', 'Wadi Bin Hashbal', 'Wadi Hali', 'Wajh', 'Wasqah',
   'Muhayil', 'Bariq', 'Al Darb', 'Abu Arish', 'Sabya', 'Samtah', 'Al Aydabi', 'Ahad Al Masarihah',
   'Baish', 'Farasan', 'Al Harjah', 'Sharorah', 'Habuna', 'Yadamah', 'Thar',
   // Central region small cities
