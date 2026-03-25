@@ -21,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ExpenseBotRegister } from '@/components/expenses/ExpenseBotRegister';
+import { InvoiceScanner } from '@/components/expenses/InvoiceScanner';
 
 interface Seller { id: string; name: string }
 interface Account { id: string; name: string }
@@ -511,10 +512,28 @@ export default function Expenses() {
 
         {/* Quick Add Form */}
         <form onSubmit={handleSubmit} className="card-premium p-5 mb-6">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-primary" />
-            Add Expense
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-primary" />
+              Add Expense
+            </h3>
+            <InvoiceScanner
+              onScanned={(data) => {
+                if (data.invoice_number) setInvoiceNumber(data.invoice_number);
+                if (data.vendor_name) {
+                  const matchedSeller = sellers.find(s => s.name.toLowerCase().includes(data.vendor_name!.toLowerCase()));
+                  if (matchedSeller) setSellerId(matchedSeller.id);
+                  else setTitle(data.vendor_name);
+                }
+                if (data.amount) setAmount(String(data.amount));
+                if (data.payment_type) {
+                  const matchedPm = paymentMethods.find(p => p.name.toLowerCase().includes(data.payment_type!.toLowerCase()));
+                  if (matchedPm) setPaymentMethodId(matchedPm.id);
+                }
+                if (data.date) setDate(data.date);
+              }}
+            />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
               <Label className="text-xs">Title</Label>
