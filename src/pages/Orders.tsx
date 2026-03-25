@@ -577,13 +577,6 @@ export default function Orders() {
                 <span className="hidden sm:inline">Smart Add</span>
               </Button>
               <Button
-                className="bg-destructive hover:bg-destructive/90 text-white rounded-xl gap-1.5 shrink-0"
-                onClick={() => setQuickAddOpen(true)}
-              >
-                <Zap className="w-4 h-4" />
-                <span className="hidden sm:inline">Quick Add</span>
-              </Button>
-              <Button
                 variant="outline"
                 className="rounded-xl gap-1.5 shrink-0"
                 onClick={handleBroadcastNewOrders}
@@ -750,64 +743,6 @@ export default function Orders() {
         </DialogContent>
       </Dialog>
 
-      {/* Quick Add Order Dialog */}
-      <QuickAddOrderDialog
-        open={quickAddOpen}
-        onOpenChange={setQuickAddOpen}
-        columns={columns}
-        clients={clients}
-        employees={employees}
-        newGroupId={groups.find(g => g.name === 'New')?.id || groups[0]?.id || ''}
-        onSubmit={async (cells) => {
-          const targetGroupId = groups.find(g => g.name === 'New')?.id || groups[0]?.id;
-          if (!targetGroupId) return;
-
-          try {
-            const groupRows = rows.filter(r => r.group_id === targetGroupId);
-            const maxPosition = groupRows.length > 0
-              ? Math.max(...groupRows.map(r => r.position)) + 1
-              : 0;
-
-            const { data: newRow, error } = await supabase
-              .from('board_rows')
-              .insert({
-                group_id: targetGroupId,
-                position: maxPosition,
-                created_by: user?.id,
-              })
-              .select()
-              .single();
-
-            if (error) throw error;
-
-            // Insert all cells in parallel
-            const cellEntries = Object.entries(cells).filter(([_, v]) => v !== undefined && v !== '' && v !== null);
-            if (cellEntries.length > 0) {
-              await Promise.all(
-                cellEntries.map(([columnId, value]) =>
-                  supabase.from('board_cells').insert({
-                    row_id: newRow.id,
-                    column_id: columnId,
-                    value,
-                  })
-                )
-              );
-            }
-
-            await fetchData();
-            // Find client name from cells
-            const clientCol = columns.find(c => c.type === 'relation' || c.name.toLowerCase().includes('client'));
-            const clientName = clientCol ? (cells[clientCol.id] as string) || 'Unknown' : 'Unknown';
-            const summary = buildOrderSummary(cells, columns);
-            notifyNewOrder(clientName, summary);
-            toast({ title: 'Order added!' });
-          } catch (error: any) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
-          }
-        }}
-        onAddColumnOption={handleAddColumnOption}
-        onAddEmployee={handleAddEmployee}
-      />
 
       {/* Smart Quick Add */}
       <SmartQuickAdd
