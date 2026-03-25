@@ -36,15 +36,8 @@ const CITIES = [
   'Thuwal', 'Tumair', 'Turayf', 'Turbah',
   'Ula', 'Umlej', 'Umm As Sahik', 'Unayzah', 'Uqlat As Suqur', 'Uwayqilah', 'Uyayinah', 'Uyun Al Jiwa',
   'Wadeen', 'Wadi Al Dawasir', 'Wadi Al Foraa', 'Wadi Bin Hashbal', 'Wadi Hali', 'Wajh', 'Wasqah',
-  'Muhayil', 'Bariq', 'Al Darb', 'Abu Arish', 'Sabya', 'Samtah', 'Al Aydabi', 'Ahad Al Masarihah',
-  'Baish', 'Farasan', 'Al Harjah', 'Sharorah', 'Habuna', 'Yadamah', 'Thar',
-  // Central region small cities
-  'Al Quway\'iyah', 'Marat', 'Al Bukayriyah', 'Al Badayea', 'Riyadh Al Khabra', 'Al Asyah',
-  'Al Mithnab', 'Al Shinan', 'Dhruma', 'Huraymila', 'Diriyah', 'Al Muzahimiyah',
-  // Other small cities & towns
-  'Turbah', 'Ranyah', 'Al Muwayh', 'Zahran Al Janub', 'Al Majardah', 'Balqarn',
-  'Tathleeth', 'Al Amaq', 'Khaibar Al Janub', 'Sabt Al Alaya',
-].sort();
+  'Yadamah', 'Yanbu', 'Yanbu Al Nakhal', 'Zulfi',
+];
 
 interface ShipmentRecord {
   awb: string;
