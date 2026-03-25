@@ -200,7 +200,7 @@ export default function Overtime() {
   };
 
   const resetForm = () => {
-    setFormData(prev => ({ ...prev, total_overtime_hours: 0, total_offday_days: 0 }));
+    setFormData(prev => ({ ...prev, total_overtime_hours: 0, total_offday_days: 0, overtime_amount_override: 0, offday_amount_override: 0 }));
     setDailyBreakdown([]);
     setShowDailyBreakdown(false);
   };
