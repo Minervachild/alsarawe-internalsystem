@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2, Sparkles, Undo2, Trash2, Bell, Loader2, Package } from 'lucide-react';
+import { Plus, Search, LayoutGrid, BarChart3, Users, Settings2, Sparkles, Undo2, Trash2, Bell, Loader2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -548,10 +548,6 @@ export default function Orders() {
                   <Users className="w-4 h-4" />
                   Employees
                 </TabsTrigger>
-                <TabsTrigger value="overtime" className="gap-2">
-                  <Clock className="w-4 h-4" />
-                  Overtime
-                </TabsTrigger>
               </TabsList>
             </div>
           </div>
@@ -693,11 +689,6 @@ export default function Orders() {
             </div>
           </TabsContent>
 
-          <TabsContent value="overtime">
-            <div className="text-center py-12 text-muted-foreground">
-              Navigate to the Overtime section from the sidebar.
-            </div>
-          </TabsContent>
         </Tabs>
       </div>
 
