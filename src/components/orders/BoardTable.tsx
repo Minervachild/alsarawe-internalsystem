@@ -261,6 +261,7 @@ export function BoardTable({
                   key={row.id}
                   row={row}
                   columns={visibleColumns}
+                  allColumns={columns}
                   clients={clients}
                   employees={employees}
                   onUpdateCell={onUpdateCell}
