@@ -341,10 +341,12 @@ export const BoardTableRow = memo(function BoardTableRow({
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
     return (
+    <>
     <div
       className={cn(
-        "grid border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors group",
-        isDragging && "opacity-50 bg-muted"
+        "grid border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors group cursor-pointer",
+        isDragging && "opacity-50 bg-muted",
+        showDetails && "bg-muted/20"
       )}
       style={{ 
         gridTemplateColumns: `40px repeat(${columns.length}, minmax(120px, 1fr)) minmax(100px, 120px) 40px` 
@@ -352,16 +354,23 @@ export const BoardTableRow = memo(function BoardTableRow({
       draggable={!isTouchDevice}
       onDragStart={!isTouchDevice ? (e) => onDragStart(e, row.id) : undefined}
       onDragEnd={!isTouchDevice ? onDragEnd : undefined}
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (hiddenColumns.length > 0) setShowDetails(!showDetails);
+      }}
     >
-      {/* Drag Handle - hidden on touch devices */}
-      <div className={cn("p-2 flex items-center justify-center cursor-grab", isTouchDevice ? "opacity-0" : "opacity-0 group-hover:opacity-100")}>
-        <GripVertical className="w-4 h-4 text-muted-foreground" />
+      {/* Expand indicator */}
+      <div className={cn("p-2 flex items-center justify-center", isTouchDevice ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
+        {hiddenColumns.length > 0 ? (
+          showDetails ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />
+        ) : (
+          <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
+        )}
       </div>
 
       {/* Cells */}
       {columns.map((column) => (
-        <div key={column.id} className="p-2 flex items-center min-w-0">
+        <div key={column.id} className="p-2 flex items-center min-w-0" onClick={(e) => e.stopPropagation()}>
           {renderCell(column)}
         </div>
       ))}
@@ -378,7 +387,7 @@ export const BoardTableRow = memo(function BoardTableRow({
       </div>
 
       {/* Actions */}
-      <div className={cn("p-2 flex items-center justify-center", isTouchDevice ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
+      <div className={cn("p-2 flex items-center justify-center", isTouchDevice ? "opacity-100" : "opacity-0 group-hover:opacity-100")} onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
