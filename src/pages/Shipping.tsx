@@ -12,9 +12,32 @@ import { Package, FileText, Download, Plus, UserCheck, Loader2, Truck, X, Pencil
 import { format } from 'date-fns';
 
 const CITIES = [
-  'Riyadh', 'Jeddah', 'Dammam', 'Makkah', 'Madinah', 'Tabuk',
-  'Abha', 'Hail', 'Jizan', 'Najran', 'Buraidah', 'Khamis Mushait', 'Taif',
-];
+  // Major cities
+  'Riyadh', 'Jeddah', 'Makkah', 'Madinah', 'Dammam', 'Taif', 'Tabuk', 'Buraidah', 'Khamis Mushait', 'Abha',
+  'Hail', 'Najran', 'Jizan', 'Al Khobar', 'Jubail', 'Yanbu', 'Al Ahsa', 'Hafar Al Batin', 'Arar', 'Sakaka',
+  // Mid-size cities
+  'Al Qatif', 'Al Kharj', 'Unaizah', 'Ar Rass', 'Al Baha', 'Bisha', 'Al Majmaah', 'Dhahran', 'Ras Tanura',
+  'Al Qunfudhah', 'Wadi Al Dawasir', 'Dawadmi', 'Afif', 'Shaqra', 'Al Zulfi', 'Al Ghat', 'Thadiq',
+  'Hotat Bani Tamim', 'Al Muzahmiyya', 'Rumah', 'Al Hariq', 'Layla', 'Al Aflaj',
+  // Northern region
+  'Turaif', 'Rafha', 'Al Qurayyat', 'Domat Al Jandal', 'Tayma', 'Al Ula', 'Al Wajh', 'Duba', 'Haql',
+  'Umluj', 'Khaybar',
+  // Eastern region
+  'Al Hofuf', 'Al Mubarraz', 'Qatif', 'Saihat', 'Tarout', 'Al Awamiyah', 'Abqaiq', 'Khafji',
+  'Al Nairyah', 'Qaryat Al Ulya', 'Haradh', 'Al Uyun',
+  // Western region
+  'Rabigh', 'Al Lith', 'Badr', 'Khulais', 'Al Kamil', 'Thuwal', 'Mastorah',
+  // Southern region
+  'Al Namas', 'Sarat Abidah', 'Tanomah', 'Rijal Almaa', 'Al Makhwah', 'Baljurashi', 'Al Aqiq',
+  'Muhayil', 'Bariq', 'Al Darb', 'Abu Arish', 'Sabya', 'Samtah', 'Al Aydabi', 'Ahad Al Masarihah',
+  'Baish', 'Farasan', 'Al Harjah', 'Sharorah', 'Habuna', 'Yadamah', 'Thar',
+  // Central region small cities
+  'Al Quway\'iyah', 'Marat', 'Al Bukayriyah', 'Al Badayea', 'Riyadh Al Khabra', 'Al Asyah',
+  'Al Mithnab', 'Al Shinan', 'Dhruma', 'Huraymila', 'Diriyah', 'Al Muzahimiyah',
+  // Other small cities & towns
+  'Turbah', 'Ranyah', 'Al Muwayh', 'Zahran Al Janub', 'Al Majardah', 'Balqarn',
+  'Tathleeth', 'Al Amaq', 'Khaibar Al Janub', 'Sabt Al Alaya',
+].sort();
 
 interface ShipmentRecord {
   awb: string;
