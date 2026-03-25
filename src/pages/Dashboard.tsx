@@ -15,6 +15,7 @@ import {
   Lock,
   Wallet,
   Truck,
+  Banknote,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -97,6 +98,13 @@ const workspaces: WorkspaceItem[] = [
     icon: Truck,
     href: '/shipping',
     color: '#0EA5E9',
+  },
+  {
+    title: 'Payment Collection',
+    description: 'Invoice tracking',
+    icon: Banknote,
+    href: '/payment-collection',
+    color: '#F97316',
   },
   {
     title: 'Accounts',
