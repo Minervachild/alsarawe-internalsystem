@@ -1,4 +1,5 @@
 import { useState, memo } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { GripVertical, MoreHorizontal, Trash2, ArrowRight, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
