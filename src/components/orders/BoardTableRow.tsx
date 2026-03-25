@@ -428,6 +428,23 @@ export const BoardTableRow = memo(function BoardTableRow({
         </DropdownMenu>
       </div>
     </div>
+
+    {/* Expandable Details Row */}
+    {showDetails && hiddenColumns.length > 0 && (
+      <div className="border-b border-border bg-muted/10 px-6 py-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {hiddenColumns.map((column) => (
+            <div key={column.id} className="flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+              <span className="text-xs text-muted-foreground font-medium">{column.name}</span>
+              <div className="min-h-[28px] flex items-center">
+                {renderCell(column)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+    </>
   );
 });
 
