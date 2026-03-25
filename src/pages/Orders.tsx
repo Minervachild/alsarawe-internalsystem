@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2, Zap, Sparkles, Undo2, Trash2, Bell, Loader2, Package } from 'lucide-react';
+import { Plus, Search, LayoutGrid, BarChart3, Users, Clock, Settings2, Sparkles, Undo2, Trash2, Bell, Loader2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { BoardTable } from '@/components/orders/BoardTable';
 import { useAuth } from '@/contexts/AuthContext';
-import { QuickAddOrderDialog } from '@/components/orders/QuickAddOrderDialog';
+
 import { SmartQuickAdd } from '@/components/orders/SmartQuickAdd';
 import { DeliveryProofDialog } from '@/components/orders/DeliveryProofDialog';
 import { notifyNewOrder, buildOrderSummary } from '@/lib/orderNotifications';
@@ -70,7 +70,7 @@ export default function Orders() {
   const [addGroupDialogOpen, setAddGroupDialogOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupColor, setNewGroupColor] = useState('#22c55e');
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  
   const [smartAddOpen, setSmartAddOpen] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
   const [undoInfo, setUndoInfo] = useState<{ rowId: string; timeout: NodeJS.Timeout } | null>(null);
