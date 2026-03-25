@@ -88,8 +88,15 @@ export const BoardTableRow = memo(function BoardTableRow({
   isDragging,
   onAddColumnOption,
   onAddEmployee,
-}: BoardTableRowProps) {
+  allColumns,
+}: BoardTableRowProps & { allColumns?: BoardColumn[] }) {
   const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+
+  // Get hidden columns (columns in allColumns but not in visible columns)
+  const hiddenColumns = (allColumns || []).filter(
+    ac => !columns.find(c => c.id === ac.id) && ac.name !== 'Delivery Proof'
+  );
 
   const getCellValue = (columnId: string) => {
     return row.cells[columnId];
