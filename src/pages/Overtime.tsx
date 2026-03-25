@@ -613,36 +613,88 @@ export default function Overtime() {
               </Select>
             </div>
 
-            {/* Total hours */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Total Overtime Hours</Label>
-                <Input
-                  type="number"
-                  value={formData.total_overtime_hours || ''}
-                  onChange={e => setFormData(p => ({ ...p, total_overtime_hours: parseFloat(e.target.value) || 0 }))}
-                  step={0.5}
-                  min={0}
-                  placeholder="0"
-                />
-                {formData.total_overtime_hours > 0 && selectedEmployee && (
-                  <p className="text-xs text-muted-foreground">= {overtimeAmount.toFixed(2)} ﷼ ({selectedEmployee.hourly_rate} ﷼/hr)</p>
-                )}
+            {/* Overtime: Hours OR Amount */}
+            <div className="space-y-2">
+              <Label>Overtime</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Hours</span>
+                  <Input
+                    type="number"
+                    value={formData.total_overtime_hours || ''}
+                    onChange={e => {
+                      const hrs = parseFloat(e.target.value) || 0;
+                      setFormData(p => ({ ...p, total_overtime_hours: hrs, overtime_amount_override: 0 }));
+                    }}
+                    step={0.5}
+                    min={0}
+                    placeholder="Enter hours"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">OR Amount (﷼)</span>
+                  <Input
+                    type="number"
+                    value={formData.overtime_amount_override || ''}
+                    onChange={e => {
+                      const amt = parseFloat(e.target.value) || 0;
+                      const rate = selectedEmployee?.hourly_rate || 0;
+                      const calcHours = rate > 0 ? Math.round((amt / rate) * 100) / 100 : 0;
+                      setFormData(p => ({ ...p, overtime_amount_override: amt, total_overtime_hours: calcHours }));
+                    }}
+                    step={0.01}
+                    min={0}
+                    placeholder="Enter amount"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Off-Days Worked</Label>
-                <Input
-                  type="number"
-                  value={formData.total_offday_days || ''}
-                  onChange={e => setFormData(p => ({ ...p, total_offday_days: parseInt(e.target.value) || 0 }))}
-                  step={1}
-                  min={0}
-                  placeholder="0"
-                />
-                {formData.total_offday_days > 0 && selectedEmployee && (
-                  <p className="text-xs text-muted-foreground">= {offDayAmount.toFixed(2)} ﷼ ({offDayRate} ﷼/day)</p>
-                )}
+              {formData.total_overtime_hours > 0 && selectedEmployee && (
+                <p className="text-xs text-muted-foreground">
+                  {formData.total_overtime_hours}h × {selectedEmployee.hourly_rate} ﷼/hr = {overtimeAmount.toFixed(2)} ﷼
+                </p>
+              )}
+            </div>
+
+            {/* Off-Days: Days OR Amount */}
+            <div className="space-y-2">
+              <Label>Off-Days Worked</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Days</span>
+                  <Input
+                    type="number"
+                    value={formData.total_offday_days || ''}
+                    onChange={e => {
+                      const days = parseInt(e.target.value) || 0;
+                      setFormData(p => ({ ...p, total_offday_days: days, offday_amount_override: 0 }));
+                    }}
+                    step={1}
+                    min={0}
+                    placeholder="Enter days"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">OR Amount (﷼)</span>
+                  <Input
+                    type="number"
+                    value={formData.offday_amount_override || ''}
+                    onChange={e => {
+                      const amt = parseFloat(e.target.value) || 0;
+                      const rate = selectedEmployee?.off_day_rate || selectedEmployee?.hourly_rate || 0;
+                      const calcDays = rate > 0 ? Math.round(amt / rate) : 0;
+                      setFormData(p => ({ ...p, offday_amount_override: amt, total_offday_days: calcDays }));
+                    }}
+                    step={0.01}
+                    min={0}
+                    placeholder="Enter amount"
+                  />
+                </div>
               </div>
+              {formData.total_offday_days > 0 && selectedEmployee && (
+                <p className="text-xs text-muted-foreground">
+                  {formData.total_offday_days} day(s) × {offDayRate} ﷼/day = {offDayAmount.toFixed(2)} ﷼
+                </p>
+              )}
             </div>
 
             {/* Total preview */}
