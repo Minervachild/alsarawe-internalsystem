@@ -1117,6 +1117,51 @@ export type Database = {
           },
         ]
       }
+      payment_collections: {
+        Row: {
+          client_name: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          invoice_url: string | null
+          items: Json | null
+          notes: string | null
+          paid_amount: number
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          client_name: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_url?: string | null
+          items?: Json | null
+          notes?: string | null
+          paid_amount?: number
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_url?: string | null
+          items?: Json | null
+          notes?: string | null
+          paid_amount?: number
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           aliases: string[]

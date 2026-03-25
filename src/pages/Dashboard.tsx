@@ -197,15 +197,8 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 mb-6 sm:mb-10">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 mb-6 sm:mb-10">
           <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}>
-            <StatCard
-              title="Total Revenue"
-              value="﷼0"
-              subtitle="This month"
-            />
-          </div>
-          <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <StatCard
               title="Active Orders"
               value={activeOrdersCount}
@@ -213,7 +206,7 @@ export default function Dashboard() {
               icon={Package}
             />
           </div>
-          <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
+          <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <StatCard
               title="Inventory Status"
               value={`${inventoryStatus}%`}
@@ -221,7 +214,7 @@ export default function Dashboard() {
               icon={Box}
             />
           </div>
-          <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
             <StatCard
               title="Active Clients"
               value={clientsCount}
