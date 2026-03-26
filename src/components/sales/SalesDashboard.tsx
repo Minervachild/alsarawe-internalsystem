@@ -515,6 +515,19 @@ export function SalesDashboard() {
                       }`}
                       onClick={() => setSelectedEntry(entry)}
                     >
+                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(entry.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedIds(prev => {
+                              const next = new Set(prev);
+                              if (checked) next.add(entry.id);
+                              else next.delete(entry.id);
+                              return next;
+                            });
+                          }}
+                        />
+                      </td>
                       <td className="p-3">{format(new Date(entry.date), 'MMM dd, yyyy')}</td>
                       <td className="p-3">
                         <span className="flex items-center gap-1.5">
