@@ -274,7 +274,46 @@ export function SalesDashboard() {
     }
   };
 
-  const stats = useMemo(() => {
+  const handleBulkResendWebhook = async () => {
+    const entriesToSend = filteredEntries.filter(e => selectedIds.has(e.id));
+    if (entriesToSend.length === 0) return;
+    setBulkSending(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const entry of entriesToSend) {
+      try {
+        const branchName = (entry as any).branches?.name || '';
+        const employeeName = (entry as any).employees?.name || '';
+        const total = Number(entry.cash_amount) + Number(entry.card_amount);
+
+        await supabase.functions.invoke('send-to-webhook', {
+          body: {
+            type: 'sales',
+            entry_id: entry.id,
+            branch: branchName,
+            date: entry.date,
+            shift: entry.shift === 'morning' ? 'صباحية' : 'مسائية',
+            cash_amount: entry.cash_amount,
+            card_amount: entry.card_amount,
+            total,
+            transaction_count: entry.transaction_count,
+            employee: employeeName,
+            prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${entry.shift === 'morning' ? 'صباحية' : 'مسائية'} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}`,
+          },
+        });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    setSelectedIds(new Set());
+    setBulkSending(false);
+    toast({
+      title: `Bulk webhook sent`,
+      description: `${successCount} sent successfully${failCount > 0 ? `, ${failCount} failed` : ''}`,
+    });
     const totalCash = filteredEntries.reduce((sum, e) => sum + Number(e.cash_amount), 0);
     const totalCard = filteredEntries.reduce((sum, e) => sum + Number(e.card_amount), 0);
     const totalTransactions = filteredEntries.reduce((sum, e) => sum + e.transaction_count, 0);
