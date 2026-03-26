@@ -314,6 +314,9 @@ export function SalesDashboard() {
       title: `Bulk webhook sent`,
       description: `${successCount} sent successfully${failCount > 0 ? `, ${failCount} failed` : ''}`,
     });
+  };
+
+  const stats = useMemo(() => {
     const totalCash = filteredEntries.reduce((sum, e) => sum + Number(e.cash_amount), 0);
     const totalCard = filteredEntries.reduce((sum, e) => sum + Number(e.card_amount), 0);
     const totalTransactions = filteredEntries.reduce((sum, e) => sum + e.transaction_count, 0);
