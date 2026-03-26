@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, Filter, DollarSign, CreditCard, Hash, Building2, CheckCircle, XCircle, Clock, Archive, RotateCcw, Pencil, Undo2, Send, MoreVertical } from 'lucide-react';
+import { Calendar, Filter, DollarSign, CreditCard, Hash, Building2, CheckCircle, XCircle, Clock, Archive, RotateCcw, Pencil, Undo2, Send, MoreVertical, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -58,6 +59,8 @@ export function SalesDashboard() {
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [editEntry, setEditEntry] = useState<SalesEntry | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkSending, setBulkSending] = useState(false);
   const { user, profile } = useAuth();
   const { toast } = useToast();
 
@@ -271,6 +274,48 @@ export function SalesDashboard() {
     }
   };
 
+  const handleBulkResendWebhook = async () => {
+    const entriesToSend = filteredEntries.filter(e => selectedIds.has(e.id));
+    if (entriesToSend.length === 0) return;
+    setBulkSending(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const entry of entriesToSend) {
+      try {
+        const branchName = (entry as any).branches?.name || '';
+        const employeeName = (entry as any).employees?.name || '';
+        const total = Number(entry.cash_amount) + Number(entry.card_amount);
+
+        await supabase.functions.invoke('send-to-webhook', {
+          body: {
+            type: 'sales',
+            entry_id: entry.id,
+            branch: branchName,
+            date: entry.date,
+            shift: entry.shift === 'morning' ? 'صباحية' : 'مسائية',
+            cash_amount: entry.cash_amount,
+            card_amount: entry.card_amount,
+            total,
+            transaction_count: entry.transaction_count,
+            employee: employeeName,
+            prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${entry.shift === 'morning' ? 'صباحية' : 'مسائية'} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}`,
+          },
+        });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    setSelectedIds(new Set());
+    setBulkSending(false);
+    toast({
+      title: `Bulk webhook sent`,
+      description: `${successCount} sent successfully${failCount > 0 ? `, ${failCount} failed` : ''}`,
+    });
+  };
+
   const stats = useMemo(() => {
     const totalCash = filteredEntries.reduce((sum, e) => sum + Number(e.cash_amount), 0);
     const totalCard = filteredEntries.reduce((sum, e) => sum + Number(e.card_amount), 0);
@@ -400,24 +445,50 @@ export function SalesDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales Table */}
         <div className="card-premium overflow-hidden">
-          <div className="p-4 border-b border-border flex items-center justify-between">
+          <div className="p-4 border-b border-border flex items-center justify-between gap-2">
             <h3 className="font-semibold">
               {showArchive ? 'Archived (Rejected)' : 'Sales Entries'} ({filteredEntries.length})
             </h3>
-            <Button
-              variant={showArchive ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-8 text-xs gap-1.5"
-              onClick={() => setShowArchive(!showArchive)}
-            >
-              <Archive className="w-3.5 h-3.5" />
-              {showArchive ? 'Back to Active' : `Archive (${archivedEntries.length})`}
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5"
+                  disabled={bulkSending}
+                  onClick={() => handleBulkResendWebhook()}
+                >
+                  {bulkSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  Resend {selectedIds.size} to Webhook
+                </Button>
+              )}
+              <Button
+                variant={showArchive ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={() => { setShowArchive(!showArchive); setSelectedIds(new Set()); }}
+              >
+                <Archive className="w-3.5 h-3.5" />
+                {showArchive ? 'Back to Active' : `Archive (${archivedEntries.length})`}
+              </Button>
+            </div>
           </div>
           <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 sticky top-0">
                 <tr>
+                  <th className="p-3 w-8">
+                    <Checkbox
+                      checked={filteredEntries.length > 0 && selectedIds.size === filteredEntries.length}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedIds(new Set(filteredEntries.map(e => e.id)));
+                        } else {
+                          setSelectedIds(new Set());
+                        }
+                      }}
+                    />
+                  </th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Branch</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Shift</th>
@@ -431,7 +502,7 @@ export function SalesDashboard() {
               <tbody>
                 {filteredEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={canSeeTotals ? 8 : 7} className="p-8 text-center text-muted-foreground">
+                    <td colSpan={canSeeTotals ? 9 : 8} className="p-8 text-center text-muted-foreground">
                       No sales entries found
                     </td>
                   </tr>
@@ -444,6 +515,19 @@ export function SalesDashboard() {
                       }`}
                       onClick={() => setSelectedEntry(entry)}
                     >
+                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(entry.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedIds(prev => {
+                              const next = new Set(prev);
+                              if (checked) next.add(entry.id);
+                              else next.delete(entry.id);
+                              return next;
+                            });
+                          }}
+                        />
+                      </td>
                       <td className="p-3">{format(new Date(entry.date), 'MMM dd, yyyy')}</td>
                       <td className="p-3">
                         <span className="flex items-center gap-1.5">
