@@ -445,24 +445,50 @@ export function SalesDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales Table */}
         <div className="card-premium overflow-hidden">
-          <div className="p-4 border-b border-border flex items-center justify-between">
+          <div className="p-4 border-b border-border flex items-center justify-between gap-2">
             <h3 className="font-semibold">
               {showArchive ? 'Archived (Rejected)' : 'Sales Entries'} ({filteredEntries.length})
             </h3>
-            <Button
-              variant={showArchive ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-8 text-xs gap-1.5"
-              onClick={() => setShowArchive(!showArchive)}
-            >
-              <Archive className="w-3.5 h-3.5" />
-              {showArchive ? 'Back to Active' : `Archive (${archivedEntries.length})`}
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5"
+                  disabled={bulkSending}
+                  onClick={() => handleBulkResendWebhook()}
+                >
+                  {bulkSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  Resend {selectedIds.size} to Webhook
+                </Button>
+              )}
+              <Button
+                variant={showArchive ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={() => { setShowArchive(!showArchive); setSelectedIds(new Set()); }}
+              >
+                <Archive className="w-3.5 h-3.5" />
+                {showArchive ? 'Back to Active' : `Archive (${archivedEntries.length})`}
+              </Button>
+            </div>
           </div>
           <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 sticky top-0">
                 <tr>
+                  <th className="p-3 w-8">
+                    <Checkbox
+                      checked={filteredEntries.length > 0 && selectedIds.size === filteredEntries.length}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedIds(new Set(filteredEntries.map(e => e.id)));
+                        } else {
+                          setSelectedIds(new Set());
+                        }
+                      }}
+                    />
+                  </th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Branch</th>
                   <th className="text-left p-3 font-medium text-muted-foreground">Shift</th>
