@@ -59,6 +59,8 @@ export function SalesDashboard() {
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [editEntry, setEditEntry] = useState<SalesEntry | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkSending, setBulkSending] = useState(false);
   const { user, profile } = useAuth();
   const { toast } = useToast();
 
