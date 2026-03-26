@@ -502,7 +502,7 @@ export function SalesDashboard() {
               <tbody>
                 {filteredEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={canSeeTotals ? 8 : 7} className="p-8 text-center text-muted-foreground">
+                    <td colSpan={canSeeTotals ? 9 : 8} className="p-8 text-center text-muted-foreground">
                       No sales entries found
                     </td>
                   </tr>
