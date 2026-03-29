@@ -714,6 +714,17 @@ export default function Overtime() {
               </div>
             )}
 
+            {/* Details / Notes */}
+            <div className="space-y-2">
+              <Label>Details (optional)</Label>
+              <Textarea
+                value={formData.notes}
+                onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
+                placeholder="Describe overtime details for each day, reasons, etc."
+                rows={3}
+              />
+            </div>
+
             {/* Optional daily breakdown toggle */}
             <div className="pt-2">
               <Button
