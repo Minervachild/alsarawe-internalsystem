@@ -86,7 +86,7 @@ export default function QualityCheck() {
       const [sectionsRes, itemsRes, employeesRes] = await Promise.all([
         supabase.from('quality_sections').select('*').order('position'),
         supabase.from('quality_items').select('*').order('position'),
-        supabase.from('employees').select('id, name').order('name'),
+        supabase.from('employees_public').select('id, name').order('name'),
       ]);
 
       if (sectionsRes.error) throw sectionsRes.error;

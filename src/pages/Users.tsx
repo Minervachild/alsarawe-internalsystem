@@ -120,9 +120,9 @@ export default function Users() {
   const generateApiKey = async (userId: string, username: string) => {
     if (!isAdmin) return;
 
-    const apiKey = `sk_${Array.from({ length: 64 }, () => 
-      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 62)]
-    ).join('')}`;
+    const bytes = crypto.getRandomValues(new Uint8Array(64));
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const apiKey = `sk_${Array.from(bytes).map(b => charset[b % charset.length]).join('')}`;
 
     try {
       const { error } = await supabase

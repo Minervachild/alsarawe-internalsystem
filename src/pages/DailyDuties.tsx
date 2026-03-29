@@ -163,7 +163,7 @@ export default function DailyDuties() {
       const [categoriesRes, dutiesRes, employeesRes, assignmentsRes] = await Promise.all([
         supabase.from('duty_categories').select('*').order('position'),
         supabase.from('duties').select('*').order('position'),
-        supabase.from('employees').select('id, name, role').order('name'),
+        supabase.from('employees_public').select('id, name, role').order('name'),
         supabase.from('duty_employee_assignments').select('duty_id, employee_id'),
       ]);
 
