@@ -146,16 +146,18 @@ export default function Overtime() {
               amount: day.overtime_hours * (employee.hourly_rate || 0),
               date: day.date,
               type: 'overtime',
+              notes: formData.notes || null,
             });
           }
           if (day.is_offday) {
             const rate = employee.off_day_rate || employee.hourly_rate || 0;
             entriesToInsert.push({
               employee_id: formData.employee_id,
-              hours: 1, // 1 day
+              hours: 1,
               amount: rate,
               date: day.date,
               type: 'off_day',
+              notes: formData.notes || null,
             });
           }
         }
@@ -169,16 +171,18 @@ export default function Overtime() {
             amount: formData.total_overtime_hours * (employee.hourly_rate || 0),
             date: monthDate,
             type: 'overtime',
+            notes: formData.notes || null,
           });
         }
         if (formData.total_offday_days > 0) {
           const rate = employee.off_day_rate || employee.hourly_rate || 0;
           entriesToInsert.push({
             employee_id: formData.employee_id,
-            hours: formData.total_offday_days, // number of days
+            hours: formData.total_offday_days,
             amount: formData.total_offday_days * rate,
             date: monthDate,
             type: 'off_day',
+            notes: formData.notes || null,
           });
         }
       }
