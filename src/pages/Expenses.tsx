@@ -862,6 +862,71 @@ export default function Expenses() {
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      {/* Scan Confirmation Dialog */}
+      <Dialog open={scanConfirmOpen} onOpenChange={setScanConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Invoice Scan Results
+            </DialogTitle>
+          </DialogHeader>
+          {scanPreview && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Review the extracted data below. Click "Apply" to fill the form or "Discard" to enter manually.
+              </p>
+              <div className="space-y-2 bg-muted/50 rounded-lg p-4">
+                {scanPreview.vendor_name && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Vendor</span>
+                    <span className="font-medium">{scanPreview.vendor_name}</span>
+                  </div>
+                )}
+                {scanPreview.invoice_number && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Invoice #</span>
+                    <span className="font-medium">{scanPreview.invoice_number}</span>
+                  </div>
+                )}
+                {scanPreview.amount != null && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-semibold">﷼{scanPreview.amount.toLocaleString()}</span>
+                  </div>
+                )}
+                {scanPreview.vat_amount != null && scanPreview.vat_amount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">VAT</span>
+                    <span className="font-medium">﷼{scanPreview.vat_amount.toLocaleString()}</span>
+                  </div>
+                )}
+                {scanPreview.payment_type && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Payment</span>
+                    <span className="font-medium">{scanPreview.payment_type}</span>
+                  </div>
+                )}
+                {scanPreview.date && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Date</span>
+                    <span className="font-medium">{scanPreview.date}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => { setScanConfirmOpen(false); setScanPreview(null); }}>
+                  Discard
+                </Button>
+                <Button onClick={applyScanData}>
+                  Apply to Form
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
