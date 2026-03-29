@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Pencil, Save, X, Receipt, Store, Wallet, CreditCard, Settings2, Zap, Loader2, Send, FileText, CheckCircle, XCircle, Clock, Archive, RotateCcw, MoreVertical, Undo2 } from 'lucide-react';
+import { Plus, Trash2, Pencil, Save, X, Receipt, Store, Wallet, CreditCard, Settings2, Zap, Loader2, Send, FileText, CheckCircle, XCircle, Clock, Archive, RotateCcw, MoreVertical, Undo2, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ExpenseBotRegister } from '@/components/expenses/ExpenseBotRegister';
 import { InvoiceScanner } from '@/components/expenses/InvoiceScanner';
+import { PURCHASE_CATEGORIES, getCategoryById, resolvePaymentAccount, buildZohoPayload } from '@/lib/expenseCategorization';
 
 interface Seller { id: string; name: string }
 interface Account { id: string; name: string }
@@ -81,6 +82,7 @@ export default function Expenses() {
   const [title, setTitle] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [sellerId, setSellerId] = useState('');
+  const [purchaseType, setPurchaseType] = useState('');
   const [accountId, setAccountId] = useState('');
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -207,29 +209,32 @@ export default function Expenses() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !sellerId || !accountId) {
-      toast({ title: 'Please fill seller, account, and amount', variant: 'destructive' });
+    if (!amount || !sellerId || !purchaseType) {
+      toast({ title: 'Please fill seller, purchase type, and amount', variant: 'destructive' });
       return;
     }
+    // Auto-resolve account from purchase type
+    const category = getCategoryById(purchaseType);
+    const resolvedAccountId = accountId || null;
     setIsSubmitting(true);
     try {
       const { error } = await (supabase as any).from('daily_expenses').insert({
-        title: title || null,
+        title: title || (category?.label || null),
         seller_id: sellerId || null,
-        account_id: accountId || null,
+        account_id: resolvedAccountId,
         payment_method_id: paymentMethodId || null,
         employee_id: employeeId || null,
         invoice_number: invoiceNumber || null,
         amount: parseFloat(amount),
-        vat_included: vatIncluded,
+        vat_included: category ? category.includesTax : vatIncluded,
         date,
-        notes: notes || null,
+        notes: notes ? `[${purchaseType}] ${notes}` : `[${purchaseType}]`,
         created_by: user?.id,
         status: 'submitted',
       });
       if (error) throw error;
 
-      setTitle(''); setSellerId(''); setAccountId(''); setEmployeeId('');
+      setTitle(''); setSellerId(''); setPurchaseType(''); setAccountId(''); setEmployeeId('');
       setInvoiceNumber(''); setAmount(''); setNotes('');
       toast({ title: 'Expense submitted (awaiting approval)' });
       fetchAll();
@@ -257,6 +262,19 @@ export default function Expenses() {
       const employeeName = exp.employees?.name || '';
       const paymentName = exp.expense_payment_methods?.name || '';
 
+      // Extract purchase type from notes if stored
+      const purchaseTypeMatch = exp.notes?.match(/^\[([^\]]+)\]/);
+      const purchaseTypeId = purchaseTypeMatch?.[1] || '';
+      const zohoPayload = buildZohoPayload({
+        vendor: sellerName,
+        invoiceNumber: exp.invoice_number || '',
+        amount: exp.amount,
+        date: exp.date,
+        purchaseType: purchaseTypeId,
+        paymentMethodName: paymentName,
+        includesTax: exp.vat_included,
+      });
+
       const webhookPayload = {
         type: 'expense',
         entry_id: exp.id,
@@ -270,7 +288,8 @@ export default function Expenses() {
         date: exp.date,
         invoice_number: exp.invoice_number || '',
         notes: exp.notes || '',
-        prompt: `سجل مصروف "${exp.title || ''}" من ${sellerName} بمبلغ ${exp.amount} ريال (${exp.vat_included ? 'شامل الضريبة' : 'غير شامل'}) في حساب ${accountName} بطريقة دفع ${paymentName} بواسطة ${employeeName} بتاريخ ${exp.date}${exp.notes ? ` ملاحظات: ${exp.notes}` : ''}${exp.invoice_number ? ` رقم الفاتورة: ${exp.invoice_number}` : ''}`,
+        zoho: zohoPayload,
+        prompt: `سجل مصروف "${exp.title || ''}" من ${sellerName} بمبلغ ${exp.amount} ريال (${exp.vat_included ? 'شامل الضريبة' : 'غير شامل'}) في حساب ${zohoPayload.expense_account_name || accountName} بطريقة دفع ${zohoPayload.payment_account_name || paymentName} بواسطة ${employeeName} بتاريخ ${exp.date}${exp.notes ? ` ملاحظات: ${exp.notes}` : ''}${exp.invoice_number ? ` رقم الفاتورة: ${exp.invoice_number}` : ''}`,
       };
 
       const { data: webhookResult } = await supabase.functions.invoke('send-to-webhook', {
@@ -560,10 +579,20 @@ export default function Expenses() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Account *</Label>
-              <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Select account..." /></SelectTrigger>
-                <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+              <Label className="text-xs flex items-center gap-1"><Tag className="w-3 h-3" /> Purchase Type *</Label>
+              <Select value={purchaseType} onValueChange={(val) => {
+                setPurchaseType(val);
+                const cat = getCategoryById(val);
+                if (cat) setVatIncluded(cat.includesTax);
+              }}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="What was purchased?" /></SelectTrigger>
+                <SelectContent>
+                  {PURCHASE_CATEGORIES.map(cat => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.label} — {cat.labelAr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
