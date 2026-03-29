@@ -66,6 +66,9 @@ export default function Overtime() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentEntry, setPaymentEntry] = useState<OvertimeEntry | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [bulkPaymentDialogOpen, setBulkPaymentDialogOpen] = useState(false);
+  const [bulkPaymentEmployeeId, setBulkPaymentEmployeeId] = useState<string | null>(null);
+  const [bulkPaymentAmount, setBulkPaymentAmount] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
