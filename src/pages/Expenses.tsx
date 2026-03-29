@@ -103,6 +103,29 @@ export default function Expenses() {
   // Webhook state
   const [sendingWebhook, setSendingWebhook] = useState<string | null>(null);
 
+  // Scan confirmation state
+  const [scanPreview, setScanPreview] = useState<{ invoice_number?: string; vendor_name?: string; payment_type?: string; amount?: number; vat_amount?: number; date?: string } | null>(null);
+  const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
+
+  const applyScanData = () => {
+    if (!scanPreview) return;
+    if (scanPreview.invoice_number) setInvoiceNumber(scanPreview.invoice_number);
+    if (scanPreview.vendor_name) {
+      const matchedSeller = sellers.find(s => s.name.toLowerCase().includes(scanPreview.vendor_name!.toLowerCase()));
+      if (matchedSeller) setSellerId(matchedSeller.id);
+      else setTitle(scanPreview.vendor_name);
+    }
+    if (scanPreview.amount) setAmount(String(scanPreview.amount));
+    if (scanPreview.payment_type) {
+      const matchedPm = paymentMethods.find(p => p.name.toLowerCase().includes(scanPreview.payment_type!.toLowerCase()));
+      if (matchedPm) setPaymentMethodId(matchedPm.id);
+    }
+    if (scanPreview.date) setDate(scanPreview.date);
+    setScanConfirmOpen(false);
+    setScanPreview(null);
+    toast({ title: 'Invoice data applied to form' });
+  };
+
   // Settings inline add
   const [newSeller, setNewSeller] = useState('');
   const [newAccount, setNewAccount] = useState('');
@@ -519,18 +542,8 @@ export default function Expenses() {
             </h3>
             <InvoiceScanner
               onScanned={(data) => {
-                if (data.invoice_number) setInvoiceNumber(data.invoice_number);
-                if (data.vendor_name) {
-                  const matchedSeller = sellers.find(s => s.name.toLowerCase().includes(data.vendor_name!.toLowerCase()));
-                  if (matchedSeller) setSellerId(matchedSeller.id);
-                  else setTitle(data.vendor_name);
-                }
-                if (data.amount) setAmount(String(data.amount));
-                if (data.payment_type) {
-                  const matchedPm = paymentMethods.find(p => p.name.toLowerCase().includes(data.payment_type!.toLowerCase()));
-                  if (matchedPm) setPaymentMethodId(matchedPm.id);
-                }
-                if (data.date) setDate(data.date);
+                setScanPreview(data);
+                setScanConfirmOpen(true);
               }}
             />
           </div>
