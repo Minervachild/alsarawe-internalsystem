@@ -42,8 +42,9 @@ export default function Sales() {
   useEffect(() => {
     if (authLoading) return;
     if (user && profile) {
+      setIsLoading(true);
       fetchEmployeeId();
-    } else {
+    } else if (!authLoading && !user) {
       setEmployeeId(null);
       setIsLoading(false);
     }
@@ -61,9 +62,14 @@ export default function Sales() {
         _user_id: user.id,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching employee ID:', error);
+        throw error;
+      }
+      console.log('Fetched employee ID for user', user.id, ':', data);
       setEmployeeId(data || null);
-    } catch {
+    } catch (err) {
+      console.error('Failed to fetch employee ID:', err);
       setEmployeeId(null);
     } finally {
       setIsLoading(false);
