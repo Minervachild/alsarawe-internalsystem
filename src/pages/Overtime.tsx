@@ -546,14 +546,25 @@ export default function Overtime() {
                           )}
                         </div>
                         {isAdmin && summary.unpaidAmount > 0 && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                            onClick={(e) => { e.stopPropagation(); markAllPaid(summary.employee.id); }}
-                          >
-                            Pay All
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={(e) => { e.stopPropagation(); openBulkPaymentDialog(summary.employee.id); }}
+                            >
+                              <DollarSign className="w-3 h-3 mr-1" />
+                              Partial Pay
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={(e) => { e.stopPropagation(); markAllPaid(summary.employee.id); }}
+                            >
+                              Pay All
+                            </Button>
+                          </div>
                         )}
                         {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                       </div>
