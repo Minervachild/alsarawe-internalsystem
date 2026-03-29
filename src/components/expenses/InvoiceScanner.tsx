@@ -17,9 +17,10 @@ interface ScannedData {
 
 interface InvoiceScannerProps {
   onScanned: (data: ScannedData) => void;
+  variant?: 'default' | 'prominent';
 }
 
-export function InvoiceScanner({ onScanned }: InvoiceScannerProps) {
+export function InvoiceScanner({ onScanned, variant = 'default' }: InvoiceScannerProps) {
   const [open, setOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -67,12 +68,12 @@ export function InvoiceScanner({ onScanned }: InvoiceScannerProps) {
     <>
       <Button
         type="button"
-        variant="outline"
-        className="gap-1.5"
+        variant={variant === 'prominent' ? 'default' : 'outline'}
+        className={variant === 'prominent' ? 'gap-1.5 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-md' : 'gap-1.5'}
         onClick={() => setOpen(true)}
       >
         <Camera className="w-4 h-4" />
-        Scan Invoice
+        {variant === 'prominent' ? '🤖 AI Scan Invoice' : 'Scan Invoice'}
       </Button>
 
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setPreview(null); } }}>
