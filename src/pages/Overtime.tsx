@@ -523,6 +523,7 @@ export default function Overtime() {
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Type</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Qty</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Amount</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Notes</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Status</th>
                               {isAdmin && <th className="text-right px-4 py-2 text-xs font-medium text-muted-foreground">Actions</th>}
                             </tr>
@@ -538,6 +539,7 @@ export default function Overtime() {
                                 </td>
                                 <td className="px-4 py-2 text-sm">{entry.type === 'overtime' ? `${entry.hours}h` : `${entry.hours} day${entry.hours !== 1 ? 's' : ''}`}</td>
                                 <td className="px-4 py-2 text-sm font-medium">{entry.amount.toFixed(2)} ﷼</td>
+                                <td className="px-4 py-2 text-sm text-muted-foreground max-w-[200px] truncate" title={entry.notes || ''}>{entry.notes || '—'}</td>
                                 <td className="px-4 py-2">
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.is_paid ? 'bg-success/10 text-success' : (entry.paid_amount || 0) > 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-warning/10 text-warning'}`}>
                                     {entry.is_paid ? 'Paid' : (entry.paid_amount || 0) > 0 ? `Partial (﷼${(entry.paid_amount || 0).toFixed(0)})` : 'Unpaid'}
