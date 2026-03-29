@@ -919,6 +919,76 @@ export default function Overtime() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Partial Payment Dialog */}
+      <Dialog open={bulkPaymentDialogOpen} onOpenChange={setBulkPaymentDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display">Partial Payment</DialogTitle>
+          </DialogHeader>
+          {bulkPaymentEmployeeId && (() => {
+            const summary = employeeSummaries.find(s => s.employee.id === bulkPaymentEmployeeId);
+            if (!summary) return null;
+            return (
+              <div className="space-y-4 mt-2">
+                <div className="p-3 bg-muted rounded-lg space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Employee</span>
+                    <span className="font-semibold">{summary.employee.name}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Owed</span>
+                    <span className="font-semibold">{summary.totalAmount.toFixed(2)} ﷼</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t border-border/50 pt-1 mt-1">
+                    <span className="text-muted-foreground">Unpaid Balance</span>
+                    <span className="font-bold text-warning">{summary.unpaidAmount.toFixed(2)} ﷼</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Payment Amount</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={summary.unpaidAmount}
+                    value={bulkPaymentAmount}
+                    onChange={(e) => setBulkPaymentAmount(e.target.value)}
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Payment will be distributed across unpaid entries (oldest first).
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => setBulkPaymentAmount(String(summary.unpaidAmount))}
+                    >
+                      Pay Full Balance
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => setBulkPaymentAmount(String(Math.round(summary.unpaidAmount / 2 * 100) / 100))}
+                    >
+                      Pay Half
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setBulkPaymentDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleBulkPartialPayment}>Record Payment</Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
