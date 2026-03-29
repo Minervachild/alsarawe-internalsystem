@@ -195,7 +195,8 @@ export default function Orders() {
       if (error) throw error;
 
       setRows(prev => [...prev, { ...newRow, cells: {} }]);
-      notifyNewOrder('Unknown');
+      const group = groups.find(g => g.id === groupId);
+      notifyNewOrder('Unknown', group?.name);
       toast({ title: 'New order added' });
     } catch (error: any) {
       toast({
