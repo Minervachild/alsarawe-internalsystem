@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Clock, Filter, Banknote, Calendar, ChevronDown, ChevronUp, Trash2, DollarSign } from 'lucide-react';
+import { Plus, Clock, Filter, Banknote, Calendar, ChevronDown, ChevronUp, Trash2, DollarSign, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -38,6 +39,7 @@ interface OvertimeEntry {
   date: string;
   is_paid: boolean;
   type: string;
+  notes: string | null;
   employee?: Employee;
 }
 
@@ -76,6 +78,7 @@ export default function Overtime() {
     total_offday_days: 0,
     overtime_amount_override: 0,
     offday_amount_override: 0,
+    notes: '',
   });
   const [dailyBreakdown, setDailyBreakdown] = useState<{ date: string; overtime_hours: number; is_offday: boolean }[]>([]);
   const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
@@ -145,16 +148,18 @@ export default function Overtime() {
               amount: day.overtime_hours * (employee.hourly_rate || 0),
               date: day.date,
               type: 'overtime',
+              notes: formData.notes || null,
             });
           }
           if (day.is_offday) {
             const rate = employee.off_day_rate || employee.hourly_rate || 0;
             entriesToInsert.push({
               employee_id: formData.employee_id,
-              hours: 1, // 1 day
+              hours: 1,
               amount: rate,
               date: day.date,
               type: 'off_day',
+              notes: formData.notes || null,
             });
           }
         }
@@ -168,16 +173,18 @@ export default function Overtime() {
             amount: formData.total_overtime_hours * (employee.hourly_rate || 0),
             date: monthDate,
             type: 'overtime',
+            notes: formData.notes || null,
           });
         }
         if (formData.total_offday_days > 0) {
           const rate = employee.off_day_rate || employee.hourly_rate || 0;
           entriesToInsert.push({
             employee_id: formData.employee_id,
-            hours: formData.total_offday_days, // number of days
+            hours: formData.total_offday_days,
             amount: formData.total_offday_days * rate,
             date: monthDate,
             type: 'off_day',
+            notes: formData.notes || null,
           });
         }
       }
@@ -200,7 +207,7 @@ export default function Overtime() {
   };
 
   const resetForm = () => {
-    setFormData(prev => ({ ...prev, total_overtime_hours: 0, total_offday_days: 0, overtime_amount_override: 0, offday_amount_override: 0 }));
+    setFormData(prev => ({ ...prev, total_overtime_hours: 0, total_offday_days: 0, overtime_amount_override: 0, offday_amount_override: 0, notes: '' }));
     setDailyBreakdown([]);
     setShowDailyBreakdown(false);
   };
@@ -516,6 +523,7 @@ export default function Overtime() {
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Type</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Qty</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Amount</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Notes</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Status</th>
                               {isAdmin && <th className="text-right px-4 py-2 text-xs font-medium text-muted-foreground">Actions</th>}
                             </tr>
@@ -531,6 +539,7 @@ export default function Overtime() {
                                 </td>
                                 <td className="px-4 py-2 text-sm">{entry.type === 'overtime' ? `${entry.hours}h` : `${entry.hours} day${entry.hours !== 1 ? 's' : ''}`}</td>
                                 <td className="px-4 py-2 text-sm font-medium">{entry.amount.toFixed(2)} ﷼</td>
+                                <td className="px-4 py-2 text-sm text-muted-foreground max-w-[200px] truncate" title={entry.notes || ''}>{entry.notes || '—'}</td>
                                 <td className="px-4 py-2">
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.is_paid ? 'bg-success/10 text-success' : (entry.paid_amount || 0) > 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-warning/10 text-warning'}`}>
                                     {entry.is_paid ? 'Paid' : (entry.paid_amount || 0) > 0 ? `Partial (﷼${(entry.paid_amount || 0).toFixed(0)})` : 'Unpaid'}
@@ -707,6 +716,17 @@ export default function Overtime() {
                 </p>
               </div>
             )}
+
+            {/* Details / Notes */}
+            <div className="space-y-2">
+              <Label>Details (optional)</Label>
+              <Textarea
+                value={formData.notes}
+                onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
+                placeholder="Describe overtime details for each day, reasons, etc."
+                rows={3}
+              />
+            </div>
 
             {/* Optional daily breakdown toggle */}
             <div className="pt-2">

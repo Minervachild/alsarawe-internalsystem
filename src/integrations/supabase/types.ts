@@ -1075,6 +1075,7 @@ export type Database = {
           hours: number
           id: string
           is_paid: boolean | null
+          notes: string | null
           paid_amount: number
           type: string
         }
@@ -1086,6 +1087,7 @@ export type Database = {
           hours: number
           id?: string
           is_paid?: boolean | null
+          notes?: string | null
           paid_amount?: number
           type?: string
         }
@@ -1097,6 +1099,7 @@ export type Database = {
           hours?: number
           id?: string
           is_paid?: boolean | null
+          notes?: string | null
           paid_amount?: number
           type?: string
         }

@@ -1,0 +1,1 @@
+ALTER TABLE public.overtime ADD COLUMN notes text DEFAULT NULL;

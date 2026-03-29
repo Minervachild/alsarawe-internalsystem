@@ -324,7 +324,28 @@ export function SalesDashboard() {
       ? Math.round(totalTransactions / filteredEntries.length)
       : 0;
 
-    return { totalCash, totalCard, totalTransactions, avgTransactions, total: totalCash + totalCard };
+    // Monthly stats: avg daily sales & avg cart (excluding zero-transaction days)
+    // Group by date to get daily totals
+    const dailyMap = new Map<string, { total: number; transactions: number }>();
+    for (const e of filteredEntries) {
+      const existing = dailyMap.get(e.date) || { total: 0, transactions: 0 };
+      existing.total += Number(e.cash_amount) + Number(e.card_amount);
+      existing.transactions += e.transaction_count;
+      dailyMap.set(e.date, existing);
+    }
+    const dailyValues = Array.from(dailyMap.values());
+    const daysWithData = dailyValues.length;
+    const avgDailySales = daysWithData > 0
+      ? dailyValues.reduce((s, d) => s + d.total, 0) / daysWithData
+      : 0;
+
+    // Avg cart: only count days where transaction_count > 0
+    const daysWithTransactions = dailyValues.filter(d => d.transactions > 0);
+    const avgCart = daysWithTransactions.length > 0
+      ? daysWithTransactions.reduce((s, d) => s + (d.total / d.transactions), 0) / daysWithTransactions.length
+      : 0;
+
+    return { totalCash, totalCard, totalTransactions, avgTransactions, total: totalCash + totalCard, avgDailySales, avgCart };
   }, [filteredEntries]);
 
   if (isLoading) {
@@ -409,7 +430,7 @@ export function SalesDashboard() {
 
       {/* Stats Cards - only for authorized users */}
       {canSeeTotals && (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-4 h-4 text-green-500" />
@@ -437,6 +458,20 @@ export function SalesDashboard() {
             <span className="text-xs text-muted-foreground">Avg. Transactions</span>
           </div>
           <p className="text-xl font-semibold">{stats.avgTransactions}</p>
+        </div>
+        <div className="stat-card">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-4 h-4 text-emerald-500" />
+            <span className="text-xs text-muted-foreground">Avg Daily Sales</span>
+          </div>
+          <p className="text-xl font-semibold">﷼{Math.round(stats.avgDailySales).toLocaleString()}</p>
+        </div>
+        <div className="stat-card">
+          <div className="flex items-center gap-2 mb-2">
+            <CreditCard className="w-4 h-4 text-purple-500" />
+            <span className="text-xs text-muted-foreground">Avg Cart</span>
+          </div>
+          <p className="text-xl font-semibold">﷼{Math.round(stats.avgCart).toLocaleString()}</p>
         </div>
       </div>
       )}

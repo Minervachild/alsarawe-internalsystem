@@ -103,6 +103,29 @@ export default function Expenses() {
   // Webhook state
   const [sendingWebhook, setSendingWebhook] = useState<string | null>(null);
 
+  // Scan confirmation state
+  const [scanPreview, setScanPreview] = useState<{ invoice_number?: string; vendor_name?: string; payment_type?: string; amount?: number; vat_amount?: number; date?: string } | null>(null);
+  const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
+
+  const applyScanData = () => {
+    if (!scanPreview) return;
+    if (scanPreview.invoice_number) setInvoiceNumber(scanPreview.invoice_number);
+    if (scanPreview.vendor_name) {
+      const matchedSeller = sellers.find(s => s.name.toLowerCase().includes(scanPreview.vendor_name!.toLowerCase()));
+      if (matchedSeller) setSellerId(matchedSeller.id);
+      else setTitle(scanPreview.vendor_name);
+    }
+    if (scanPreview.amount) setAmount(String(scanPreview.amount));
+    if (scanPreview.payment_type) {
+      const matchedPm = paymentMethods.find(p => p.name.toLowerCase().includes(scanPreview.payment_type!.toLowerCase()));
+      if (matchedPm) setPaymentMethodId(matchedPm.id);
+    }
+    if (scanPreview.date) setDate(scanPreview.date);
+    setScanConfirmOpen(false);
+    setScanPreview(null);
+    toast({ title: 'Invoice data applied to form' });
+  };
+
   // Settings inline add
   const [newSeller, setNewSeller] = useState('');
   const [newAccount, setNewAccount] = useState('');
@@ -519,18 +542,8 @@ export default function Expenses() {
             </h3>
             <InvoiceScanner
               onScanned={(data) => {
-                if (data.invoice_number) setInvoiceNumber(data.invoice_number);
-                if (data.vendor_name) {
-                  const matchedSeller = sellers.find(s => s.name.toLowerCase().includes(data.vendor_name!.toLowerCase()));
-                  if (matchedSeller) setSellerId(matchedSeller.id);
-                  else setTitle(data.vendor_name);
-                }
-                if (data.amount) setAmount(String(data.amount));
-                if (data.payment_type) {
-                  const matchedPm = paymentMethods.find(p => p.name.toLowerCase().includes(data.payment_type!.toLowerCase()));
-                  if (matchedPm) setPaymentMethodId(matchedPm.id);
-                }
-                if (data.date) setDate(data.date);
+                setScanPreview(data);
+                setScanConfirmOpen(true);
               }}
             />
           </div>
@@ -847,6 +860,71 @@ export default function Expenses() {
               </div>
             </TabsContent>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Scan Confirmation Dialog */}
+      <Dialog open={scanConfirmOpen} onOpenChange={setScanConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Invoice Scan Results
+            </DialogTitle>
+          </DialogHeader>
+          {scanPreview && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Review the extracted data below. Click "Apply" to fill the form or "Discard" to enter manually.
+              </p>
+              <div className="space-y-2 bg-muted/50 rounded-lg p-4">
+                {scanPreview.vendor_name && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Vendor</span>
+                    <span className="font-medium">{scanPreview.vendor_name}</span>
+                  </div>
+                )}
+                {scanPreview.invoice_number && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Invoice #</span>
+                    <span className="font-medium">{scanPreview.invoice_number}</span>
+                  </div>
+                )}
+                {scanPreview.amount != null && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-semibold">﷼{scanPreview.amount.toLocaleString()}</span>
+                  </div>
+                )}
+                {scanPreview.vat_amount != null && scanPreview.vat_amount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">VAT</span>
+                    <span className="font-medium">﷼{scanPreview.vat_amount.toLocaleString()}</span>
+                  </div>
+                )}
+                {scanPreview.payment_type && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Payment</span>
+                    <span className="font-medium">{scanPreview.payment_type}</span>
+                  </div>
+                )}
+                {scanPreview.date && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Date</span>
+                    <span className="font-medium">{scanPreview.date}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => { setScanConfirmOpen(false); setScanPreview(null); }}>
+                  Discard
+                </Button>
+                <Button onClick={applyScanData}>
+                  Apply to Form
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>
