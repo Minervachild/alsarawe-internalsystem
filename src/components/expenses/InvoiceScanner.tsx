@@ -12,6 +12,7 @@ interface ScannedData {
   amount?: number;
   vat_amount?: number;
   date?: string;
+  purchase_type?: string;
 }
 
 interface InvoiceScannerProps {

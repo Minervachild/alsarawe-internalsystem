@@ -28,13 +28,27 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an invoice data extractor. Extract the following fields from the invoice image:
+            content: `You are an invoice data extractor for a coffee shop business. Extract the following fields from the invoice image:
 - invoice_number: The invoice or receipt number
 - vendor_name: The seller/store/vendor name
 - payment_type: Payment method (cash, card, bank transfer, etc.)
 - amount: Total amount (number only, no currency symbols)
 - vat_amount: VAT/tax amount if shown (number only, 0 if not found)
 - date: Invoice date in YYYY-MM-DD format if visible
+- purchase_type: Categorize based on items purchased. Use ONE of these exact values:
+  "coffee" (coffee beans, roasted/green coffee),
+  "milk" (milk, dairy products),
+  "cups_packaging" (cups, lids, packaging),
+  "ingredients" (food/drink ingredients, syrups, flavors),
+  "water_ice" (water, ice),
+  "gas" (gas cylinders),
+  "cleaning" (cleaning supplies, detergent),
+  "consumables" (non-production consumables),
+  "meals" (restaurant receipts, takeaway food),
+  "incense" (incense, oud),
+  "office" (office supplies),
+  "salary" (salary, salary advance),
+  "misc" (anything else)
 
 You MUST call the extract_invoice_data function with the extracted data.`
           },
@@ -69,8 +83,9 @@ You MUST call the extract_invoice_data function with the extracted data.`
                   amount: { type: 'number', description: 'Total amount' },
                   vat_amount: { type: 'number', description: 'VAT/tax amount' },
                   date: { type: 'string', description: 'Invoice date YYYY-MM-DD' },
+                  purchase_type: { type: 'string', description: 'Category: coffee, milk, cups_packaging, ingredients, water_ice, gas, cleaning, consumables, meals, incense, office, salary, misc' },
                 },
-                required: ['invoice_number', 'vendor_name', 'amount'],
+                required: ['invoice_number', 'vendor_name', 'amount', 'purchase_type'],
                 additionalProperties: false,
               },
             },
