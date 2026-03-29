@@ -512,6 +512,58 @@ export default function Expenses() {
   const archivedExpenses = useMemo(() => expenses.filter(e => e.status === 'rejected'), [expenses]);
   const displayedExpenses = showArchive ? archivedExpenses : activeExpenses;
 
+  // Employee's own recent entries (last 5 submitted, editable)
+  const myRecentEntries = useMemo(() => {
+    if (!user) return [];
+    return expenses
+      .filter(e => e.created_by === user.id && e.status === 'submitted')
+      .slice(0, 5);
+  }, [expenses, user]);
+
+  // Edit state
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editInvoiceNumber, setEditInvoiceNumber] = useState('');
+  const [editSellerId, setEditSellerId] = useState('');
+  const [editPurchaseType, setEditPurchaseType] = useState('');
+  const [editPaymentMethodId, setEditPaymentMethodId] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+
+  const startEditing = (exp: Expense) => {
+    setEditingExpenseId(exp.id);
+    setEditTitle(exp.title || '');
+    setEditAmount(String(exp.amount));
+    setEditInvoiceNumber(exp.invoice_number || '');
+    setEditSellerId(exp.seller_id || '');
+    const ptMatch = exp.notes?.match(/^\[([^\]]+)\]/);
+    setEditPurchaseType(ptMatch?.[1] || '');
+    setEditPaymentMethodId(exp.payment_method_id || '');
+    setEditNotes(exp.notes?.replace(/^\[[^\]]+\]\s*/, '') || '');
+  };
+
+  const saveEdit = async () => {
+    if (!editingExpenseId || !editAmount) return;
+    try {
+      const category = getCategoryById(editPurchaseType);
+      const { error } = await (supabase as any).from('daily_expenses').update({
+        title: editTitle || (category?.label || null),
+        amount: parseFloat(editAmount),
+        invoice_number: editInvoiceNumber || null,
+        seller_id: editSellerId || null,
+        payment_method_id: editPaymentMethodId || null,
+        vat_included: category ? category.includesTax : true,
+        notes: editNotes ? `[${editPurchaseType}] ${editNotes}` : editPurchaseType ? `[${editPurchaseType}]` : null,
+      }).eq('id', editingExpenseId);
+      if (error) throw error;
+      setEditingExpenseId(null);
+      toast({ title: 'Expense updated' });
+      fetchAll();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
   const todayTotal = useMemo(() => {
     const today = format(new Date(), 'yyyy-MM-dd');
     return expenses
