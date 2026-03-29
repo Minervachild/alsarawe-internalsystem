@@ -530,16 +530,6 @@ export default function Expenses() {
       .slice(0, 5);
   }, [expenses, user]);
 
-  // Edit state
-  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editAmount, setEditAmount] = useState('');
-  const [editInvoiceNumber, setEditInvoiceNumber] = useState('');
-  const [editSellerId, setEditSellerId] = useState('');
-  const [editPurchaseType, setEditPurchaseType] = useState('');
-  const [editPaymentMethodId, setEditPaymentMethodId] = useState('');
-  const [editNotes, setEditNotes] = useState('');
-
   const startEditing = (exp: Expense) => {
     setEditingExpenseId(exp.id);
     setEditTitle(exp.title || '');
