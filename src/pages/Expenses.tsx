@@ -226,8 +226,8 @@ export default function Expenses() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !sellerId || !purchaseType) {
-      toast({ title: 'Please fill seller, purchase type, and amount', variant: 'destructive' });
+    if (!title.trim() || !amount || !purchaseType) {
+      toast({ title: 'Please fill title, purchase type, and amount', variant: 'destructive' });
       return;
     }
     // Auto-resolve account from purchase type
@@ -236,8 +236,8 @@ export default function Expenses() {
     setIsSubmitting(true);
     try {
       const { error } = await (supabase as any).from('daily_expenses').insert({
-        title: title || (category?.label || null),
-        seller_id: sellerId || null,
+        title: title.trim(),
+        seller_id: null,
         account_id: resolvedAccountId,
         payment_method_id: paymentMethodId || null,
         employee_id: employeeId || null,
@@ -251,7 +251,7 @@ export default function Expenses() {
       });
       if (error) throw error;
 
-      setTitle(''); setSellerId(''); setPurchaseType(''); setAccountId(''); setEmployeeId('');
+      setTitle(''); setPurchaseType(''); setAccountId(''); setEmployeeId('');
       setInvoiceNumber(''); setAmount(''); setNotes('');
       toast({ title: 'Expense submitted (awaiting approval)' });
       fetchAll();
@@ -626,7 +626,7 @@ export default function Expenses() {
 
         {/* Quick Add Form */}
         <form onSubmit={handleSubmit} className="card-premium p-5 mb-6">
-          <div className="flex items-center justify-between mb-4">
+           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold flex items-center gap-2">
               <Receipt className="w-4 h-4 text-primary" />
               Add Expense
@@ -636,23 +636,21 @@ export default function Expenses() {
                 setScanPreview(data);
                 setScanConfirmOpen(true);
               }}
+              variant="prominent"
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
-              <Label className="text-xs">Title</Label>
-              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Zadi Dhabi daily purchase" className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Seller *</Label>
-              <Select value={sellerId} onValueChange={setSellerId}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Select seller..." /></SelectTrigger>
-                <SelectContent>{sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <Label className="text-xs">Title *</Label>
+              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Zadi Dhabi daily purchase" className="h-9" required />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs flex items-center gap-1"><Tag className="w-3 h-3" /> Purchase Type *</Label>
               <Select value={purchaseType} onValueChange={(val) => {
+                if (val === '__add_new__') {
+                  setAddingPurchaseType(true);
+                  return;
+                }
                 setPurchaseType(val);
                 const cat = getCategoryById(val);
                 if (cat) setVatIncluded(cat.includesTax);
@@ -664,8 +662,48 @@ export default function Expenses() {
                       {cat.label} — {cat.labelAr}
                     </SelectItem>
                   ))}
+                  {customPurchaseTypes.map(cpt => (
+                    <SelectItem key={cpt} value={cpt}>{cpt}</SelectItem>
+                  ))}
+                  <SelectItem value="__add_new__" className="text-primary font-medium">
+                    + Add New Type...
+                  </SelectItem>
                 </SelectContent>
               </Select>
+              {addingPurchaseType && (
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    value={newPurchaseTypeName}
+                    onChange={e => setNewPurchaseTypeName(e.target.value)}
+                    placeholder="New type name..."
+                    className="h-8 text-xs"
+                    autoFocus
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newPurchaseTypeName.trim()) {
+                          setCustomPurchaseTypes(prev => [...prev, newPurchaseTypeName.trim()]);
+                          setPurchaseType(newPurchaseTypeName.trim());
+                          setNewPurchaseTypeName('');
+                          setAddingPurchaseType(false);
+                        }
+                      }
+                      if (e.key === 'Escape') { setAddingPurchaseType(false); setNewPurchaseTypeName(''); }
+                    }}
+                  />
+                  <Button type="button" size="sm" className="h-8 text-xs" onClick={() => {
+                    if (newPurchaseTypeName.trim()) {
+                      setCustomPurchaseTypes(prev => [...prev, newPurchaseTypeName.trim()]);
+                      setPurchaseType(newPurchaseTypeName.trim());
+                      setNewPurchaseTypeName('');
+                      setAddingPurchaseType(false);
+                    }
+                  }}>Add</Button>
+                  <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setAddingPurchaseType(false); setNewPurchaseTypeName(''); }}>
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Purchased By</Label>
