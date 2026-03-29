@@ -144,7 +144,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
         card_amount: parseFloat(cardAmount),
         transaction_count: parseInt(transactionCount),
         proof_image_url: proofImageUrl || 'no-proof',
-        ...(isAdmin ? { status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() } : {}),
+        // All entries start as 'submitted' — admin approves separately
       });
 
       if (error) throw error;
