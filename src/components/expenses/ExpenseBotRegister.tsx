@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { getCategoryById, resolvePaymentAccount, buildZohoPayload } from '@/lib/expenseCategorization';
 
 interface ExpenseEntry {
   id: string;
@@ -80,20 +81,68 @@ export function ExpenseBotRegister({ entry }: ExpenseBotRegisterProps) {
     }
   };
 
-  const generateOutput = () => {
-    if (!entry || !template) return '';
+  const getZohoData = () => {
+    if (!entry) return null;
+    
+    // Extract purchase type from notes [type] prefix
+    const purchaseTypeMatch = entry.notes?.match(/^\[([^\]]+)\]/);
+    const purchaseTypeId = purchaseTypeMatch?.[1] || '';
+    const paymentName = entry.expense_payment_methods?.name || '';
+    
+    return buildZohoPayload({
+      vendor: entry.expense_sellers?.name || '',
+      invoiceNumber: entry.invoice_number || '',
+      amount: entry.amount,
+      date: entry.date,
+      purchaseType: purchaseTypeId,
+      paymentMethodName: paymentName,
+      includesTax: entry.vat_included,
+    });
+  };
 
-    return template
-      .replace(/{title}/g, entry.title || '')
-      .replace(/{seller}/g, entry.expense_sellers?.name || '')
-      .replace(/{account}/g, entry.expense_accounts?.name || '')
-      .replace(/{payment}/g, entry.expense_payment_methods?.name || '')
-      .replace(/{employee}/g, entry.employees?.name || '')
-      .replace(/{amount}/g, String(Number(entry.amount)))
-      .replace(/{vat}/g, entry.vat_included ? 'شامل' : 'غير شامل')
-      .replace(/{date}/g, format(new Date(entry.date), 'yyyy-MM-dd'))
-      .replace(/{invoice}/g, entry.invoice_number || '')
-      .replace(/{notes}/g, entry.notes || '');
+  const generateOutput = () => {
+    if (!entry) return '';
+    
+    const zoho = getZohoData();
+    
+    // If template exists, use it with variables
+    if (template) {
+      const cleanNotes = entry.notes?.replace(/^\[[^\]]+\]\s*/, '') || '';
+      return template
+        .replace(/{title}/g, entry.title || '')
+        .replace(/{seller}/g, entry.expense_sellers?.name || '')
+        .replace(/{account}/g, zoho?.expense_account_name || entry.expense_accounts?.name || '')
+        .replace(/{payment}/g, zoho?.payment_account_name || entry.expense_payment_methods?.name || '')
+        .replace(/{employee}/g, entry.employees?.name || '')
+        .replace(/{amount}/g, String(Number(entry.amount)))
+        .replace(/{vat}/g, entry.vat_included ? 'شامل' : 'غير شامل')
+        .replace(/{date}/g, format(new Date(entry.date), 'yyyy-MM-dd'))
+        .replace(/{invoice}/g, entry.invoice_number || '')
+        .replace(/{notes}/g, cleanNotes)
+        .replace(/{expense_account_id}/g, zoho?.expense_account_id || '')
+        .replace(/{payment_account_id}/g, zoho?.payment_account_id || '')
+        .replace(/{confidence}/g, zoho?.confidence || '');
+    }
+    
+    // Default structured output if no template
+    if (zoho) {
+      return JSON.stringify({
+        vendor: zoho.vendor,
+        invoice_number: zoho.invoice_number,
+        amount: zoho.amount,
+        date: zoho.date,
+        expense_account_id: zoho.expense_account_id,
+        expense_account_name: zoho.expense_account_name,
+        payment_account_id: zoho.payment_account_id,
+        payment_account_name: zoho.payment_account_name,
+        reference: zoho.reference,
+        includes_tax: zoho.includes_tax,
+        confidence: zoho.confidence,
+        reason: zoho.reason,
+      }, null, 2);
+    }
+    
+    return '';
   };
 
   const handleCopy = () => {
@@ -135,7 +184,7 @@ export function ExpenseBotRegister({ entry }: ExpenseBotRegisterProps) {
         {editingTemplate ? (
           <div className="space-y-3 flex-1 flex flex-col">
             <p className="text-xs text-muted-foreground">
-              Variables: {'{title}'}, {'{seller}'}, {'{account}'}, {'{payment}'}, {'{employee}'}, {'{amount}'}, {'{vat}'}, {'{date}'}, {'{invoice}'}, {'{notes}'}
+              Variables: {'{title}'}, {'{seller}'}, {'{account}'}, {'{payment}'}, {'{employee}'}, {'{amount}'}, {'{vat}'}, {'{date}'}, {'{invoice}'}, {'{notes}'}, {'{expense_account_id}'}, {'{payment_account_id}'}, {'{confidence}'}
             </p>
             <Textarea
               value={editedTemplate}
@@ -152,11 +201,9 @@ export function ExpenseBotRegister({ entry }: ExpenseBotRegisterProps) {
             <div className="bg-muted/50 rounded-xl p-4 flex-1 font-mono text-sm whitespace-pre-wrap" dir="rtl">
               {generateOutput() || <span className="text-muted-foreground">No template configured. Click "Edit Template" to set one up.</span>}
             </div>
-            {template && (
-              <Button onClick={handleCopy} className="w-full gap-2" variant="outline">
-                {copied ? <><Check className="w-4 h-4" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy to Clipboard</>}
-              </Button>
-            )}
+            <Button onClick={handleCopy} className="w-full gap-2" variant="outline">
+              {copied ? <><Check className="w-4 h-4" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy to Clipboard</>}
+            </Button>
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm text-center">
