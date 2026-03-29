@@ -39,6 +39,7 @@ interface OvertimeEntry {
   date: string;
   is_paid: boolean;
   type: string;
+  notes: string | null;
   employee?: Employee;
 }
 
