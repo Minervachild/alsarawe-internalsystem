@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 import { SmartQuickAdd } from '@/components/orders/SmartQuickAdd';
 import { DeliveryProofDialog } from '@/components/orders/DeliveryProofDialog';
-import { notifyNewOrder, buildOrderSummary } from '@/lib/orderNotifications';
+import { notifyNewOrder } from '@/lib/orderNotifications';
 import { ProductsDialog } from '@/components/orders/ProductsDialog';
 import { ClientsDialog } from '@/components/orders/ClientsDialog';
 
@@ -195,7 +195,8 @@ export default function Orders() {
       if (error) throw error;
 
       setRows(prev => [...prev, { ...newRow, cells: {} }]);
-      notifyNewOrder('Unknown');
+      const group = groups.find(g => g.id === groupId);
+      notifyNewOrder('Unknown', group?.name);
       toast({ title: 'New order added' });
     } catch (error: any) {
       toast({
@@ -779,8 +780,8 @@ export default function Orders() {
             await fetchData();
             const clientCol2 = columns.find(c => c.type === 'relation' || c.name.toLowerCase().includes('client'));
             const clientName2 = clientCol2 ? (cells[clientCol2.id] as string) || 'Unknown' : 'Unknown';
-            const summary2 = buildOrderSummary(cells, columns);
-            notifyNewOrder(clientName2, summary2);
+            const targetGroup = groups.find(g => g.id === newRow.group_id);
+            notifyNewOrder(clientName2, targetGroup?.name);
             toast({ title: 'Order added via Smart Add!' });
           } catch (error: any) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });

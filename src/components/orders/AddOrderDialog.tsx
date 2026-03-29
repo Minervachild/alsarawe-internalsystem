@@ -20,7 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { notifyNewOrder, buildOrderSummary } from '@/lib/orderNotifications';
+import { notifyNewOrder } from '@/lib/orderNotifications';
 
 interface BoardColumn {
   id: string;
@@ -39,11 +39,12 @@ interface AddOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   groupId: string | null;
+  groupName?: string;
   columns: BoardColumn[];
   onSuccess: () => void;
 }
 
-export function AddOrderDialog({ open, onOpenChange, groupId, columns, onSuccess }: AddOrderDialogProps) {
+export function AddOrderDialog({ open, onOpenChange, groupId, groupName, columns, onSuccess }: AddOrderDialogProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -104,8 +105,7 @@ export function AddOrderDialog({ open, onOpenChange, groupId, columns, onSuccess
       const clientName = clientColumn ? formData[clientColumn.id] : 'Unknown';
 
       // Send in-app + ntfy notifications
-      const summary = buildOrderSummary(formData, columns);
-      notifyNewOrder(clientName, summary);
+      notifyNewOrder(clientName as string, groupName);
 
       toast({
         title: 'Order created',
