@@ -708,6 +708,66 @@ export default function Expenses() {
           </Button>
         </form>
 
+        {/* My Recent Entries (employees can edit their submitted entries) */}
+        {myRecentEntries.length > 0 && (
+          <div className="card-premium p-5 mb-6">
+            <h3 className="font-semibold flex items-center gap-2 mb-3">
+              <Pencil className="w-4 h-4 text-primary" />
+              My Recent Entries
+            </h3>
+            <div className="space-y-2">
+              {myRecentEntries.map(exp => (
+                <div key={exp.id} className="rounded-lg border border-border p-3">
+                  {editingExpenseId === exp.id ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Title" className="h-8 text-sm" />
+                      <Select value={editSellerId} onValueChange={setEditSellerId}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seller" /></SelectTrigger>
+                        <SelectContent>{sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Select value={editPurchaseType} onValueChange={setEditPurchaseType}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Purchase Type" /></SelectTrigger>
+                        <SelectContent>
+                          {PURCHASE_CATEGORIES.map(cat => (
+                            <SelectItem key={cat.id} value={cat.id}>{cat.label} — {cat.labelAr}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input value={editInvoiceNumber} onChange={e => setEditInvoiceNumber(e.target.value)} placeholder="Invoice #" className="h-8 text-sm" />
+                      <Input type="number" step="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)} placeholder="Amount" className="h-8 text-sm" />
+                      <Select value={editPaymentMethodId} onValueChange={setEditPaymentMethodId}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Payment" /></SelectTrigger>
+                        <SelectContent>{paymentMethods.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <div className="sm:col-span-2 lg:col-span-3 flex gap-2">
+                        <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes" className="h-8 text-sm flex-1" />
+                        <Button size="sm" className="h-8 gap-1" onClick={saveEdit}>
+                          <Save className="w-3 h-3" /> Save
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-8" onClick={() => setEditingExpenseId(null)}>
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 text-sm min-w-0">
+                        <span className="text-muted-foreground">{format(new Date(exp.date), 'MMM dd')}</span>
+                        <span className="font-medium truncate">{exp.title || '—'}</span>
+                        <span className="text-muted-foreground">{exp.expense_sellers?.name || ''}</span>
+                        <span className="font-semibold">﷼{Number(exp.amount).toLocaleString()}</span>
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => startEditing(exp)}>
+                        <Pencil className="w-3 h-3" /> Edit
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Dual View: Table + Bot Register */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Expenses Table */}
