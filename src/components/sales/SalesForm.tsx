@@ -59,7 +59,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
   }, [employeeId, isAdmin]);
 
   const fetchAllEmployees = async () => {
-    const { data } = await supabase.from('employees').select('id, name');
+    const { data } = await supabase.from('employees_public').select('id, name');
     if (data) setEmployees(data);
   };
 

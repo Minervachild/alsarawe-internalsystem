@@ -53,7 +53,7 @@ export function BranchManager() {
   const fetchData = async () => {
     const [branchesRes, employeesRes, assignmentsRes] = await Promise.all([
       supabase.from('branches').select('*').order('name'),
-      supabase.from('employees').select('id, name').order('name'),
+      supabase.from('employees_public').select('id, name').order('name'),
       supabase.from('branch_assignments').select('*, employees(name)'),
     ]);
 

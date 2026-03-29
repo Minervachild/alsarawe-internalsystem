@@ -53,21 +53,28 @@ export function CreateUserAccountDialog({
   const { toast } = useToast();
 
   const generatePasscode = () => {
-    // Generate 8-character passcode with guaranteed mix of letters and numbers
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
     const all = letters + numbers;
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
     
     // Ensure at least 2 letters and 2 numbers
     const passcode = [
-      letters[Math.floor(Math.random() * letters.length)],
-      letters[Math.floor(Math.random() * letters.length)],
-      numbers[Math.floor(Math.random() * numbers.length)],
-      numbers[Math.floor(Math.random() * numbers.length)],
-      ...Array.from({ length: 4 }, () => all[Math.floor(Math.random() * all.length)])
-    ].sort(() => Math.random() - 0.5).join('');
+      letters[bytes[0] % letters.length],
+      letters[bytes[1] % letters.length],
+      numbers[bytes[2] % numbers.length],
+      numbers[bytes[3] % numbers.length],
+      ...Array.from(bytes.slice(4), b => all[b % all.length])
+    ];
+    // Shuffle using crypto
+    const shuffleBytes = crypto.getRandomValues(new Uint8Array(passcode.length));
+    const shuffled = passcode
+      .map((c, i) => ({ c, sort: shuffleBytes[i] }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(x => x.c)
+      .join('');
     
-    setFormData((prev) => ({ ...prev, passcode }));
+    setFormData((prev) => ({ ...prev, passcode: shuffled }));
   };
 
   const getRandomColor = () => {
