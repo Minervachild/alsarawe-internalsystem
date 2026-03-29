@@ -118,6 +118,9 @@ export default function Expenses() {
   // Scan confirmation state
   const [scanPreview, setScanPreview] = useState<{ invoice_number?: string; vendor_name?: string; payment_type?: string; amount?: number; vat_amount?: number; date?: string; purchase_type?: string } | null>(null);
   const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
+  const [addingPurchaseType, setAddingPurchaseType] = useState(false);
+  const [newPurchaseTypeName, setNewPurchaseTypeName] = useState('');
+  const [customPurchaseTypes, setCustomPurchaseTypes] = useState<string[]>([]);
 
   const applyScanData = () => {
     if (!scanPreview) return;
