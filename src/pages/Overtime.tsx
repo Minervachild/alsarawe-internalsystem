@@ -66,6 +66,9 @@ export default function Overtime() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentEntry, setPaymentEntry] = useState<OvertimeEntry | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [bulkPaymentDialogOpen, setBulkPaymentDialogOpen] = useState(false);
+  const [bulkPaymentEmployeeId, setBulkPaymentEmployeeId] = useState<string | null>(null);
+  const [bulkPaymentAmount, setBulkPaymentAmount] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -249,7 +252,6 @@ export default function Overtime() {
         .filter(e => e.employee_id === employeeId && !e.is_paid);
       if (unpaidEntries.length === 0) return;
 
-      // For each unpaid entry, set paid_amount = amount and is_paid = true
       for (const entry of unpaidEntries) {
         await supabase
           .from('overtime')
@@ -257,6 +259,52 @@ export default function Overtime() {
           .eq('id', entry.id);
       }
       toast({ title: `Marked ${unpaidEntries.length} entries as fully paid` });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const openBulkPaymentDialog = (employeeId: string) => {
+    const summary = employeeSummaries.find(s => s.employee.id === employeeId);
+    setBulkPaymentEmployeeId(employeeId);
+    setBulkPaymentAmount(String(summary?.unpaidAmount || 0));
+    setBulkPaymentDialogOpen(true);
+  };
+
+  const handleBulkPartialPayment = async () => {
+    if (!bulkPaymentEmployeeId) return;
+    let remaining = parseFloat(bulkPaymentAmount) || 0;
+    if (remaining <= 0) {
+      toast({ title: 'Enter a valid amount', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      // Get unpaid entries for this employee, oldest first
+      const unpaidEntries = filteredEntries
+        .filter(e => e.employee_id === bulkPaymentEmployeeId && !e.is_paid)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      for (const entry of unpaidEntries) {
+        if (remaining <= 0) break;
+        const entryRemaining = entry.amount - (entry.paid_amount || 0);
+        if (entryRemaining <= 0) continue;
+
+        const payForThis = Math.min(remaining, entryRemaining);
+        const newPaid = (entry.paid_amount || 0) + payForThis;
+        const fullyPaid = newPaid >= entry.amount;
+
+        await supabase
+          .from('overtime')
+          .update({ paid_amount: newPaid, is_paid: fullyPaid })
+          .eq('id', entry.id);
+
+        remaining -= payForThis;
+      }
+
+      toast({ title: `Recorded ﷼${(parseFloat(bulkPaymentAmount) || 0).toFixed(2)} partial payment` });
+      setBulkPaymentDialogOpen(false);
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -498,14 +546,25 @@ export default function Overtime() {
                           )}
                         </div>
                         {isAdmin && summary.unpaidAmount > 0 && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                            onClick={(e) => { e.stopPropagation(); markAllPaid(summary.employee.id); }}
-                          >
-                            Pay All
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={(e) => { e.stopPropagation(); openBulkPaymentDialog(summary.employee.id); }}
+                            >
+                              <DollarSign className="w-3 h-3 mr-1" />
+                              Partial Pay
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={(e) => { e.stopPropagation(); markAllPaid(summary.employee.id); }}
+                            >
+                              Pay All
+                            </Button>
+                          </div>
                         )}
                         {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                       </div>
@@ -858,6 +917,76 @@ export default function Overtime() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Partial Payment Dialog */}
+      <Dialog open={bulkPaymentDialogOpen} onOpenChange={setBulkPaymentDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display">Partial Payment</DialogTitle>
+          </DialogHeader>
+          {bulkPaymentEmployeeId && (() => {
+            const summary = employeeSummaries.find(s => s.employee.id === bulkPaymentEmployeeId);
+            if (!summary) return null;
+            return (
+              <div className="space-y-4 mt-2">
+                <div className="p-3 bg-muted rounded-lg space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Employee</span>
+                    <span className="font-semibold">{summary.employee.name}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Owed</span>
+                    <span className="font-semibold">{summary.totalAmount.toFixed(2)} ﷼</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t border-border/50 pt-1 mt-1">
+                    <span className="text-muted-foreground">Unpaid Balance</span>
+                    <span className="font-bold text-warning">{summary.unpaidAmount.toFixed(2)} ﷼</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Payment Amount</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={summary.unpaidAmount}
+                    value={bulkPaymentAmount}
+                    onChange={(e) => setBulkPaymentAmount(e.target.value)}
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Payment will be distributed across unpaid entries (oldest first).
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => setBulkPaymentAmount(String(summary.unpaidAmount))}
+                    >
+                      Pay Full Balance
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => setBulkPaymentAmount(String(Math.round(summary.unpaidAmount / 2 * 100) / 100))}
+                    >
+                      Pay Half
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setBulkPaymentDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleBulkPartialPayment}>Record Payment</Button>
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </AppLayout>
