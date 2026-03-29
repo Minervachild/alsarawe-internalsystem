@@ -106,7 +106,7 @@ export default function Expenses() {
   const [sendingWebhook, setSendingWebhook] = useState<string | null>(null);
 
   // Scan confirmation state
-  const [scanPreview, setScanPreview] = useState<{ invoice_number?: string; vendor_name?: string; payment_type?: string; amount?: number; vat_amount?: number; date?: string } | null>(null);
+  const [scanPreview, setScanPreview] = useState<{ invoice_number?: string; vendor_name?: string; payment_type?: string; amount?: number; vat_amount?: number; date?: string; purchase_type?: string } | null>(null);
   const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
 
   const applyScanData = () => {
@@ -121,6 +121,13 @@ export default function Expenses() {
     if (scanPreview.payment_type) {
       const matchedPm = paymentMethods.find(p => p.name.toLowerCase().includes(scanPreview.payment_type!.toLowerCase()));
       if (matchedPm) setPaymentMethodId(matchedPm.id);
+    }
+    if (scanPreview.purchase_type) {
+      const matched = getCategoryById(scanPreview.purchase_type);
+      if (matched) {
+        setPurchaseType(matched.id);
+        setVatIncluded(matched.includesTax);
+      }
     }
     if (scanPreview.date) setDate(scanPreview.date);
     setScanConfirmOpen(false);
