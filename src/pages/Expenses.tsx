@@ -105,6 +105,16 @@ export default function Expenses() {
   // Webhook state
   const [sendingWebhook, setSendingWebhook] = useState<string | null>(null);
 
+  // Edit state (for employee's recent entries)
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editInvoiceNumber, setEditInvoiceNumber] = useState('');
+  const [editSellerId, setEditSellerId] = useState('');
+  const [editPurchaseType, setEditPurchaseType] = useState('');
+  const [editPaymentMethodId, setEditPaymentMethodId] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+
   // Scan confirmation state
   const [scanPreview, setScanPreview] = useState<{ invoice_number?: string; vendor_name?: string; payment_type?: string; amount?: number; vat_amount?: number; date?: string; purchase_type?: string } | null>(null);
   const [scanConfirmOpen, setScanConfirmOpen] = useState(false);
