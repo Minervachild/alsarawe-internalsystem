@@ -76,6 +76,7 @@ export default function Overtime() {
     total_offday_days: 0,
     overtime_amount_override: 0,
     offday_amount_override: 0,
+    notes: '',
   });
   const [dailyBreakdown, setDailyBreakdown] = useState<{ date: string; overtime_hours: number; is_offday: boolean }[]>([]);
   const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
@@ -200,7 +201,7 @@ export default function Overtime() {
   };
 
   const resetForm = () => {
-    setFormData(prev => ({ ...prev, total_overtime_hours: 0, total_offday_days: 0, overtime_amount_override: 0, offday_amount_override: 0 }));
+    setFormData(prev => ({ ...prev, total_overtime_hours: 0, total_offday_days: 0, overtime_amount_override: 0, offday_amount_override: 0, notes: '' }));
     setDailyBreakdown([]);
     setShowDailyBreakdown(false);
   };
