@@ -44,7 +44,7 @@ export default function Sales() {
     if (user && profile) {
       setIsLoading(true);
       fetchEmployeeId();
-    } else if (!authLoading && !user) {
+    } else {
       setEmployeeId(null);
       setIsLoading(false);
     }
