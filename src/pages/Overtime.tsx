@@ -252,7 +252,6 @@ export default function Overtime() {
         .filter(e => e.employee_id === employeeId && !e.is_paid);
       if (unpaidEntries.length === 0) return;
 
-      // For each unpaid entry, set paid_amount = amount and is_paid = true
       for (const entry of unpaidEntries) {
         await supabase
           .from('overtime')
@@ -260,6 +259,52 @@ export default function Overtime() {
           .eq('id', entry.id);
       }
       toast({ title: `Marked ${unpaidEntries.length} entries as fully paid` });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const openBulkPaymentDialog = (employeeId: string) => {
+    const summary = employeeSummaries.find(s => s.employee.id === employeeId);
+    setBulkPaymentEmployeeId(employeeId);
+    setBulkPaymentAmount(String(summary?.unpaidAmount || 0));
+    setBulkPaymentDialogOpen(true);
+  };
+
+  const handleBulkPartialPayment = async () => {
+    if (!bulkPaymentEmployeeId) return;
+    let remaining = parseFloat(bulkPaymentAmount) || 0;
+    if (remaining <= 0) {
+      toast({ title: 'Enter a valid amount', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      // Get unpaid entries for this employee, oldest first
+      const unpaidEntries = filteredEntries
+        .filter(e => e.employee_id === bulkPaymentEmployeeId && !e.is_paid)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      for (const entry of unpaidEntries) {
+        if (remaining <= 0) break;
+        const entryRemaining = entry.amount - (entry.paid_amount || 0);
+        if (entryRemaining <= 0) continue;
+
+        const payForThis = Math.min(remaining, entryRemaining);
+        const newPaid = (entry.paid_amount || 0) + payForThis;
+        const fullyPaid = newPaid >= entry.amount;
+
+        await supabase
+          .from('overtime')
+          .update({ paid_amount: newPaid, is_paid: fullyPaid })
+          .eq('id', entry.id);
+
+        remaining -= payForThis;
+      }
+
+      toast({ title: `Recorded ﷼${(parseFloat(bulkPaymentAmount) || 0).toFixed(2)} partial payment` });
+      setBulkPaymentDialogOpen(false);
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
