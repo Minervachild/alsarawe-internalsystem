@@ -32,8 +32,11 @@ const ALL_PAGES = [
   { key: 'daily-duties', label: 'Daily Duties', icon: CheckSquare },
   { key: 'quality-check', label: 'Quality Check', icon: ClipboardCheck },
   { key: 'sales', label: 'Registering Sales', icon: Receipt },
+  { key: 'expenses', label: 'Daily Expenses', icon: Receipt },
   { key: 'products', label: 'Products', icon: Coffee },
   { key: 'accounts', label: 'Accounts', icon: Lock },
+  { key: 'shipping', label: 'Shipping', icon: ClipboardList },
+  { key: 'payment-collection', label: 'Payment Collection', icon: Receipt },
   { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
