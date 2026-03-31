@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
-import { format, subDays, eachDayOfInterval } from 'date-fns';
+import { format, subDays, eachDayOfInterval, max } from 'date-fns';
 import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+
+// Only track from this date forward
+const TRACKING_START = new Date('2026-03-31');
 
 interface SalesEntry {
   id: string;
