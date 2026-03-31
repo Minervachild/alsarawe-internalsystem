@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { format, subDays } from 'date-fns';
+import { format } from 'date-fns';
 import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -22,8 +22,6 @@ interface Branch {
   name: string;
 }
 
-// Branch name mapping
-const BRANCH_DISPLAY: Record<string, string> = {};
 const EXTERNAL_BRANCH_NAMES = ['افنتات خارجية', 'Mawhoob', 'External Events'];
 
 function isExternalBranch(name: string) {
@@ -55,7 +53,7 @@ export function SalesTrackerGrid({ entries, branches }: Props) {
   const StatusIcon = ({ status }: { status: string }) => {
     switch (status) {
       case 'posted':
-        return <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400"><CheckCircle className="w-4 h-4" /> تم الإرسال</span>;
+        return <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400"><CheckCircle className="w-4 h-4" /> Sent</span>;
       case 'approved':
         return <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400"><CheckCircle className="w-4 h-4" /> ✅</span>;
       case 'pending':
@@ -67,15 +65,14 @@ export function SalesTrackerGrid({ entries, branches }: Props) {
     }
   };
 
-  // Summary for the day
-  const totalExpected = branches.filter(b => !isExternalBranch(b.name)).length * 2; // 2 shifts each
+  const totalExpected = branches.filter(b => !isExternalBranch(b.name)).length * 2;
   const totalSubmitted = dayEntries.filter(e => e.status !== 'rejected').length;
   const totalPosted = dayEntries.filter(e => (e as any).posted_to_zoho).length;
 
   return (
     <div className="card-premium p-4 sm:p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-foreground">سجل المبيعات اليومي</h3>
+        <h3 className="font-semibold text-foreground">Daily Sales Register</h3>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
@@ -99,9 +96,9 @@ export function SalesTrackerGrid({ entries, branches }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-right p-2 font-medium text-muted-foreground">الفرع</th>
-              <th className="text-center p-2 font-medium text-muted-foreground">صباحي</th>
-              <th className="text-center p-2 font-medium text-muted-foreground">مسائي</th>
+              <th className="text-left p-2 font-medium text-muted-foreground">Branch</th>
+              <th className="text-center p-2 font-medium text-muted-foreground">Morning</th>
+              <th className="text-center p-2 font-medium text-muted-foreground">Night</th>
             </tr>
           </thead>
           <tbody>
@@ -109,7 +106,7 @@ export function SalesTrackerGrid({ entries, branches }: Props) {
               const external = isExternalBranch(branch.name);
               return (
                 <tr key={branch.id} className="border-b border-border/50">
-                  <td className="p-2 text-right font-medium">{branch.name}</td>
+                  <td className="p-2 font-medium">{branch.name}</td>
                   <td className="p-2 text-center">
                     <StatusIcon status={external ? (getStatus(branch.id, 'morning') === 'missing' ? 'na' : getStatus(branch.id, 'morning')) : getStatus(branch.id, 'morning')} />
                   </td>
@@ -127,14 +124,13 @@ export function SalesTrackerGrid({ entries, branches }: Props) {
         </table>
       </div>
 
-      {/* Daily Summary */}
       <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-        <span>{totalSubmitted}/{totalExpected} مسجل</span>
-        <span>{totalPosted}/{totalSubmitted} تم الإرسال للزوهو</span>
+        <span>{totalSubmitted}/{totalExpected} registered</span>
+        <span>{totalPosted}/{totalSubmitted} sent to Zoho</span>
         {totalSubmitted >= totalExpected ? (
-          <span className="text-emerald-600 font-medium">✅ مكتمل</span>
+          <span className="text-emerald-600 font-medium">✅ Complete</span>
         ) : (
-          <span className="text-red-600 font-medium">❌ ناقص</span>
+          <span className="text-red-600 font-medium">❌ Incomplete</span>
         )}
       </div>
     </div>
