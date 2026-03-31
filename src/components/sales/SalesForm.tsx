@@ -134,6 +134,28 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
     const effectiveEmployeeId = isAdmin ? selectedEmployeeId : employeeId!;
     setIsSubmitting(true);
     try {
+      // Duplicate prevention: check if entry exists for same branch + shift + date
+      const { data: existing } = await supabase
+        .from('sales_entries')
+        .select('id, created_at, employees(name)')
+        .eq('branch_id', branchId)
+        .eq('shift', shift)
+        .eq('date', date)
+        .neq('status', 'rejected')
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        const empName = (existing[0] as any).employees?.name || 'Unknown';
+        const time = new Date(existing[0].created_at).toLocaleTimeString('ar-SA');
+        toast({
+          title: '⚠️ تم تسجيل مبيعات هذه الوردية مسبقاً',
+          description: `${empName} سجلها في ${time}`,
+          variant: 'destructive',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       const { error } = await supabase.from('sales_entries').insert({
         date,
         shift,
@@ -144,12 +166,9 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
         card_amount: parseFloat(cardAmount),
         transaction_count: parseInt(transactionCount),
         proof_image_url: proofImageUrl || 'no-proof',
-        // All entries start as 'submitted' — admin approves separately
       });
 
       if (error) throw error;
-
-      // Fire-and-forget: no Telegram here, admin approves first
 
       setIsSubmitted(true);
       toast({ title: 'Sales submitted successfully! Pending admin approval.' });
