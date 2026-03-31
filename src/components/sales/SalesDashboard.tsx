@@ -594,7 +594,7 @@ export function SalesDashboard() {
                                 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                                 : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
                             }`}>
-                              {entry.shift === 'morning' ? 'صباحي' : 'مسائي'}
+                              {entry.shift === 'morning' ? 'Morning' : 'Night'}
                             </span>
                           </td>
                           <td className="p-3 text-muted-foreground">{(entry as any).employees?.name || '—'}</td>
