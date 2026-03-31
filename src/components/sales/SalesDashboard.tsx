@@ -148,7 +148,7 @@ export function SalesDashboard() {
         posted_at: new Date().toISOString(),
         posted_by: user?.id,
         post_count: currentCount + 1,
-      })
+      } as any)
       .eq('id', entryId);
 
     setEntries(prev => prev.map(e =>
