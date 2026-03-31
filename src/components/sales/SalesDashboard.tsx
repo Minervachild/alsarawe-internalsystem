@@ -464,11 +464,11 @@ export function SalesDashboard() {
                 <Label className="text-xs">Zoho Status</Label>
                 <Select value={filterZoho} onValueChange={setFilterZoho}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
+                <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="posted">تم الإرسال</SelectItem>
-                    <SelectItem value="not_posted">لم يُرسل</SelectItem>
-                    <SelectItem value="resent">أُعيد الإرسال</SelectItem>
+                    <SelectItem value="posted">Sent</SelectItem>
+                    <SelectItem value="not_posted">Not Sent</SelectItem>
+                    <SelectItem value="resent">Resent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
