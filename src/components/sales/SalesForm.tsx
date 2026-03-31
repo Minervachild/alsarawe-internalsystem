@@ -134,26 +134,29 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
     const effectiveEmployeeId = isAdmin ? selectedEmployeeId : employeeId!;
     setIsSubmitting(true);
     try {
-      // Duplicate prevention: check if entry exists for same branch + shift + date
-      const { data: existing } = await supabase
-        .from('sales_entries')
-        .select('id, created_at, employees(name)')
-        .eq('branch_id', branchId)
-        .eq('shift', shift)
-        .eq('date', date)
-        .neq('status', 'rejected')
-        .limit(1);
+      // Duplicate prevention: only check entries from 2026-03-31 onward
+      const TRACKING_START_DATE = '2026-03-31';
+      if (date >= TRACKING_START_DATE) {
+        const { data: existing } = await supabase
+          .from('sales_entries')
+          .select('id, created_at, employees(name)')
+          .eq('branch_id', branchId)
+          .eq('shift', shift)
+          .eq('date', date)
+          .neq('status', 'rejected')
+          .limit(1);
 
-      if (existing && existing.length > 0) {
-        const empName = (existing[0] as any).employees?.name || 'Unknown';
-        const time = new Date(existing[0].created_at).toLocaleTimeString('ar-SA');
-        toast({
-          title: '⚠️ تم تسجيل مبيعات هذه الوردية مسبقاً',
-          description: `${empName} سجلها في ${time}`,
-          variant: 'destructive',
-        });
-        setIsSubmitting(false);
-        return;
+        if (existing && existing.length > 0) {
+          const empName = (existing[0] as any).employees?.name || 'Unknown';
+          const time = new Date(existing[0].created_at).toLocaleTimeString('ar-SA');
+          toast({
+            title: '⚠️ تم تسجيل مبيعات هذه الوردية مسبقاً',
+            description: `${empName} سجلها في ${time}`,
+            variant: 'destructive',
+          });
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       const { error } = await supabase.from('sales_entries').insert({

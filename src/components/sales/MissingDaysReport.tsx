@@ -36,7 +36,8 @@ export function MissingDaysReport({ entries, branches }: Props) {
 
   const last30Days = useMemo(() => {
     const end = new Date();
-    const start = subDays(end, 29);
+    const start = max([subDays(end, 29), TRACKING_START]);
+    if (start > end) return [];
     return eachDayOfInterval({ start, end }).reverse();
   }, []);
 
