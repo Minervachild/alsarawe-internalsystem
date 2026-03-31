@@ -209,7 +209,7 @@ export default function Sales() {
             <h1 className="text-2xl font-semibold text-foreground">Registering Sales</h1>
             <p className="text-muted-foreground">Review submissions and manage branches</p>
           </div>
-          <Dialog open={registerOpen} onOpenChange={(open) => { if (!open) return; setRegisterOpen(open); }}>
+          <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
             <DialogTrigger asChild>
               <Button className="gap-1.5">
                 <PlusCircle className="w-4 h-4" />
