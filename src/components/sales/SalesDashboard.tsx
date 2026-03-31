@@ -708,13 +708,13 @@ export function SalesDashboard() {
       <AlertDialog open={!!resendConfirm} onOpenChange={(open) => !open && setResendConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>⚠️ هذا السجل تم إرساله مسبقاً</AlertDialogTitle>
+            <AlertDialogTitle>⚠️ This entry was already sent</AlertDialogTitle>
             <AlertDialogDescription>
-              هل تريد إعادة الإرسال؟ سيتم تمييز هذا السجل كـ "أُعيد الإرسال" للمراجعة.
+              Do you want to resend? This entry will be flagged as "Resent" for review.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
               if (resendConfirm) {
                 if (resendConfirm.status === 'submitted') {
@@ -725,7 +725,7 @@ export function SalesDashboard() {
               }
               setResendConfirm(null);
             }}>
-              إعادة الإرسال
+              Resend
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
