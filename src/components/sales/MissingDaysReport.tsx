@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
-import { format, subDays, eachDayOfInterval } from 'date-fns';
+import { format, subDays, eachDayOfInterval, max } from 'date-fns';
 import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+
+// Only track from this date forward
+const TRACKING_START = new Date('2026-03-31');
 
 interface SalesEntry {
   id: string;
@@ -33,7 +36,8 @@ export function MissingDaysReport({ entries, branches }: Props) {
 
   const last30Days = useMemo(() => {
     const end = new Date();
-    const start = subDays(end, 29);
+    const start = max([subDays(end, 29), TRACKING_START]);
+    if (start > end) return [];
     return eachDayOfInterval({ start, end }).reverse();
   }, []);
 
