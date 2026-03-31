@@ -2,9 +2,7 @@ import { useMemo, useState } from 'react';
 import { format, subDays, eachDayOfInterval, max } from 'date-fns';
 import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 
-// Only track from this date forward
 const TRACKING_START = new Date('2026-03-31');
 
 interface SalesEntry {
@@ -77,10 +75,10 @@ export function MissingDaysReport({ entries, branches }: Props) {
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-amber-500" />
-          <h3 className="font-semibold">الأيام الناقصة — آخر 30 يوم</h3>
+          <h3 className="font-semibold">Missing Days — Last 30 Days</h3>
           {missingCount > 0 && (
             <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs font-medium px-2 py-0.5 rounded-full">
-              {missingCount} ناقص
+              {missingCount} missing
             </span>
           )}
         </div>
@@ -90,7 +88,7 @@ export function MissingDaysReport({ entries, branches }: Props) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">كل الفروع</SelectItem>
+              <SelectItem value="all">All Branches</SelectItem>
               {regularBranches.map(b => (
                 <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
               ))}
@@ -103,7 +101,7 @@ export function MissingDaysReport({ entries, branches }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 sticky top-0">
             <tr>
-              <th className="text-right p-2.5 font-medium text-muted-foreground">التاريخ</th>
+              <th className="text-left p-2.5 font-medium text-muted-foreground">Date</th>
               {filteredBranches.map(b => (
                 <th key={b.id} colSpan={2} className="text-center p-2.5 font-medium text-muted-foreground border-l border-border/50">
                   {b.name}
@@ -114,8 +112,8 @@ export function MissingDaysReport({ entries, branches }: Props) {
               <th></th>
               {filteredBranches.map(b => (
                 <>
-                  <th key={`${b.id}-m`} className="text-center p-1 text-muted-foreground border-l border-border/50">صباحي</th>
-                  <th key={`${b.id}-n`} className="text-center p-1 text-muted-foreground">مسائي</th>
+                  <th key={`${b.id}-m`} className="text-center p-1 text-muted-foreground border-l border-border/50">Morning</th>
+                  <th key={`${b.id}-n`} className="text-center p-1 text-muted-foreground">Night</th>
                 </>
               ))}
             </tr>
@@ -131,7 +129,7 @@ export function MissingDaysReport({ entries, branches }: Props) {
 
               return (
                 <tr key={dateStr} className={`border-b border-border/30 ${hasAnyMissing ? 'bg-red-50/50 dark:bg-red-950/10' : ''}`}>
-                  <td className="p-2 text-right font-medium text-xs">{format(day, 'MMM dd (EEE)')}</td>
+                  <td className="p-2 font-medium text-xs">{format(day, 'MMM dd (EEE)')}</td>
                   {filteredBranches.map(b => {
                     const key = `${dateStr}_${b.id}`;
                     const shifts = entryMap.get(key);

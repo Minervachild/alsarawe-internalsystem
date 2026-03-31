@@ -36,28 +36,28 @@ export function DailySummaryRow({ entries, filterDate, canSeeTotals }: Props) {
 
   return (
     <div className="card-premium p-4 mt-4">
-      <h4 className="text-sm font-semibold mb-3 text-muted-foreground">ملخص اليوم — {filterDate}</h4>
+      <h4 className="text-sm font-semibold mb-3 text-muted-foreground">Daily Summary — {filterDate}</h4>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {canSeeTotals && (
           <>
             <div className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-green-500" />
               <div>
-                <p className="text-xs text-muted-foreground">كاش</p>
+                <p className="text-xs text-muted-foreground">Cash</p>
                 <p className="font-semibold">﷼{totalCash.toLocaleString()}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-blue-500" />
               <div>
-                <p className="text-xs text-muted-foreground">شبكة</p>
+                <p className="text-xs text-muted-foreground">Card</p>
                 <p className="font-semibold">﷼{totalCard.toLocaleString()}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-primary" />
               <div>
-                <p className="text-xs text-muted-foreground">الإجمالي</p>
+                <p className="text-xs text-muted-foreground">Total</p>
                 <p className="font-semibold">﷼{grandTotal.toLocaleString()}</p>
               </div>
             </div>
@@ -66,9 +66,9 @@ export function DailySummaryRow({ entries, filterDate, canSeeTotals }: Props) {
         <div className="flex items-center gap-2">
           <Send className="w-4 h-4 text-muted-foreground" />
           <div>
-            <p className="text-xs text-muted-foreground">حالة الإرسال</p>
+            <p className="text-xs text-muted-foreground">Send Status</p>
             <p className={`font-semibold text-sm ${allPosted ? 'text-emerald-600' : 'text-amber-600'}`}>
-              {allPosted ? 'تم الإرسال ✅' : `${totalPosted}/${dayEntries.length} أُرسل`}
+              {allPosted ? 'All Sent ✅' : `${totalPosted}/${dayEntries.length} sent`}
             </p>
           </div>
         </div>

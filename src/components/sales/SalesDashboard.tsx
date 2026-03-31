@@ -351,20 +351,20 @@ export function SalesDashboard() {
     if (postCount > 1) {
       return (
         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-          🔵 أُعيد
+          🔵 Resent
         </span>
       );
     }
     if (posted) {
       return (
         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-          🟢 تم الإرسال
+          🟢 Sent
         </span>
       );
     }
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-        🔴 لم يُرسل
+        🔴 Not Sent
       </span>
     );
   };
@@ -464,11 +464,11 @@ export function SalesDashboard() {
                 <Label className="text-xs">Zoho Status</Label>
                 <Select value={filterZoho} onValueChange={setFilterZoho}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
+                <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="posted">تم الإرسال</SelectItem>
-                    <SelectItem value="not_posted">لم يُرسل</SelectItem>
-                    <SelectItem value="resent">أُعيد الإرسال</SelectItem>
+                    <SelectItem value="posted">Sent</SelectItem>
+                    <SelectItem value="not_posted">Not Sent</SelectItem>
+                    <SelectItem value="resent">Resent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -594,7 +594,7 @@ export function SalesDashboard() {
                                 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                                 : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
                             }`}>
-                              {entry.shift === 'morning' ? 'صباحي' : 'مسائي'}
+                              {entry.shift === 'morning' ? 'Morning' : 'Night'}
                             </span>
                           </td>
                           <td className="p-3 text-muted-foreground">{(entry as any).employees?.name || '—'}</td>
@@ -708,13 +708,13 @@ export function SalesDashboard() {
       <AlertDialog open={!!resendConfirm} onOpenChange={(open) => !open && setResendConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>⚠️ هذا السجل تم إرساله مسبقاً</AlertDialogTitle>
+            <AlertDialogTitle>⚠️ This entry was already sent</AlertDialogTitle>
             <AlertDialogDescription>
-              هل تريد إعادة الإرسال؟ سيتم تمييز هذا السجل كـ "أُعيد الإرسال" للمراجعة.
+              Do you want to resend? This entry will be flagged as "Resent" for review.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
               if (resendConfirm) {
                 if (resendConfirm.status === 'submitted') {
@@ -725,7 +725,7 @@ export function SalesDashboard() {
               }
               setResendConfirm(null);
             }}>
-              إعادة الإرسال
+              Resend
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
