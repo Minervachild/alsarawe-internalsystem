@@ -177,40 +177,103 @@ export function SalesDashboard() {
         .eq('id', entry.id);
       if (error) throw error;
 
-      const branchName = (entry as any).branches?.name || '';
-      const employeeName = (entry as any).employees?.name || '';
-      const total = Number(entry.cash_amount) + Number(entry.card_amount);
-
-      const shiftLabel = entry.shift === 'morning' ? 'صباحية' : 'مسائية';
-      const reference = `مبيعات ${branchName} - ${entry.date} - ${shiftLabel}`;
-
-      const webhookPayload = {
-        type: 'sales',
-        entry_id: entry.id,
-        reference,
-        branch: branchName,
-        date: entry.date,
-        shift: shiftLabel,
-        cash_amount: entry.cash_amount,
-        card_amount: entry.card_amount,
-        total,
-        transaction_count: entry.transaction_count,
-        employee: employeeName,
-        prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${shiftLabel} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}، المرجع: ${reference}`,
-      };
-
-      const { data: webhookResult } = await supabase.functions.invoke('send-to-webhook', { body: webhookPayload });
-
-      // Mark as posted to Zoho
-      await markPosted(entry.id, false);
-
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'approved' } : e));
 
-      if (webhookResult?.response) {
-        const agentResponse = typeof webhookResult.response === 'string' ? webhookResult.response : JSON.stringify(webhookResult.response, null, 2);
-        toast({ title: 'Sale approved', description: agentResponse });
+      const branchName = (entry as any).branches?.name || '';
+      const employeeName = (entry as any).employees?.name || '';
+
+      // Check if the other shift for same branch+date is also approved
+      const otherShift = entry.shift === 'morning' ? 'night' : 'morning';
+      const { data: otherEntries } = await supabase
+        .from('sales_entries')
+        .select('*, branches(name), employees(name)')
+        .eq('branch_id', entry.branch_id)
+        .eq('date', entry.date)
+        .eq('shift', otherShift)
+        .eq('status', 'approved')
+        .limit(1);
+
+      const otherEntry = otherEntries?.[0] as SalesEntry | undefined;
+
+      if (otherEntry) {
+        // Both shifts approved — send combined daily total
+        const combinedCash = Number(entry.cash_amount) + Number(otherEntry.cash_amount);
+        const combinedCard = Number(entry.card_amount) + Number(otherEntry.card_amount);
+        const combinedTotal = combinedCash + combinedCard;
+        const combinedTransactions = entry.transaction_count + otherEntry.transaction_count;
+        const morningEntry = entry.shift === 'morning' ? entry : otherEntry;
+        const nightEntry = entry.shift === 'night' ? entry : otherEntry;
+        const morningEmp = entry.shift === 'morning' ? employeeName : ((otherEntry as any).employees?.name || '');
+        const nightEmp = entry.shift === 'night' ? employeeName : ((otherEntry as any).employees?.name || '');
+
+        const reference = `مبيعات ${branchName} - ${entry.date} - يومي`;
+
+        const webhookPayload = {
+          type: 'sales',
+          entry_id: entry.id,
+          combined: true,
+          entry_ids: [morningEntry.id, nightEntry.id],
+          reference,
+          branch: branchName,
+          date: entry.date,
+          shift: 'يومي',
+          cash_amount: combinedCash,
+          card_amount: combinedCard,
+          total: combinedTotal,
+          transaction_count: combinedTransactions,
+          morning_cash: Number(morningEntry.cash_amount),
+          morning_card: Number(morningEntry.card_amount),
+          morning_employee: morningEmp,
+          night_cash: Number(nightEntry.cash_amount),
+          night_card: Number(nightEntry.card_amount),
+          night_employee: nightEmp,
+          employee: `${morningEmp} (صباحي) / ${nightEmp} (مسائي)`,
+          prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} - إجمالي اليوم: كاش: ${combinedCash} ريال، شبكة: ${combinedCard} ريال، الإجمالي: ${combinedTotal} ريال، عدد العمليات: ${combinedTransactions}. تفصيل: صباحي (${morningEmp}): كاش ${Number(morningEntry.cash_amount)} شبكة ${Number(morningEntry.card_amount)} / مسائي (${nightEmp}): كاش ${Number(nightEntry.cash_amount)} شبكة ${Number(nightEntry.card_amount)}، المرجع: ${reference}`,
+        };
+
+        const { data: webhookResult } = await supabase.functions.invoke('send-to-webhook', { body: webhookPayload });
+
+        // Mark both entries as posted
+        await markPosted(entry.id, false);
+        await markPosted(otherEntry.id, false);
+
+        if (webhookResult?.response) {
+          const agentResponse = typeof webhookResult.response === 'string' ? webhookResult.response : JSON.stringify(webhookResult.response, null, 2);
+          toast({ title: 'Both shifts approved — daily total sent to Zoho', description: agentResponse });
+        } else {
+          toast({ title: 'Both shifts approved — daily total sent to Zoho' });
+        }
       } else {
-        toast({ title: 'Sale approved & sent to Zoho agent' });
+        // Only this shift approved — send individually
+        const total = Number(entry.cash_amount) + Number(entry.card_amount);
+        const shiftLabel = entry.shift === 'morning' ? 'صباحية' : 'مسائية';
+        const reference = `مبيعات ${branchName} - ${entry.date} - ${shiftLabel}`;
+
+        const webhookPayload = {
+          type: 'sales',
+          entry_id: entry.id,
+          combined: false,
+          reference,
+          branch: branchName,
+          date: entry.date,
+          shift: shiftLabel,
+          cash_amount: entry.cash_amount,
+          card_amount: entry.card_amount,
+          total,
+          transaction_count: entry.transaction_count,
+          employee: employeeName,
+          prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${shiftLabel} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}، المرجع: ${reference}`,
+        };
+
+        const { data: webhookResult } = await supabase.functions.invoke('send-to-webhook', { body: webhookPayload });
+        await markPosted(entry.id, false);
+
+        if (webhookResult?.response) {
+          const agentResponse = typeof webhookResult.response === 'string' ? webhookResult.response : JSON.stringify(webhookResult.response, null, 2);
+          toast({ title: 'Sale approved (single shift)', description: agentResponse });
+        } else {
+          toast({ title: 'Sale approved — sent to Zoho (single shift, other shift not yet approved)' });
+        }
       }
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
