@@ -322,19 +322,23 @@ export function SalesDashboard() {
         const employeeName = (entry as any).employees?.name || '';
         const total = Number(entry.cash_amount) + Number(entry.card_amount);
 
+        const shiftLabel = entry.shift === 'morning' ? 'صباحية' : 'مسائية';
+        const reference = `مبيعات ${branchName} - ${entry.date} - ${shiftLabel}`;
+
         await supabase.functions.invoke('send-to-webhook', {
           body: {
             type: 'sales',
             entry_id: entry.id,
+            reference,
             branch: branchName,
             date: entry.date,
-            shift: entry.shift === 'morning' ? 'صباحية' : 'مسائية',
+            shift: shiftLabel,
             cash_amount: entry.cash_amount,
             card_amount: entry.card_amount,
             total,
             transaction_count: entry.transaction_count,
             employee: employeeName,
-            prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${entry.shift === 'morning' ? 'صباحية' : 'مسائية'} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}`,
+            prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${shiftLabel} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}، المرجع: ${reference}`,
           },
         });
         await markPosted(entry.id, true);
