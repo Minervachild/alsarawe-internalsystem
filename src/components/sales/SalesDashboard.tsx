@@ -38,6 +38,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+// Fixed Zoho references per branch — these never change
+const BRANCH_REFERENCES: Record<string, string> = {
+  'Alsuwaidi': 'مبيعات السويدي',
+  'Altawun': 'مبيعات التعاون',
+  'Mawhoob event': 'مبيعات الفروع',
+};
+
+const getBranchReference = (branchName: string): string => {
+  return BRANCH_REFERENCES[branchName] || `مبيعات ${branchName}`;
+};
+
 interface SalesEntry {
   id: string;
   date: string;
@@ -206,7 +217,7 @@ export function SalesDashboard() {
         const morningEmp = entry.shift === 'morning' ? employeeName : ((otherEntry as any).employees?.name || '');
         const nightEmp = entry.shift === 'night' ? employeeName : ((otherEntry as any).employees?.name || '');
 
-        const reference = `مبيعات ${branchName} - ${entry.date} - يومي`;
+        const reference = getBranchReference(branchName);
 
         const webhookPayload = {
           type: 'sales',
@@ -247,7 +258,7 @@ export function SalesDashboard() {
         // Only this shift approved — send individually
         const total = Number(entry.cash_amount) + Number(entry.card_amount);
         const shiftLabel = entry.shift === 'morning' ? 'صباحية' : 'مسائية';
-        const reference = `مبيعات ${branchName} - ${entry.date} - ${shiftLabel}`;
+        const reference = getBranchReference(branchName);
 
         const webhookPayload = {
           type: 'sales',
@@ -344,7 +355,7 @@ export function SalesDashboard() {
       const total = Number(entry.cash_amount) + Number(entry.card_amount);
 
       const shiftLabel = entry.shift === 'morning' ? 'صباحية' : 'مسائية';
-      const reference = `مبيعات ${branchName} - ${entry.date} - ${shiftLabel}`;
+      const reference = getBranchReference(branchName);
 
       await supabase.functions.invoke('send-to-webhook', {
         body: {
@@ -386,7 +397,7 @@ export function SalesDashboard() {
         const total = Number(entry.cash_amount) + Number(entry.card_amount);
 
         const shiftLabel = entry.shift === 'morning' ? 'صباحية' : 'مسائية';
-        const reference = `مبيعات ${branchName} - ${entry.date} - ${shiftLabel}`;
+        const reference = getBranchReference(branchName);
 
         await supabase.functions.invoke('send-to-webhook', {
           body: {
