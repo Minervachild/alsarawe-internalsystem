@@ -682,7 +682,7 @@ export default function Overtime() {
 
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={!formData.employee_id || (amountMode && isAdmin ? formData.amount_override <= 0 : formData.hours <= 0)}>Add Entry</Button>
+              <Button type="submit" disabled={!formData.employee_id || (amountMode && isAdmin ? (formData.amount_override <= 0 || formData.hours <= 0) : formData.hours <= 0)}>Add Entry</Button>
             </div>
           </form>
         </DialogContent>
