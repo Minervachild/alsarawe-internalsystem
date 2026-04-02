@@ -258,7 +258,7 @@ export function SalesDashboard() {
         // Only this shift approved — send individually
         const total = Number(entry.cash_amount) + Number(entry.card_amount);
         const shiftLabel = entry.shift === 'morning' ? 'صباحية' : 'مسائية';
-        const reference = `مبيعات ${branchName} - ${entry.date} - ${shiftLabel}`;
+        const reference = getBranchReference(branchName);
 
         const webhookPayload = {
           type: 'sales',
