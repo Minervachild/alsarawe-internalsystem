@@ -621,19 +621,32 @@ export default function Overtime() {
 
             {/* Hours or Amount input */}
             {amountMode && isAdmin ? (
-              <div className="space-y-2">
-                <Label>Total Amount (﷼) *</Label>
-                <Input
-                  type="number"
-                  value={formData.amount_override || ''}
-                  onChange={e => setFormData(p => ({ ...p, amount_override: parseFloat(e.target.value) || 0 }))}
-                  step={0.01}
-                  min={0}
-                  placeholder="Enter total overtime amount"
-                />
-                {formData.amount_override > 0 && selectedEmployee && selectedEmployee.hourly_rate > 0 && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Total Amount (﷼) *</Label>
+                  <Input
+                    type="number"
+                    value={formData.amount_override || ''}
+                    onChange={e => setFormData(p => ({ ...p, amount_override: parseFloat(e.target.value) || 0 }))}
+                    step={0.01}
+                    min={0}
+                    placeholder="Enter total overtime amount"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Total Hours *</Label>
+                  <Input
+                    type="number"
+                    value={formData.hours || ''}
+                    onChange={e => setFormData(p => ({ ...p, hours: parseFloat(e.target.value) || 0 }))}
+                    step={0.5}
+                    min={0}
+                    placeholder="Enter total overtime hours"
+                  />
+                </div>
+                {formData.amount_override > 0 && formData.hours > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    {formData.amount_override.toFixed(2)} ﷼ ÷ {selectedEmployee.hourly_rate} ﷼/hr = {(formData.amount_override / selectedEmployee.hourly_rate).toFixed(2)}h
+                    Effective rate: {formData.amount_override.toFixed(2)} ﷼ ÷ {formData.hours}h = {(formData.amount_override / formData.hours).toFixed(2)} ﷼/hr
                   </p>
                 )}
               </div>
