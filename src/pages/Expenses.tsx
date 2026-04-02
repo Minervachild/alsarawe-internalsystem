@@ -410,9 +410,12 @@ export default function Expenses() {
         includesTax: exp.vat_included,
       });
 
+      const reference = `مصروف ${exp.title || ''} - ${exp.date}`;
+
       const webhookPayload = {
         type: 'expense',
         entry_id: exp.id,
+        reference,
         title: exp.title || '',
         seller: sellerName,
         account: accountName,
@@ -424,7 +427,7 @@ export default function Expenses() {
         invoice_number: exp.invoice_number || '',
         notes: exp.notes || '',
         zoho: zohoPayload,
-        prompt: `سجل مصروف "${exp.title || ''}" من ${sellerName} بمبلغ ${exp.amount} ريال (${exp.vat_included ? 'شامل الضريبة' : 'غير شامل'}) في حساب ${zohoPayload.expense_account_name || accountName} بطريقة دفع ${zohoPayload.payment_account_name || paymentName} بواسطة ${employeeName} بتاريخ ${exp.date}${exp.notes ? ` ملاحظات: ${exp.notes}` : ''}${exp.invoice_number ? ` رقم الفاتورة: ${exp.invoice_number}` : ''}`,
+        prompt: `سجل مصروف "${exp.title || ''}" من ${sellerName} بمبلغ ${exp.amount} ريال (${exp.vat_included ? 'شامل الضريبة' : 'غير شامل'}) في حساب ${zohoPayload.expense_account_name || accountName} بطريقة دفع ${zohoPayload.payment_account_name || paymentName} بواسطة ${employeeName} بتاريخ ${exp.date}${exp.notes ? ` ملاحظات: ${exp.notes}` : ''}${exp.invoice_number ? ` رقم الفاتورة: ${exp.invoice_number}` : ''}، المرجع: ${reference}`,
       };
 
       const { data: webhookResult } = await supabase.functions.invoke('send-to-webhook', {
