@@ -382,17 +382,28 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
             </div>
           </div>
 
-          {/* Total Display */}
-          {cashAmount && cardAmount && (
-            <div className="bg-muted/50 rounded-xl p-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Sales</span>
-                <span className="font-semibold text-foreground">
-                  ﷼{(parseFloat(cashAmount || '0') + parseFloat(cardAmount || '0')).toFixed(2)}
-                </span>
+          {/* Total + VAT Breakdown */}
+          {cashAmount && cardAmount && (() => {
+            const total = parseFloat(cashAmount || '0') + parseFloat(cardAmount || '0');
+            const netSales = total / 1.15;
+            const vat = total - netSales;
+            return (
+              <div className="bg-muted/50 rounded-xl p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total Sales (VAT-inclusive)</span>
+                  <span className="font-semibold text-foreground">﷼{total.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Net Sales</span>
+                  <span className="text-foreground">﷼{netSales.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">VAT (15%)</span>
+                  <span className="text-foreground">﷼{vat.toFixed(2)}</span>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Submit */}
           <Button

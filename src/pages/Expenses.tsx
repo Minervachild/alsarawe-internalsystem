@@ -866,7 +866,14 @@ export default function Expenses() {
                         <td className="p-3">{format(new Date(exp.date), 'MMM dd')}</td>
                         <td className="p-3 font-medium text-foreground max-w-[150px] truncate">{exp.title || '—'}</td>
                         <td className="p-3 text-muted-foreground">{exp.expense_sellers?.name || '—'}</td>
-                        <td className="p-3 text-right font-semibold">﷼{Number(exp.amount).toLocaleString()}</td>
+                        <td className="p-3 text-right">
+                          <div className="font-semibold">﷼{Number(exp.amount).toLocaleString()}</div>
+                          {exp.vat_included && (() => {
+                            const net = Number(exp.amount) / 1.15;
+                            const vat = Number(exp.amount) - net;
+                            return <div className="text-xs text-muted-foreground">Net: ﷼{net.toFixed(0)} | VAT: ﷼{vat.toFixed(0)}</div>;
+                          })()}
+                        </td>
                         <td className="p-3 text-center">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1 ${
                             exp.status === 'approved'
