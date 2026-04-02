@@ -129,19 +129,34 @@ export default function Overtime() {
     const employee = employees.find(emp => emp.id === formData.employee_id);
     if (!employee) return;
 
-    if (formData.hours <= 0) {
-      toast({ title: 'Error', description: 'Enter the number of hours.', variant: 'destructive' });
-      return;
+    let hours: number;
+    let amount: number;
+
+    if (amountMode && isAdmin) {
+      // Amount-based: admin enters total amount, we calculate hours
+      amount = formData.amount_override;
+      if (amount <= 0) {
+        toast({ title: 'Error', description: 'Enter a valid amount.', variant: 'destructive' });
+        return;
+      }
+      hours = employee.hourly_rate ? amount / employee.hourly_rate : 0;
+    } else {
+      // Hours-based: calculate amount from hours
+      if (formData.hours <= 0) {
+        toast({ title: 'Error', description: 'Enter the number of hours.', variant: 'destructive' });
+        return;
+      }
+      hours = formData.hours;
+      amount = hours * (employee.hourly_rate || 0);
     }
 
     try {
       const monthDate = `${selectedMonth}-01`;
-      const amount = formData.hours * (employee.hourly_rate || 0);
 
       const { error } = await supabase.from('overtime').insert({
         employee_id: formData.employee_id,
-        hours: formData.hours,
-        amount,
+        hours: Math.round(hours * 100) / 100,
+        amount: Math.round(amount * 100) / 100,
         date: monthDate,
         type: 'overtime',
         notes: formData.notes || null,
