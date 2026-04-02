@@ -352,7 +352,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
           {/* Proof Image Upload */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">
-              Proof Image (POS Report) {isAdmin ? '(optional)' : '*'}
+              Proof Image (POS Report) (optional)
             </Label>
             <div className="border-2 border-dashed border-border rounded-xl p-4 text-center">
               {proofFileName ? (
