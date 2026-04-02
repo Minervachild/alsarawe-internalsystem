@@ -38,6 +38,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+// Fixed Zoho references per branch — these never change
+const BRANCH_REFERENCES: Record<string, string> = {
+  'Alsuwaidi': 'مبيعات السويدي',
+  'Altawun': 'مبيعات التعاون',
+  'Mawhoob event': 'مبيعات الفروع',
+};
+
+const getBranchReference = (branchName: string): string => {
+  return BRANCH_REFERENCES[branchName] || `مبيعات ${branchName}`;
+};
+
 interface SalesEntry {
   id: string;
   date: string;
