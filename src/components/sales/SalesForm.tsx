@@ -122,7 +122,6 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
       cashAmount &&
       cardAmount &&
       transactionCount &&
-      (proofImageUrl || isAdmin) &&
       hasEmployee
     );
   };
@@ -353,7 +352,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
           {/* Proof Image Upload */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">
-              Proof Image (POS Report) {isAdmin ? '(optional)' : '*'}
+              Proof Image (POS Report) (optional)
             </Label>
             <div className="border-2 border-dashed border-border rounded-xl p-4 text-center">
               {proofFileName ? (
@@ -368,8 +367,8 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
                   ) : (
                     <Upload className="w-8 h-8 text-muted-foreground" />
                   )}
-                  <span className="text-sm text-muted-foreground">
-                    {uploadingImage ? 'Uploading...' : isAdmin ? 'Click to upload proof image (optional)' : 'Click to upload proof image'}
+                    <span className="text-sm text-muted-foreground">
+                      {uploadingImage ? 'Uploading...' : 'Click to upload proof image (optional)'}
                   </span>
                   <input
                     type="file"
