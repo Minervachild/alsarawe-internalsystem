@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Clock, Filter, Banknote, Calendar, ChevronDown, ChevronUp, Trash2, DollarSign } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -80,7 +81,7 @@ export default function Overtime() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // Form state
+  const [amountMode, setAmountMode] = useState(false);
   const [formData, setFormData] = useState({
     employee_id: '',
     hours: 0,
@@ -128,19 +129,34 @@ export default function Overtime() {
     const employee = employees.find(emp => emp.id === formData.employee_id);
     if (!employee) return;
 
-    if (formData.hours <= 0) {
-      toast({ title: 'Error', description: 'Enter the number of hours.', variant: 'destructive' });
-      return;
+    let hours: number;
+    let amount: number;
+
+    if (amountMode && isAdmin) {
+      // Amount-based: admin enters total amount, we calculate hours
+      amount = formData.amount_override;
+      if (amount <= 0) {
+        toast({ title: 'Error', description: 'Enter a valid amount.', variant: 'destructive' });
+        return;
+      }
+      hours = employee.hourly_rate ? amount / employee.hourly_rate : 0;
+    } else {
+      // Hours-based: calculate amount from hours
+      if (formData.hours <= 0) {
+        toast({ title: 'Error', description: 'Enter the number of hours.', variant: 'destructive' });
+        return;
+      }
+      hours = formData.hours;
+      amount = hours * (employee.hourly_rate || 0);
     }
 
     try {
       const monthDate = `${selectedMonth}-01`;
-      const amount = formData.hours * (employee.hourly_rate || 0);
 
       const { error } = await supabase.from('overtime').insert({
         employee_id: formData.employee_id,
-        hours: formData.hours,
-        amount,
+        hours: Math.round(hours * 100) / 100,
+        amount: Math.round(amount * 100) / 100,
         date: monthDate,
         type: 'overtime',
         notes: formData.notes || null,
@@ -591,23 +607,50 @@ export default function Overtime() {
               </Select>
             </div>
 
-            {/* Hours */}
-            <div className="space-y-2">
-              <Label>Total Hours *</Label>
-              <Input
-                type="number"
-                value={formData.hours || ''}
-                onChange={e => setFormData(p => ({ ...p, hours: parseFloat(e.target.value) || 0 }))}
-                step={0.5}
-                min={0}
-                placeholder="Enter total overtime hours"
-              />
-              {formData.hours > 0 && selectedEmployee && (
-                <p className="text-xs text-muted-foreground">
-                  {formData.hours}h × {selectedEmployee.hourly_rate} ﷼/hr = {calcAmount.toFixed(2)} ﷼
-                </p>
-              )}
-            </div>
+            {/* Amount Mode Toggle (admin only) */}
+            {isAdmin && (
+              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <Label className="text-sm">Enter by total amount</Label>
+                <Switch checked={amountMode} onCheckedChange={setAmountMode} />
+              </div>
+            )}
+
+            {/* Hours or Amount input */}
+            {amountMode && isAdmin ? (
+              <div className="space-y-2">
+                <Label>Total Amount (﷼) *</Label>
+                <Input
+                  type="number"
+                  value={formData.amount_override || ''}
+                  onChange={e => setFormData(p => ({ ...p, amount_override: parseFloat(e.target.value) || 0 }))}
+                  step={0.01}
+                  min={0}
+                  placeholder="Enter total overtime amount"
+                />
+                {formData.amount_override > 0 && selectedEmployee && selectedEmployee.hourly_rate > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {formData.amount_override.toFixed(2)} ﷼ ÷ {selectedEmployee.hourly_rate} ﷼/hr = {(formData.amount_override / selectedEmployee.hourly_rate).toFixed(2)}h
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Total Hours *</Label>
+                <Input
+                  type="number"
+                  value={formData.hours || ''}
+                  onChange={e => setFormData(p => ({ ...p, hours: parseFloat(e.target.value) || 0 }))}
+                  step={0.5}
+                  min={0}
+                  placeholder="Enter total overtime hours"
+                />
+                {formData.hours > 0 && selectedEmployee && (
+                  <p className="text-xs text-muted-foreground">
+                    {formData.hours}h × {selectedEmployee.hourly_rate} ﷼/hr = {calcAmount.toFixed(2)} ﷼
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Description */}
             <div className="space-y-2">
@@ -622,7 +665,7 @@ export default function Overtime() {
 
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={!formData.employee_id || formData.hours <= 0}>Add Entry</Button>
+              <Button type="submit" disabled={!formData.employee_id || (amountMode && isAdmin ? formData.amount_override <= 0 : formData.hours <= 0)}>Add Entry</Button>
             </div>
           </form>
         </DialogContent>
