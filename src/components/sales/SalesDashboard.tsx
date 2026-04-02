@@ -217,7 +217,7 @@ export function SalesDashboard() {
         const morningEmp = entry.shift === 'morning' ? employeeName : ((otherEntry as any).employees?.name || '');
         const nightEmp = entry.shift === 'night' ? employeeName : ((otherEntry as any).employees?.name || '');
 
-        const reference = `مبيعات ${branchName} - ${entry.date} - يومي`;
+        const reference = getBranchReference(branchName);
 
         const webhookPayload = {
           type: 'sales',
