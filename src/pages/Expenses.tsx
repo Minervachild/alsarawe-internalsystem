@@ -734,9 +734,23 @@ export default function Expenses() {
               <Label className="text-xs">Date</Label>
               <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-9" />
             </div>
-            <div className="flex items-center gap-2 pt-5">
-              <Checkbox checked={vatIncluded} onCheckedChange={(v) => setVatIncluded(v === true)} id="vat" />
-              <Label htmlFor="vat" className="text-sm cursor-pointer">VAT Included</Label>
+            <div className="space-y-2 pt-5">
+              <div className="flex items-center gap-2">
+                <Checkbox checked={vatIncluded} onCheckedChange={(v) => setVatIncluded(v === true)} id="vat" />
+                <Label htmlFor="vat" className="text-sm cursor-pointer">VAT Included (15%)</Label>
+              </div>
+              {vatIncluded && amount && parseFloat(amount) > 0 && (() => {
+                const total = parseFloat(amount);
+                const net = total / 1.15;
+                const vat = total - net;
+                return (
+                  <div className="bg-muted/50 rounded-lg p-2.5 text-xs space-y-1">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Net Amount</span><span>﷼{net.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">VAT (15%)</span><span>﷼{vat.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-medium"><span className="text-muted-foreground">Total</span><span>﷼{total.toFixed(2)}</span></div>
+                  </div>
+                );
+              })()}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-xs">Notes</Label>
@@ -852,7 +866,14 @@ export default function Expenses() {
                         <td className="p-3">{format(new Date(exp.date), 'MMM dd')}</td>
                         <td className="p-3 font-medium text-foreground max-w-[150px] truncate">{exp.title || '—'}</td>
                         <td className="p-3 text-muted-foreground">{exp.expense_sellers?.name || '—'}</td>
-                        <td className="p-3 text-right font-semibold">﷼{Number(exp.amount).toLocaleString()}</td>
+                        <td className="p-3 text-right">
+                          <div className="font-semibold">﷼{Number(exp.amount).toLocaleString()}</div>
+                          {exp.vat_included && (() => {
+                            const net = Number(exp.amount) / 1.15;
+                            const vat = Number(exp.amount) - net;
+                            return <div className="text-xs text-muted-foreground">Net: ﷼{net.toFixed(0)} | VAT: ﷼{vat.toFixed(0)}</div>;
+                          })()}
+                        </td>
                         <td className="p-3 text-center">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1 ${
                             exp.status === 'approved'
