@@ -734,9 +734,23 @@ export default function Expenses() {
               <Label className="text-xs">Date</Label>
               <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-9" />
             </div>
-            <div className="flex items-center gap-2 pt-5">
-              <Checkbox checked={vatIncluded} onCheckedChange={(v) => setVatIncluded(v === true)} id="vat" />
-              <Label htmlFor="vat" className="text-sm cursor-pointer">VAT Included</Label>
+            <div className="space-y-2 pt-5">
+              <div className="flex items-center gap-2">
+                <Checkbox checked={vatIncluded} onCheckedChange={(v) => setVatIncluded(v === true)} id="vat" />
+                <Label htmlFor="vat" className="text-sm cursor-pointer">VAT Included (15%)</Label>
+              </div>
+              {vatIncluded && amount && parseFloat(amount) > 0 && (() => {
+                const total = parseFloat(amount);
+                const net = total / 1.15;
+                const vat = total - net;
+                return (
+                  <div className="bg-muted/50 rounded-lg p-2.5 text-xs space-y-1">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Net Amount</span><span>﷼{net.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">VAT (15%)</span><span>﷼{vat.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-medium"><span className="text-muted-foreground">Total</span><span>﷼{total.toFixed(2)}</span></div>
+                  </div>
+                );
+              })()}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-xs">Notes</Label>
