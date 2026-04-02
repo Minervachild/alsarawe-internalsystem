@@ -133,13 +133,17 @@ export default function Overtime() {
     let amount: number;
 
     if (amountMode && isAdmin) {
-      // Amount-based: admin enters total amount, we calculate hours
+      // Amount-based: admin enters total amount and hours, we derive the effective rate
       amount = formData.amount_override;
+      hours = formData.hours;
       if (amount <= 0) {
         toast({ title: 'Error', description: 'Enter a valid amount.', variant: 'destructive' });
         return;
       }
-      hours = employee.hourly_rate ? amount / employee.hourly_rate : 0;
+      if (hours <= 0) {
+        toast({ title: 'Error', description: 'Enter the number of hours.', variant: 'destructive' });
+        return;
+      }
     } else {
       // Hours-based: calculate amount from hours
       if (formData.hours <= 0) {
