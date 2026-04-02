@@ -81,7 +81,7 @@ export default function Overtime() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // Form state
+  const [amountMode, setAmountMode] = useState(false);
   const [formData, setFormData] = useState({
     employee_id: '',
     hours: 0,
