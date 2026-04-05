@@ -20,7 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { notifyNewOrder } from '@/lib/orderNotifications';
+import { notifyNewOrder, resolveClientName } from '@/lib/orderNotifications';
 
 interface BoardColumn {
   id: string;
