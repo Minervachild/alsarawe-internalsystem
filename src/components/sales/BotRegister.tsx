@@ -19,6 +19,7 @@ interface SalesEntry {
 interface BotRegisterProps {
   entry: SalesEntry | null;
   branchName?: string;
+  branchReference?: string;
 }
 
 export function BotRegister({ entry, branchName }: BotRegisterProps) {
