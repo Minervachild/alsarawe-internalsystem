@@ -229,8 +229,8 @@ export default function Expenses() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !amount || !purchaseType) {
-      toast({ title: 'Please fill title, purchase type, and amount', variant: 'destructive' });
+    if (!title.trim() || !amount || !purchaseType || !employeeId) {
+      toast({ title: 'Please fill title, purchase type, purchased by, and amount', variant: 'destructive' });
       return;
     }
     // Auto-resolve account from purchase type
@@ -715,7 +715,7 @@ export default function Expenses() {
               )}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Purchased By</Label>
+              <Label className="text-xs">Purchased By *</Label>
               <Select value={employeeId} onValueChange={setEmployeeId}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Select employee..." /></SelectTrigger>
                 <SelectContent>{employees.map(emp => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}</SelectContent>
