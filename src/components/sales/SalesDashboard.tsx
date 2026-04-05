@@ -219,6 +219,9 @@ export function SalesDashboard() {
 
         const reference = getBranchReference(branchName);
 
+        const combinedNetSales = +(combinedTotal / 1.15).toFixed(2);
+        const combinedVat = +(combinedTotal - combinedNetSales).toFixed(2);
+
         const webhookPayload = {
           type: 'sales',
           entry_id: entry.id,
@@ -231,6 +234,10 @@ export function SalesDashboard() {
           cash_amount: combinedCash,
           card_amount: combinedCard,
           total: combinedTotal,
+          net_sales: combinedNetSales,
+          vat_amount: combinedVat,
+          sales_account_id: '4337397000000034003',
+          vat_account_id: '4337397000000077046',
           transaction_count: combinedTransactions,
           morning_cash: Number(morningEntry.cash_amount),
           morning_card: Number(morningEntry.card_amount),
@@ -239,7 +246,7 @@ export function SalesDashboard() {
           night_card: Number(nightEntry.card_amount),
           night_employee: nightEmp,
           employee: `${morningEmp} (صباحي) / ${nightEmp} (مسائي)`,
-          prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} - إجمالي اليوم: كاش: ${combinedCash} ريال، شبكة: ${combinedCard} ريال، الإجمالي: ${combinedTotal} ريال، عدد العمليات: ${combinedTransactions}. تفصيل: صباحي (${morningEmp}): كاش ${Number(morningEntry.cash_amount)} شبكة ${Number(morningEntry.card_amount)} / مسائي (${nightEmp}): كاش ${Number(nightEntry.cash_amount)} شبكة ${Number(nightEntry.card_amount)}، المرجع: ${reference}`,
+          prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} - إجمالي اليوم: كاش: ${combinedCash} ريال، شبكة: ${combinedCard} ريال، الإجمالي: ${combinedTotal} ريال (صافي: ${combinedNetSales} + ضريبة: ${combinedVat})، عدد العمليات: ${combinedTransactions}. تفصيل: صباحي (${morningEmp}): كاش ${Number(morningEntry.cash_amount)} شبكة ${Number(morningEntry.card_amount)} / مسائي (${nightEmp}): كاش ${Number(nightEntry.cash_amount)} شبكة ${Number(nightEntry.card_amount)}، المرجع: ${reference}`,
         };
 
         const { data: webhookResult } = await supabase.functions.invoke('send-to-webhook', { body: webhookPayload });
@@ -257,6 +264,8 @@ export function SalesDashboard() {
       } else {
         // Only this shift approved — send individually
         const total = Number(entry.cash_amount) + Number(entry.card_amount);
+        const netSales = +(total / 1.15).toFixed(2);
+        const vatAmount = +(total - netSales).toFixed(2);
         const shiftLabel = entry.shift === 'morning' ? 'صباحية' : 'مسائية';
         const reference = getBranchReference(branchName);
 
@@ -271,9 +280,13 @@ export function SalesDashboard() {
           cash_amount: entry.cash_amount,
           card_amount: entry.card_amount,
           total,
+          net_sales: netSales,
+          vat_amount: vatAmount,
+          sales_account_id: '4337397000000034003',
+          vat_account_id: '4337397000000077046',
           transaction_count: entry.transaction_count,
           employee: employeeName,
-          prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${shiftLabel} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}، المرجع: ${reference}`,
+          prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${shiftLabel} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال (صافي: ${netSales} + ضريبة: ${vatAmount})، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}، المرجع: ${reference}`,
         };
 
         const { data: webhookResult } = await supabase.functions.invoke('send-to-webhook', { body: webhookPayload });
@@ -353,6 +366,8 @@ export function SalesDashboard() {
       const branchName = (entry as any).branches?.name || '';
       const employeeName = (entry as any).employees?.name || '';
       const total = Number(entry.cash_amount) + Number(entry.card_amount);
+      const netSales = +(total / 1.15).toFixed(2);
+      const vatAmount = +(total - netSales).toFixed(2);
 
       const shiftLabel = entry.shift === 'morning' ? 'صباحية' : 'مسائية';
       const reference = getBranchReference(branchName);
@@ -368,9 +383,13 @@ export function SalesDashboard() {
           cash_amount: entry.cash_amount,
           card_amount: entry.card_amount,
           total,
+          net_sales: netSales,
+          vat_amount: vatAmount,
+          sales_account_id: '4337397000000034003',
+          vat_account_id: '4337397000000077046',
           transaction_count: entry.transaction_count,
           employee: employeeName,
-          prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${shiftLabel} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}، المرجع: ${reference}`,
+          prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${shiftLabel} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال (صافي: ${netSales} + ضريبة: ${vatAmount})، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}، المرجع: ${reference}`,
         },
       });
 
@@ -395,6 +414,8 @@ export function SalesDashboard() {
         const branchName = (entry as any).branches?.name || '';
         const employeeName = (entry as any).employees?.name || '';
         const total = Number(entry.cash_amount) + Number(entry.card_amount);
+        const netSales = +(total / 1.15).toFixed(2);
+        const vatAmount = +(total - netSales).toFixed(2);
 
         const shiftLabel = entry.shift === 'morning' ? 'صباحية' : 'مسائية';
         const reference = getBranchReference(branchName);
@@ -410,9 +431,13 @@ export function SalesDashboard() {
             cash_amount: entry.cash_amount,
             card_amount: entry.card_amount,
             total,
+            net_sales: netSales,
+            vat_amount: vatAmount,
+            sales_account_id: '4337397000000034003',
+            vat_account_id: '4337397000000077046',
             transaction_count: entry.transaction_count,
             employee: employeeName,
-            prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${shiftLabel} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}، المرجع: ${reference}`,
+            prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${shiftLabel} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال (صافي: ${netSales} + ضريبة: ${vatAmount})، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}، المرجع: ${reference}`,
           },
         });
         await markPosted(entry.id, true);

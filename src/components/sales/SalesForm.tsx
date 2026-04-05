@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { toHijri, toGregorian } from 'hijri-converter';
 import { Upload, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -244,7 +245,7 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Date */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Date *</Label>
+            <Label className="text-sm font-medium">Date * (Gregorian)</Label>
             <Input
               type="date"
               value={date}
@@ -252,6 +253,15 @@ export function SalesForm({ employeeId, onSuccess }: SalesFormProps) {
               required
               className="input-premium"
             />
+            {date && (() => {
+              const [y, m, d] = date.split('-').map(Number);
+              const hijri = toHijri(y, m, d);
+              return (
+                <p className="text-xs text-muted-foreground" dir="rtl">
+                  التاريخ الهجري: {hijri.hd}/{hijri.hm}/{hijri.hy}
+                </p>
+              );
+            })()}
           </div>
 
           {/* Shift */}

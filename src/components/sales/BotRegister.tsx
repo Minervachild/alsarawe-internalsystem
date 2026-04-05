@@ -75,6 +75,8 @@ export function BotRegister({ entry, branchName }: BotRegisterProps) {
     if (!entry || !template) return '';
 
     const total = Number(entry.cash_amount) + Number(entry.card_amount);
+    const netSales = +(total / 1.15).toFixed(2);
+    const vatAmount = +(total - netSales).toFixed(2);
     const dateFormatted = format(new Date(entry.date), 'yyyy M/d');
     const shiftLabel = entry.shift === 'morning' ? 'صباحي' : 'مسائي';
     const cardLabel = 'الإنماء اساسي';
@@ -87,6 +89,8 @@ export function BotRegister({ entry, branchName }: BotRegisterProps) {
       .replace(/{card}/g, String(Number(entry.card_amount)))
       .replace(/{card_label}/g, cardLabel)
       .replace(/{total}/g, String(total))
+      .replace(/{net_sales}/g, String(netSales))
+      .replace(/{vat_amount}/g, String(vatAmount))
       .replace(/{transactions}/g, String(entry.transaction_count));
   };
 
@@ -135,7 +139,7 @@ export function BotRegister({ entry, branchName }: BotRegisterProps) {
         {editingTemplate ? (
           <div className="space-y-3 flex-1 flex flex-col">
             <p className="text-xs text-muted-foreground">
-              Available variables: {'{branch}'}, {'{date}'}, {'{shift}'}, {'{cash}'}, {'{card}'}, {'{card_label}'}, {'{total}'}, {'{transactions}'}
+              Available variables: {'{branch}'}, {'{date}'}, {'{shift}'}, {'{cash}'}, {'{card}'}, {'{card_label}'}, {'{total}'}, {'{net_sales}'}, {'{vat_amount}'}, {'{transactions}'}
             </p>
             <Textarea
               value={editedTemplate}
