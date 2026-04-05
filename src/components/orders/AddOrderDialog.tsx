@@ -100,12 +100,19 @@ export function AddOrderDialog({ open, onOpenChange, groupId, groupName, columns
         if (cellsError) throw cellsError;
       }
 
-      // Get client name for notification
+      // Get client name and items for notification
       const clientColumn = columns.find(c => c.type === 'relation' || c.name.toLowerCase().includes('client'));
-      const clientName = clientColumn ? formData[clientColumn.id] : 'Unknown';
+      const clientRaw = clientColumn ? formData[clientColumn.id] : '';
+      const resolvedClient = await resolveClientName(clientRaw);
+
+      const itemsColumn = columns.find(c => c.name.toLowerCase().includes('item') || c.type === 'items_qty');
+      const itemsRaw = itemsColumn ? formData[itemsColumn.id] : '';
+      const itemsSummary = Array.isArray(itemsRaw)
+        ? itemsRaw.map((i: any) => typeof i === 'object' ? `${i.name || i.product} x${i.qty || i.quantity || ''}` : String(i)).join(', ')
+        : itemsRaw ? String(itemsRaw) : '';
 
       // Send in-app + ntfy notifications
-      notifyNewOrder(clientName as string, groupName);
+      notifyNewOrder(resolvedClient, groupName, itemsSummary);
 
       toast({
         title: 'Order created',
