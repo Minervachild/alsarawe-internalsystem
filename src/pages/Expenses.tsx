@@ -668,7 +668,7 @@ export default function Expenses() {
                 <SelectContent>
                   {PURCHASE_CATEGORIES.map(cat => (
                     <SelectItem key={cat.id} value={cat.id}>
-                      {cat.label} — {cat.labelAr}
+                      {cat.label}
                     </SelectItem>
                   ))}
                   {customPurchaseTypes.map(cpt => (
@@ -790,7 +790,7 @@ export default function Expenses() {
                         <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Purchase Type" /></SelectTrigger>
                         <SelectContent>
                           {PURCHASE_CATEGORIES.map(cat => (
-                            <SelectItem key={cat.id} value={cat.id}>{cat.label} — {cat.labelAr}</SelectItem>
+                            <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -1140,7 +1140,7 @@ export default function Expenses() {
                 {scanPreview.purchase_type && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Category</span>
-                    <span className="font-medium">{getCategoryById(scanPreview.purchase_type)?.label || scanPreview.purchase_type} — {getCategoryById(scanPreview.purchase_type)?.labelAr || ''}</span>
+                    <span className="font-medium">{getCategoryById(scanPreview.purchase_type)?.label || scanPreview.purchase_type}</span>
                   </div>
                 )}
                 {scanPreview.date && (
