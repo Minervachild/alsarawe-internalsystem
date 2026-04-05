@@ -109,6 +109,7 @@ function AppRoutes() {
       <Route path="/" element={<Index />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/orders" element={<PageProtectedRoute page="orders"><Orders /></PageProtectedRoute>} />
+      <Route path="/clients" element={<PageProtectedRoute page="clients"><Clients /></PageProtectedRoute>} />
       
       <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />
       <Route path="/inventory" element={<PageProtectedRoute page="inventory"><Inventory /></PageProtectedRoute>} />
