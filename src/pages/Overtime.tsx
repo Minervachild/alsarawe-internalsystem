@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Clock, Filter, Banknote, Calendar, ChevronDown, ChevronUp, Trash2, DollarSign } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
+import { Plus, Clock, Filter, Banknote, Calendar, ChevronDown, ChevronUp, Trash2, DollarSign, CheckCircle, XCircle, Edit2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +37,7 @@ interface Employee {
   id: string;
   name: string;
   hourly_rate: number;
+  off_day_rate: number;
   avatar_color: string;
 }
 
@@ -50,42 +51,50 @@ interface OvertimeEntry {
   is_paid: boolean;
   type: string;
   notes: string | null;
+  status: string;
+  hourly_rate: number;
+  off_day_rate: number;
+  off_day_hours: number;
+  off_day_amount: number;
+  submitted_by: string | null;
+  approved_amount: number | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
   employee?: Employee;
 }
 
 interface EmployeeSummary {
   employee: Employee;
-  totalHours: number;
   totalAmount: number;
-  unpaidAmount: number;
+  totalOffDayAmount: number;
   entries: OvertimeEntry[];
 }
 
 export default function Overtime() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [entries, setEntries] = useState<OvertimeEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<OvertimeEntry | null>(null);
   const [filterEmployee, setFilterEmployee] = useState<string>('all');
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [paymentEntry, setPaymentEntry] = useState<OvertimeEntry | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [bulkPaymentDialogOpen, setBulkPaymentDialogOpen] = useState(false);
-  const [bulkPaymentEmployeeId, setBulkPaymentEmployeeId] = useState<string | null>(null);
-  const [bulkPaymentAmount, setBulkPaymentAmount] = useState('');
-  const [deleteAllConfirm, setDeleteAllConfirm] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [approvalDialog, setApprovalDialog] = useState<OvertimeEntry | null>(null);
+  const [approvalAmount, setApprovalAmount] = useState('');
+  const [approvalOffDayAmount, setApprovalOffDayAmount] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const [amountMode, setAmountMode] = useState(false);
   const [formData, setFormData] = useState({
     employee_id: '',
+    hourly_rate: 0,
+    off_day_rate: 0,
     hours: 0,
-    amount_override: 0,
+    off_day_hours: 0,
     notes: '',
   });
 
@@ -97,24 +106,42 @@ export default function Overtime() {
     try {
       const { data: employeesData } = await supabase
         .from('employees')
-        .select('id, name, hourly_rate, avatar_color')
+        .select('id, name, hourly_rate, off_day_rate, avatar_color')
         .order('name');
-      const empList = (employeesData || []) as Employee[];
+      const empList = (employeesData || []).map((e: any) => ({
+        ...e,
+        hourly_rate: e.hourly_rate || 0,
+        off_day_rate: e.off_day_rate || 0,
+      })) as Employee[];
       setEmployees(empList);
 
       if (!isAdmin && empList.length === 1 && !formData.employee_id) {
-        setFormData(prev => ({ ...prev, employee_id: empList[0].id }));
+        setFormData(prev => ({
+          ...prev,
+          employee_id: empList[0].id,
+          hourly_rate: empList[0].hourly_rate,
+          off_day_rate: empList[0].off_day_rate,
+        }));
       }
 
       const { data: entriesData } = await supabase
         .from('overtime')
-        .select('*, employees(id, name, hourly_rate, avatar_color)')
-        .order('date', { ascending: false });
+        .select('*, employees(id, name, hourly_rate, off_day_rate, avatar_color)')
+        .order('created_at', { ascending: false });
 
       const transformed = (entriesData || []).map((entry: any) => ({
         ...entry,
         type: entry.type || 'overtime',
-        employee: entry.employees,
+        status: entry.status || 'submitted',
+        hourly_rate: entry.hourly_rate || 0,
+        off_day_rate: entry.off_day_rate || 0,
+        off_day_hours: entry.off_day_hours || 0,
+        off_day_amount: entry.off_day_amount || 0,
+        employee: entry.employees ? {
+          ...entry.employees,
+          hourly_rate: entry.employees.hourly_rate || 0,
+          off_day_rate: entry.employees.off_day_rate || 0,
+        } : undefined,
       }));
       setEntries(transformed);
     } catch (error: any) {
@@ -124,151 +151,121 @@ export default function Overtime() {
     }
   };
 
+  const openAddDialog = () => {
+    setEditingEntry(null);
+    const emp = !isAdmin && employees.length > 0 ? employees[0] : null;
+    setFormData({
+      employee_id: emp?.id || '',
+      hourly_rate: emp?.hourly_rate || 0,
+      off_day_rate: emp?.off_day_rate || 0,
+      hours: 0,
+      off_day_hours: 0,
+      notes: '',
+    });
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (entry: OvertimeEntry) => {
+    setEditingEntry(entry);
+    setFormData({
+      employee_id: entry.employee_id,
+      hourly_rate: entry.hourly_rate,
+      off_day_rate: entry.off_day_rate,
+      hours: entry.hours,
+      off_day_hours: entry.off_day_hours,
+      notes: entry.notes || '',
+    });
+    setDialogOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const employee = employees.find(emp => emp.id === formData.employee_id);
-    if (!employee) return;
+    if (!formData.employee_id || !user) return;
 
-    let hours: number;
-    let amount: number;
+    const overtimeAmount = formData.hours * formData.hourly_rate;
+    const offDayAmount = formData.off_day_hours * formData.off_day_rate;
+    const totalAmount = overtimeAmount + offDayAmount;
 
-    if (amountMode && isAdmin) {
-      // Amount-based: admin enters total amount and hours, we derive the effective rate
-      amount = formData.amount_override;
-      hours = formData.hours;
-      if (amount <= 0) {
-        toast({ title: 'Error', description: 'Enter a valid amount.', variant: 'destructive' });
-        return;
-      }
-      if (hours <= 0) {
-        toast({ title: 'Error', description: 'Enter the number of hours.', variant: 'destructive' });
-        return;
-      }
-    } else {
-      // Hours-based: calculate amount from hours
-      if (formData.hours <= 0) {
-        toast({ title: 'Error', description: 'Enter the number of hours.', variant: 'destructive' });
-        return;
-      }
-      hours = formData.hours;
-      amount = hours * (employee.hourly_rate || 0);
+    if (formData.hours <= 0 && formData.off_day_hours <= 0) {
+      toast({ title: 'Error', description: 'Enter at least overtime hours or off-day hours.', variant: 'destructive' });
+      return;
     }
 
     try {
       const monthDate = `${selectedMonth}-01`;
 
-      const { error } = await supabase.from('overtime').insert({
-        employee_id: formData.employee_id,
-        hours: Math.round(hours * 100) / 100,
-        amount: Math.round(amount * 100) / 100,
-        date: monthDate,
-        type: 'overtime',
-        notes: formData.notes || null,
-      });
-      if (error) throw error;
+      if (editingEntry) {
+        const { error } = await supabase.from('overtime').update({
+          hourly_rate: formData.hourly_rate,
+          off_day_rate: formData.off_day_rate,
+          hours: formData.hours,
+          off_day_hours: formData.off_day_hours,
+          off_day_amount: offDayAmount,
+          amount: totalAmount,
+          notes: formData.notes || null,
+        }).eq('id', editingEntry.id);
+        if (error) throw error;
+        toast({ title: 'Entry updated' });
+      } else {
+        const { error } = await supabase.from('overtime').insert({
+          employee_id: formData.employee_id,
+          hours: formData.hours,
+          amount: totalAmount,
+          hourly_rate: formData.hourly_rate,
+          off_day_rate: formData.off_day_rate,
+          off_day_hours: formData.off_day_hours,
+          off_day_amount: offDayAmount,
+          date: monthDate,
+          type: 'overtime',
+          notes: formData.notes || null,
+          submitted_by: user.id,
+          status: 'submitted',
+        });
+        if (error) throw error;
+        toast({ title: 'Overtime submitted for approval' });
+      }
 
-      toast({ title: 'Overtime entry added' });
       setDialogOpen(false);
-      resetForm();
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   };
 
-  const resetForm = () => {
-    setFormData(prev => ({ ...prev, hours: 0, amount_override: 0, notes: '' }));
-  };
-
-  const openPaymentDialog = (entry: OvertimeEntry) => {
-    setPaymentEntry(entry);
-    const remaining = entry.amount - (entry.paid_amount || 0);
-    setPaymentAmount(String(remaining));
-    setPaymentDialogOpen(true);
-  };
-
-  const handleRecordPayment = async () => {
-    if (!paymentEntry) return;
-    const payAmt = parseFloat(paymentAmount) || 0;
-    if (payAmt <= 0) {
-      toast({ title: 'Enter a valid amount', variant: 'destructive' });
-      return;
-    }
-    const newPaidAmount = (paymentEntry.paid_amount || 0) + payAmt;
-    const fullyPaid = newPaidAmount >= paymentEntry.amount;
-
+  const handleApprove = async (full: boolean) => {
+    if (!approvalDialog || !user) return;
     try {
-      const { error } = await supabase
-        .from('overtime')
-        .update({ paid_amount: newPaidAmount, is_paid: fullyPaid })
-        .eq('id', paymentEntry.id);
+      const approvedAmt = full
+        ? approvalDialog.amount
+        : (parseFloat(approvalAmount) || 0) + (parseFloat(approvalOffDayAmount) || 0);
+
+      const { error } = await supabase.from('overtime').update({
+        status: 'approved',
+        approved_amount: approvedAmt,
+        approved_by: user.id,
+        approved_at: new Date().toISOString(),
+        amount: approvedAmt,
+      }).eq('id', approvalDialog.id);
       if (error) throw error;
-      toast({ title: fullyPaid ? 'Fully paid!' : `Recorded ﷼${payAmt.toFixed(2)} payment` });
-      setPaymentDialogOpen(false);
+
+      toast({ title: full ? 'Fully approved' : `Approved ﷼${approvedAmt.toFixed(2)}` });
+      setApprovalDialog(null);
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   };
 
-  const markAllPaid = async (employeeId: string) => {
+  const handleReject = async (entry: OvertimeEntry) => {
+    if (!user) return;
     try {
-      const unpaidEntries = filteredEntries
-        .filter(e => e.employee_id === employeeId && !e.is_paid);
-      if (unpaidEntries.length === 0) return;
-
-      for (const entry of unpaidEntries) {
-        await supabase
-          .from('overtime')
-          .update({ paid_amount: entry.amount, is_paid: true })
-          .eq('id', entry.id);
-      }
-      toast({ title: `Marked ${unpaidEntries.length} entries as fully paid` });
-      fetchData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const openBulkPaymentDialog = (employeeId: string) => {
-    const summary = employeeSummaries.find(s => s.employee.id === employeeId);
-    setBulkPaymentEmployeeId(employeeId);
-    setBulkPaymentAmount(String(summary?.unpaidAmount || 0));
-    setBulkPaymentDialogOpen(true);
-  };
-
-  const handleBulkPartialPayment = async () => {
-    if (!bulkPaymentEmployeeId) return;
-    let remaining = parseFloat(bulkPaymentAmount) || 0;
-    if (remaining <= 0) {
-      toast({ title: 'Enter a valid amount', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      const unpaidEntries = filteredEntries
-        .filter(e => e.employee_id === bulkPaymentEmployeeId && !e.is_paid)
-        .sort((a, b) => a.date.localeCompare(b.date));
-
-      for (const entry of unpaidEntries) {
-        if (remaining <= 0) break;
-        const entryRemaining = entry.amount - (entry.paid_amount || 0);
-        if (entryRemaining <= 0) continue;
-
-        const payForThis = Math.min(remaining, entryRemaining);
-        const newPaid = (entry.paid_amount || 0) + payForThis;
-        const fullyPaid = newPaid >= entry.amount;
-
-        await supabase
-          .from('overtime')
-          .update({ paid_amount: newPaid, is_paid: fullyPaid })
-          .eq('id', entry.id);
-
-        remaining -= payForThis;
-      }
-
-      toast({ title: `Recorded ﷼${(parseFloat(bulkPaymentAmount) || 0).toFixed(2)} partial payment` });
-      setBulkPaymentDialogOpen(false);
+      const { error } = await supabase.from('overtime').update({
+        status: 'rejected',
+        approved_by: user.id,
+        approved_at: new Date().toISOString(),
+      }).eq('id', entry.id);
+      if (error) throw error;
+      toast({ title: 'Entry rejected' });
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -280,29 +277,14 @@ export default function Overtime() {
       const { error } = await supabase.from('overtime').delete().eq('id', id);
       if (error) throw error;
       toast({ title: 'Entry deleted' });
+      setDeleteConfirm(null);
       fetchData();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   };
 
-  const deleteAllForEmployee = async (employeeId: string) => {
-    try {
-      const employeeEntries = filteredEntries.filter(e => e.employee_id === employeeId);
-      if (employeeEntries.length === 0) return;
-
-      for (const entry of employeeEntries) {
-        await supabase.from('overtime').delete().eq('id', entry.id);
-      }
-      toast({ title: `Deleted ${employeeEntries.length} entries` });
-      setDeleteAllConfirm(null);
-      fetchData();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  // Filter by employee and month
+  // Filter
   const filteredEntries = entries.filter(e => {
     if (filterEmployee !== 'all' && e.employee_id !== filterEmployee) return false;
     const entryMonth = e.date.substring(0, 7);
@@ -319,29 +301,24 @@ export default function Overtime() {
       if (!summary) {
         summary = {
           employee: entry.employee,
-          totalHours: 0,
           totalAmount: 0,
-          unpaidAmount: 0,
+          totalOffDayAmount: 0,
           entries: [],
         };
         map.set(entry.employee_id, summary);
       }
-      summary.totalHours += entry.hours;
-      summary.totalAmount += entry.amount;
-      const remaining = entry.amount - (entry.paid_amount || 0);
-      if (remaining > 0) summary.unpaidAmount += remaining;
+      if (entry.status !== 'rejected') {
+        summary.totalAmount += (entry.hours * entry.hourly_rate);
+        summary.totalOffDayAmount += entry.off_day_amount;
+      }
       summary.entries.push(entry);
     }
     return Array.from(map.values());
   })();
 
-  const totalUnpaid = filteredEntries.reduce((sum, e) => sum + Math.max(0, e.amount - (e.paid_amount || 0)), 0);
-  const totalHours = filteredEntries.reduce((sum, e) => sum + e.hours, 0);
+  const pendingCount = filteredEntries.filter(e => e.status === 'submitted').length;
 
-  const selectedEmployee = employees.find(e => e.id === formData.employee_id);
-  const calcAmount = (formData.hours || 0) * (selectedEmployee?.hourly_rate || 0);
-
-  // Generate month options
+  // Month options
   const monthOptions: string[] = [];
   const now = new Date();
   for (let i = 0; i < 12; i++) {
@@ -354,41 +331,72 @@ export default function Overtime() {
     return new Date(parseInt(y), parseInt(mo) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'submitted':
+        return <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-xs">Pending</Badge>;
+      case 'approved':
+        return <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-xs">Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">Rejected</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">{status}</Badge>;
+    }
+  };
+
+  const selectedEmployee = employees.find(e => e.id === formData.employee_id);
+  const calcOvertimeAmount = formData.hours * formData.hourly_rate;
+  const calcOffDayAmount = formData.off_day_hours * formData.off_day_rate;
+  const calcTotal = calcOvertimeAmount + calcOffDayAmount;
+
   return (
     <AppLayout>
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
           <div>
             <h1 className="text-2xl font-display font-bold text-foreground">Overtime Tracker</h1>
-            <p className="text-muted-foreground">{isAdmin ? 'Track extra hours and payments' : 'Submit your overtime hours'}</p>
+            <p className="text-muted-foreground text-sm">{isAdmin ? 'Review and approve overtime submissions' : 'Submit your overtime hours for approval'}</p>
           </div>
-          <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
+          <Button onClick={openAddDialog}>
             <Plus className="w-4 h-4 mr-2" />
-            Add Entry
+            Submit Overtime
           </Button>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="stat-card">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                <Banknote className="w-5 h-5 text-warning" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Unpaid Total</p>
-                <p className="text-xl font-bold">{totalUnpaid.toFixed(2)} ﷼</p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="stat-card">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Clock className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Hours</p>
-                <p className="text-xl font-bold">{totalHours}h</p>
+                <p className="text-sm text-muted-foreground">Total Entries</p>
+                <p className="text-xl font-bold">{filteredEntries.length}</p>
+              </div>
+            </div>
+          </div>
+          {isAdmin && (
+            <div className="stat-card">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                  <Banknote className="w-5 h-5 text-warning" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending Approval</p>
+                  <p className="text-xl font-bold">{pendingCount}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="stat-card">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-success" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Approved</p>
+                <p className="text-xl font-bold">{filteredEntries.filter(e => e.status === 'approved').length}</p>
               </div>
             </div>
           </div>
@@ -439,9 +447,9 @@ export default function Overtime() {
           <div className="space-y-4">
             {employeeSummaries.map(summary => {
               const isExpanded = expandedEmployee === summary.employee.id;
+              const grandTotal = summary.totalAmount + summary.totalOffDayAmount;
               return (
                 <div key={summary.employee.id} className="bg-card rounded-xl border border-border/50 overflow-hidden">
-                  {/* Summary row */}
                   <div
                     className="p-4 cursor-pointer hover:bg-muted/30 transition-colors"
                     onClick={() => setExpandedEmployee(isExpanded ? null : summary.employee.id)}
@@ -456,58 +464,21 @@ export default function Overtime() {
                         </div>
                         <div>
                           <p className="font-semibold text-foreground">{summary.employee.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            <Clock className="w-3 h-3 inline mr-1" />{summary.totalHours}h total
-                          </p>
+                          <p className="text-xs text-muted-foreground">{summary.entries.length} entries</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="font-bold text-foreground">{summary.totalAmount.toFixed(2)} ﷼</p>
-                          {summary.unpaidAmount > 0 && (
-                            <p className="text-xs text-warning">{summary.unpaidAmount.toFixed(2)} ﷼ unpaid</p>
+                          <p className="font-bold text-foreground">{grandTotal.toFixed(2)} ﷼</p>
+                          {summary.totalOffDayAmount > 0 && (
+                            <p className="text-xs text-muted-foreground">incl. {summary.totalOffDayAmount.toFixed(2)} ﷼ off-day</p>
                           )}
                         </div>
-                        {isAdmin && (
-                          <div className="flex items-center gap-1">
-                            {summary.unpaidAmount > 0 && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs"
-                                  onClick={(e) => { e.stopPropagation(); openBulkPaymentDialog(summary.employee.id); }}
-                                >
-                                  <DollarSign className="w-3 h-3 mr-1" />
-                                  Partial Pay
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs"
-                                  onClick={(e) => { e.stopPropagation(); markAllPaid(summary.employee.id); }}
-                                >
-                                  Pay All
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
-                              onClick={(e) => { e.stopPropagation(); setDeleteAllConfirm(summary.employee.id); }}
-                            >
-                              <Trash2 className="w-3 h-3 mr-1" />
-                              Delete All
-                            </Button>
-                          </div>
-                        )}
                         {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                       </div>
                     </div>
                   </div>
 
-                  {/* Expanded detail */}
                   {isExpanded && (
                     <div className="border-t border-border/50">
                       <div className="overflow-x-auto">
@@ -515,40 +486,71 @@ export default function Overtime() {
                           <thead className="bg-muted/50">
                             <tr>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Date</th>
-                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Hours</th>
-                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Amount</th>
-                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Description</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">OT Hours</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Rate</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">OT Amount</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Off-Day</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Total</th>
+                              <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Notes</th>
                               <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Status</th>
                               <th className="text-right px-4 py-2 text-xs font-medium text-muted-foreground">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {summary.entries.map(entry => (
-                              <tr key={entry.id} className="border-t border-border/30">
-                                <td className="px-4 py-2 text-sm">{new Date(entry.date).toLocaleDateString()}</td>
-                                <td className="px-4 py-2 text-sm">{entry.hours}h</td>
-                                <td className="px-4 py-2 text-sm font-medium">{entry.amount.toFixed(2)} ﷼</td>
-                                <td className="px-4 py-2 text-sm text-muted-foreground max-w-[200px] truncate" title={entry.notes || ''}>{entry.notes || '—'}</td>
-                                <td className="px-4 py-2">
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.is_paid ? 'bg-success/10 text-success' : (entry.paid_amount || 0) > 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-warning/10 text-warning'}`}>
-                                    {entry.is_paid ? 'Paid' : (entry.paid_amount || 0) > 0 ? `Partial (﷼${(entry.paid_amount || 0).toFixed(0)})` : 'Unpaid'}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2 text-right">
-                                  <div className="flex items-center justify-end gap-1">
-                                    {isAdmin && !entry.is_paid && (
-                                      <Button size="sm" variant="ghost" className="text-xs h-7 gap-1" onClick={() => openPaymentDialog(entry)}>
-                                        <DollarSign className="w-3 h-3" />
-                                        {(entry.paid_amount || 0) > 0 ? 'Add Payment' : 'Record Payment'}
-                                      </Button>
-                                    )}
-                                    <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive" onClick={() => deleteEntry(entry.id)}>
-                                      <Trash2 className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                            {summary.entries.map(entry => {
+                              const otAmount = entry.hours * entry.hourly_rate;
+                              const total = otAmount + entry.off_day_amount;
+                              const canEdit = entry.status === 'submitted' && (!isAdmin || true);
+                              return (
+                                <tr key={entry.id} className="border-t border-border/30">
+                                  <td className="px-4 py-2 text-sm">{new Date(entry.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</td>
+                                  <td className="px-4 py-2 text-sm">{entry.hours}h</td>
+                                  <td className="px-4 py-2 text-sm">{entry.hourly_rate} ﷼/hr</td>
+                                  <td className="px-4 py-2 text-sm font-medium">{otAmount.toFixed(2)} ﷼</td>
+                                  <td className="px-4 py-2 text-sm">
+                                    {entry.off_day_hours > 0 ? (
+                                      <span>{entry.off_day_hours}h × {entry.off_day_rate} = {entry.off_day_amount.toFixed(2)} ﷼</span>
+                                    ) : '—'}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm font-bold">{total.toFixed(2)} ﷼</td>
+                                  <td className="px-4 py-2 text-sm text-muted-foreground max-w-[150px] truncate" title={entry.notes || ''}>{entry.notes || '—'}</td>
+                                  <td className="px-4 py-2">{getStatusBadge(entry.status)}</td>
+                                  <td className="px-4 py-2 text-right">
+                                    <div className="flex items-center justify-end gap-1">
+                                      {/* Admin: approve/reject pending entries */}
+                                      {isAdmin && entry.status === 'submitted' && (
+                                        <>
+                                          <Button size="sm" variant="ghost" className="text-xs h-7 text-success" onClick={() => {
+                                            setApprovalDialog(entry);
+                                            setApprovalAmount(String(otAmount));
+                                            setApprovalOffDayAmount(String(entry.off_day_amount));
+                                          }}>
+                                            <CheckCircle className="w-3 h-3 mr-1" />
+                                            Approve
+                                          </Button>
+                                          <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive" onClick={() => handleReject(entry)}>
+                                            <XCircle className="w-3 h-3 mr-1" />
+                                            Reject
+                                          </Button>
+                                        </>
+                                      )}
+                                      {/* Edit (only submitted) */}
+                                      {canEdit && (
+                                        <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => openEditDialog(entry)}>
+                                          <Edit2 className="w-3 h-3" />
+                                        </Button>
+                                      )}
+                                      {/* Delete */}
+                                      {(isAdmin || entry.status === 'submitted') && (
+                                        <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive" onClick={() => setDeleteConfirm(entry.id)}>
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -561,26 +563,35 @@ export default function Overtime() {
         )}
       </div>
 
-      {/* Add Entry Dialog */}
+      {/* Add/Edit Entry Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display">Add Overtime</DialogTitle>
+            <DialogTitle className="font-display">{editingEntry ? 'Edit Overtime' : 'Submit Overtime'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            {/* Employee selector */}
+            {/* Employee */}
             {isAdmin ? (
               <div className="space-y-2">
                 <Label>Employee *</Label>
-                <Select value={formData.employee_id} onValueChange={val => setFormData(p => ({ ...p, employee_id: val }))}>
+                <Select
+                  value={formData.employee_id}
+                  onValueChange={val => {
+                    const emp = employees.find(e => e.id === val);
+                    setFormData(p => ({
+                      ...p,
+                      employee_id: val,
+                      hourly_rate: emp?.hourly_rate || 0,
+                      off_day_rate: emp?.off_day_rate || 0,
+                    }));
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
                     {employees.map(emp => (
-                      <SelectItem key={emp.id} value={emp.id}>
-                        {emp.name} ({emp.hourly_rate} ﷼/hr)
-                      </SelectItem>
+                      <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -590,86 +601,113 @@ export default function Overtime() {
                 <div className="p-3 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">
                     Employee: <span className="font-semibold text-foreground">{employees[0]?.name}</span>
-                    {' '}({employees[0]?.hourly_rate} ﷼/hr)
                   </p>
                 </div>
               )
             )}
 
             {/* Month */}
+            {!editingEntry && (
+              <div className="space-y-2">
+                <Label>Month</Label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover">
+                    {monthOptions.map(m => (
+                      <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Hourly Rate */}
             <div className="space-y-2">
-              <Label>Month</Label>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  {monthOptions.map(m => (
-                    <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Hourly Rate (﷼/hr) *</Label>
+              <Input
+                type="number"
+                value={formData.hourly_rate || ''}
+                onChange={e => setFormData(p => ({ ...p, hourly_rate: parseFloat(e.target.value) || 0 }))}
+                step={0.01}
+                min={0}
+                placeholder="Your hourly rate"
+              />
             </div>
 
-            {/* Amount Mode Toggle (admin only) */}
-            {isAdmin && (
-              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <Label className="text-sm">Enter by total amount</Label>
-                <Switch checked={amountMode} onCheckedChange={setAmountMode} />
+            {/* OT Hours */}
+            <div className="space-y-2">
+              <Label>Overtime Hours *</Label>
+              <Input
+                type="number"
+                value={formData.hours || ''}
+                onChange={e => setFormData(p => ({ ...p, hours: parseFloat(e.target.value) || 0 }))}
+                step={0.5}
+                min={0}
+                placeholder="Total overtime hours"
+              />
+              {formData.hours > 0 && formData.hourly_rate > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {formData.hours}h × {formData.hourly_rate} ﷼/hr = <span className="font-semibold">{calcOvertimeAmount.toFixed(2)} ﷼</span>
+                </p>
+              )}
+            </div>
+
+            {/* Off-Day Rate */}
+            <div className="space-y-2">
+              <Label>Off-Day Rate (﷼/hr)</Label>
+              <Input
+                type="number"
+                value={formData.off_day_rate || ''}
+                onChange={e => setFormData(p => ({ ...p, off_day_rate: parseFloat(e.target.value) || 0 }))}
+                step={0.01}
+                min={0}
+                placeholder="Off-day hourly rate"
+              />
+            </div>
+
+            {/* Off-Day Hours */}
+            <div className="space-y-2">
+              <Label>Off-Day Hours</Label>
+              <Input
+                type="number"
+                value={formData.off_day_hours || ''}
+                onChange={e => setFormData(p => ({ ...p, off_day_hours: parseFloat(e.target.value) || 0 }))}
+                step={0.5}
+                min={0}
+                placeholder="Hours worked on off days"
+              />
+              {formData.off_day_hours > 0 && formData.off_day_rate > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {formData.off_day_hours}h × {formData.off_day_rate} ﷼/hr = <span className="font-semibold">{calcOffDayAmount.toFixed(2)} ﷼</span>
+                </p>
+              )}
+            </div>
+
+            {/* Total Summary */}
+            {calcTotal > 0 && (
+              <div className="bg-muted/50 rounded-xl p-4 space-y-1">
+                {calcOvertimeAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Overtime</span>
+                    <span>{calcOvertimeAmount.toFixed(2)} ﷼</span>
+                  </div>
+                )}
+                {calcOffDayAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Off-Day</span>
+                    <span>{calcOffDayAmount.toFixed(2)} ﷼</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold border-t border-border/50 pt-1 mt-1">
+                  <span>Total</span>
+                  <span>{calcTotal.toFixed(2)} ﷼</span>
+                </div>
               </div>
             )}
 
-            {/* Hours or Amount input */}
-            {amountMode && isAdmin ? (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label>Total Amount (﷼) *</Label>
-                  <Input
-                    type="number"
-                    value={formData.amount_override || ''}
-                    onChange={e => setFormData(p => ({ ...p, amount_override: parseFloat(e.target.value) || 0 }))}
-                    step={0.01}
-                    min={0}
-                    placeholder="Enter total overtime amount"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Total Hours *</Label>
-                  <Input
-                    type="number"
-                    value={formData.hours || ''}
-                    onChange={e => setFormData(p => ({ ...p, hours: parseFloat(e.target.value) || 0 }))}
-                    step={0.5}
-                    min={0}
-                    placeholder="Enter total overtime hours"
-                  />
-                </div>
-                {formData.amount_override > 0 && formData.hours > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Effective rate: {formData.amount_override.toFixed(2)} ﷼ ÷ {formData.hours}h = {(formData.amount_override / formData.hours).toFixed(2)} ﷼/hr
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Total Hours *</Label>
-                <Input
-                  type="number"
-                  value={formData.hours || ''}
-                  onChange={e => setFormData(p => ({ ...p, hours: parseFloat(e.target.value) || 0 }))}
-                  step={0.5}
-                  min={0}
-                  placeholder="Enter total overtime hours"
-                />
-                {formData.hours > 0 && selectedEmployee && (
-                  <p className="text-xs text-muted-foreground">
-                    {formData.hours}h × {selectedEmployee.hourly_rate} ﷼/hr = {calcAmount.toFixed(2)} ﷼
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Description */}
+            {/* Notes */}
             <div className="space-y-2">
               <Label>Description (optional)</Label>
               <Textarea
@@ -682,127 +720,83 @@ export default function Overtime() {
 
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={!formData.employee_id || (amountMode && isAdmin ? (formData.amount_override <= 0 || formData.hours <= 0) : formData.hours <= 0)}>Add Entry</Button>
+              <Button type="submit" disabled={!formData.employee_id || (formData.hours <= 0 && formData.off_day_hours <= 0)}>
+                {editingEntry ? 'Update' : 'Submit for Approval'}
+              </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Partial Payment Dialog */}
-      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+      {/* Approval Dialog */}
+      <Dialog open={!!approvalDialog} onOpenChange={(open) => !open && setApprovalDialog(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-display">Record Payment</DialogTitle>
+            <DialogTitle className="font-display">Approve Overtime</DialogTitle>
           </DialogHeader>
-          {paymentEntry && (
-            <div className="space-y-4 mt-2">
-              <div className="p-3 bg-muted rounded-lg space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total Amount</span>
-                  <span className="font-semibold">{paymentEntry.amount.toFixed(2)} ﷼</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Already Paid</span>
-                  <span className="font-medium text-emerald-600">{(paymentEntry.paid_amount || 0).toFixed(2)} ﷼</span>
-                </div>
-                <div className="flex justify-between text-sm border-t border-border/50 pt-1 mt-1">
-                  <span className="text-muted-foreground">Remaining</span>
-                  <span className="font-bold text-warning">{(paymentEntry.amount - (paymentEntry.paid_amount || 0)).toFixed(2)} ﷼</span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Payment Amount</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max={paymentEntry.amount - (paymentEntry.paid_amount || 0)}
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  placeholder="0.00"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={() => setPaymentAmount(String(paymentEntry.amount - (paymentEntry.paid_amount || 0)))}
-                >
-                  Pay Full Remaining
-                </Button>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleRecordPayment}>Record Payment</Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Bulk Partial Payment Dialog */}
-      <Dialog open={bulkPaymentDialogOpen} onOpenChange={setBulkPaymentDialogOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="font-display">Partial Payment</DialogTitle>
-          </DialogHeader>
-          {bulkPaymentEmployeeId && (() => {
-            const summary = employeeSummaries.find(s => s.employee.id === bulkPaymentEmployeeId);
-            if (!summary) return null;
+          {approvalDialog && (() => {
+            const otAmount = approvalDialog.hours * approvalDialog.hourly_rate;
+            const requestedTotal = otAmount + approvalDialog.off_day_amount;
             return (
               <div className="space-y-4 mt-2">
                 <div className="p-3 bg-muted rounded-lg space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Employee</span>
-                    <span className="font-semibold">{summary.employee.name}</span>
+                    <span className="font-semibold">{approvalDialog.employee?.name}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total Owed</span>
-                    <span className="font-semibold">{summary.totalAmount.toFixed(2)} ﷼</span>
+                    <span className="text-muted-foreground">OT: {approvalDialog.hours}h × {approvalDialog.hourly_rate}</span>
+                    <span>{otAmount.toFixed(2)} ﷼</span>
                   </div>
-                  <div className="flex justify-between text-sm border-t border-border/50 pt-1 mt-1">
-                    <span className="text-muted-foreground">Unpaid Balance</span>
-                    <span className="font-bold text-warning">{summary.unpaidAmount.toFixed(2)} ﷼</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Payment Amount</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={summary.unpaidAmount}
-                    value={bulkPaymentAmount}
-                    onChange={(e) => setBulkPaymentAmount(e.target.value)}
-                    placeholder="0.00"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Payment will be distributed across unpaid entries (oldest first).
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => setBulkPaymentAmount(String(summary.unpaidAmount))}
-                    >
-                      Pay Full Balance
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => setBulkPaymentAmount(String(Math.round(summary.unpaidAmount / 2 * 100) / 100))}
-                    >
-                      Pay Half
-                    </Button>
+                  {approvalDialog.off_day_hours > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Off-Day: {approvalDialog.off_day_hours}h × {approvalDialog.off_day_rate}</span>
+                      <span>{approvalDialog.off_day_amount.toFixed(2)} ﷼</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-bold border-t border-border/50 pt-1 mt-1">
+                    <span>Requested Total</span>
+                    <span>{requestedTotal.toFixed(2)} ﷼</span>
                   </div>
                 </div>
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Approve partial amount (optional)</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs w-20 shrink-0">OT Amount</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={approvalAmount}
+                        onChange={(e) => setApprovalAmount(e.target.value)}
+                      />
+                    </div>
+                    {approvalDialog.off_day_hours > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs w-20 shrink-0">Off-Day</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={approvalOffDayAmount}
+                          onChange={(e) => setApprovalOffDayAmount(e.target.value)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="outline" onClick={() => setBulkPaymentDialogOpen(false)}>Cancel</Button>
-                  <Button onClick={handleBulkPartialPayment}>Record Payment</Button>
+                  <Button variant="outline" onClick={() => setApprovalDialog(null)}>Cancel</Button>
+                  <Button variant="outline" onClick={() => handleApprove(false)}>
+                    Approve Partial
+                  </Button>
+                  <Button onClick={() => handleApprove(true)}>
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    Approve Full
+                  </Button>
                 </div>
               </div>
             );
@@ -810,22 +804,20 @@ export default function Overtime() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete All Confirmation */}
-      <AlertDialog open={!!deleteAllConfirm} onOpenChange={(open) => !open && setDeleteAllConfirm(null)}>
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete all overtime entries?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete all overtime entries for this employee in {formatMonth(selectedMonth)}. This action cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Delete overtime entry?</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleteAllConfirm && deleteAllForEmployee(deleteAllConfirm)}
+              onClick={() => deleteConfirm && deleteEntry(deleteConfirm)}
             >
-              Delete All
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
