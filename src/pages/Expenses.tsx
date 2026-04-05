@@ -1140,7 +1140,7 @@ export default function Expenses() {
                 {scanPreview.purchase_type && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Category</span>
-                    <span className="font-medium">{getCategoryById(scanPreview.purchase_type)?.label || scanPreview.purchase_type} — {getCategoryById(scanPreview.purchase_type)?.labelAr || ''}</span>
+                    <span className="font-medium">{getCategoryById(scanPreview.purchase_type)?.label || scanPreview.purchase_type}</span>
                   </div>
                 )}
                 {scanPreview.date && (
