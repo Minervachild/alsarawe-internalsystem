@@ -790,7 +790,7 @@ export default function Expenses() {
                         <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Purchase Type" /></SelectTrigger>
                         <SelectContent>
                           {PURCHASE_CATEGORIES.map(cat => (
-                            <SelectItem key={cat.id} value={cat.id}>{cat.label} — {cat.labelAr}</SelectItem>
+                            <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
