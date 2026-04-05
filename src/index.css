@@ -314,3 +314,44 @@
     transform: translateY(-2px);
   }
 }
+
+/* Mobile keyboard fix - ensure inputs scroll into view */
+@supports (height: 100dvh) {
+  html, body {
+    height: 100dvh;
+  }
+}
+
+/* Prevent iOS zoom on input focus */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Ensure focused inputs scroll into view above keyboard */
+input:focus,
+textarea:focus,
+select:focus {
+  scroll-margin-bottom: 120px;
+}
+
+/* Better scroll behavior for form containers on mobile */
+@media screen and (max-width: 1024px) {
+  main {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+  
+  .card-premium,
+  [class*="DialogContent"] {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
