@@ -141,7 +141,7 @@ export function BotRegister({ entry, branchName, branchReference }: BotRegisterP
         {editingTemplate ? (
           <div className="space-y-3 flex-1 flex flex-col">
             <p className="text-xs text-muted-foreground">
-              Available variables: {'{branch}'}, {'{date}'}, {'{shift}'}, {'{cash}'}, {'{card}'}, {'{card_label}'}, {'{total}'}, {'{net_sales}'}, {'{vat_amount}'}, {'{transactions}'}
+              Available variables: {'{branch}'}, {'{branch_reference}'}, {'{date}'}, {'{shift}'}, {'{cash}'}, {'{card}'}, {'{card_label}'}, {'{total}'}, {'{net_sales}'}, {'{vat_amount}'}, {'{transactions}'}
             </p>
             <Textarea
               value={editedTemplate}
