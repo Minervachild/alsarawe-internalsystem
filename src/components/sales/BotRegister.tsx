@@ -22,7 +22,7 @@ interface BotRegisterProps {
   branchReference?: string;
 }
 
-export function BotRegister({ entry, branchName }: BotRegisterProps) {
+export function BotRegister({ entry, branchName, branchReference }: BotRegisterProps) {
   const [template, setTemplate] = useState('');
   const [editingTemplate, setEditingTemplate] = useState(false);
   const [editedTemplate, setEditedTemplate] = useState('');
