@@ -1069,38 +1069,65 @@ export type Database = {
       overtime: {
         Row: {
           amount: number
+          approved_amount: number | null
+          approved_at: string | null
+          approved_by: string | null
           created_at: string | null
           date: string
           employee_id: string
+          hourly_rate: number | null
           hours: number
           id: string
           is_paid: boolean | null
           notes: string | null
+          off_day_amount: number
+          off_day_hours: number
+          off_day_rate: number | null
           paid_amount: number
+          status: string
+          submitted_by: string | null
           type: string
         }
         Insert: {
           amount: number
+          approved_amount?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string | null
           date?: string
           employee_id: string
+          hourly_rate?: number | null
           hours: number
           id?: string
           is_paid?: boolean | null
           notes?: string | null
+          off_day_amount?: number
+          off_day_hours?: number
+          off_day_rate?: number | null
           paid_amount?: number
+          status?: string
+          submitted_by?: string | null
           type?: string
         }
         Update: {
           amount?: number
+          approved_amount?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string | null
           date?: string
           employee_id?: string
+          hourly_rate?: number | null
           hours?: number
           id?: string
           is_paid?: boolean | null
           notes?: string | null
+          off_day_amount?: number
+          off_day_hours?: number
+          off_day_rate?: number | null
           paid_amount?: number
+          status?: string
+          submitted_by?: string | null
           type?: string
         }
         Relationships: [
