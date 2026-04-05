@@ -213,8 +213,12 @@ export function BoardTable({
                   row={row}
                   columns={columns}
                   allGroups={allGroups}
+                  clients={clients}
+                  employees={employees}
                   onDeleteRow={onDeleteRow}
                   onMoveRow={onMoveRow}
+                  onUpdateCell={onUpdateCell}
+                  onAddEmployee={onAddEmployee}
                 />
               ))}
               {allowAddRow && (
