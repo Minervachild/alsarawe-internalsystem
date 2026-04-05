@@ -96,7 +96,7 @@ export const BoardTableRow = memo(function BoardTableRow({
 
   // Get hidden columns (columns in allColumns but not in visible columns)
   const hiddenColumns = (allColumns || []).filter(
-    ac => !columns.find(c => c.id === ac.id) && ac.name !== 'Delivery Proof'
+    ac => !columns.find(c => c.id === ac.id)
   );
 
   const getCellValue = (columnId: string) => {
