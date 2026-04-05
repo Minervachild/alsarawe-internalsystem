@@ -84,6 +84,7 @@ export function BotRegister({ entry, branchName, branchReference }: BotRegisterP
 
     return template
       .replace(/{branch}/g, branchName || '')
+      .replace(/{branch_reference}/g, branchReference || branchName || '')
       .replace(/{date}/g, dateFormatted)
       .replace(/{shift}/g, shiftLabel)
       .replace(/{cash}/g, String(Number(entry.cash_amount)))
