@@ -668,7 +668,7 @@ export default function Expenses() {
                 <SelectContent>
                   {PURCHASE_CATEGORIES.map(cat => (
                     <SelectItem key={cat.id} value={cat.id}>
-                      {cat.label} — {cat.labelAr}
+                      {cat.label}
                     </SelectItem>
                   ))}
                   {customPurchaseTypes.map(cpt => (
