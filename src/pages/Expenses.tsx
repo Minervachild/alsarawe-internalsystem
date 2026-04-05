@@ -612,7 +612,7 @@ export default function Expenses() {
         </div>
 
         {/* Quick Templates */}
-        {templates.length > 0 && (
+        {isAdmin && templates.length > 0 && (
           <div className="mb-4">
             <p className="text-xs text-muted-foreground mb-2 font-medium">Quick Templates</p>
             <div className="flex flex-wrap gap-2">
