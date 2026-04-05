@@ -19,9 +19,10 @@ interface SalesEntry {
 interface BotRegisterProps {
   entry: SalesEntry | null;
   branchName?: string;
+  branchReference?: string;
 }
 
-export function BotRegister({ entry, branchName }: BotRegisterProps) {
+export function BotRegister({ entry, branchName, branchReference }: BotRegisterProps) {
   const [template, setTemplate] = useState('');
   const [editingTemplate, setEditingTemplate] = useState(false);
   const [editedTemplate, setEditedTemplate] = useState('');
@@ -83,6 +84,7 @@ export function BotRegister({ entry, branchName }: BotRegisterProps) {
 
     return template
       .replace(/{branch}/g, branchName || '')
+      .replace(/{branch_reference}/g, branchReference || branchName || '')
       .replace(/{date}/g, dateFormatted)
       .replace(/{shift}/g, shiftLabel)
       .replace(/{cash}/g, String(Number(entry.cash_amount)))
@@ -139,7 +141,7 @@ export function BotRegister({ entry, branchName }: BotRegisterProps) {
         {editingTemplate ? (
           <div className="space-y-3 flex-1 flex flex-col">
             <p className="text-xs text-muted-foreground">
-              Available variables: {'{branch}'}, {'{date}'}, {'{shift}'}, {'{cash}'}, {'{card}'}, {'{card_label}'}, {'{total}'}, {'{net_sales}'}, {'{vat_amount}'}, {'{transactions}'}
+              Available variables: {'{branch}'}, {'{branch_reference}'}, {'{date}'}, {'{shift}'}, {'{cash}'}, {'{card}'}, {'{card_label}'}, {'{total}'}, {'{net_sales}'}, {'{vat_amount}'}, {'{transactions}'}
             </p>
             <Textarea
               value={editedTemplate}

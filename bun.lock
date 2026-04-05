@@ -734,7 +734,7 @@
 
     "hasown": ["hasown@2.0.2", "", { "dependencies": { "function-bind": "^1.1.2" } }, "sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ=="],
 
-    "hijri-converter": ["hijri-converter@1.1.1", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/hijri-converter/-/hijri-converter-1.1.1.tgz", {}, "sha512-uY2oDZllg7wcgvY7rdrM1VUE5iEqNjKGtrBUJlzniAsY73FuC5mb0kzdqLE/bU9Q50Iwhn6b9/Udw8SUIXHlhQ=="],
+    "hijri-converter": ["hijri-converter@1.1.1", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/hijri-converter/-/hijri-converter-1.1.1.tgz", {}, "sha512-uY2oDZllg7wcgvY7rdrM1VUE5iEqNjKGtrBUJlzniAsY73FuC5mb0kzdqLE/bU9Q50Iwhn6b9/Udw8SUIXHlhQ=="],
 
     "html-encoding-sniffer": ["html-encoding-sniffer@3.0.0", "", { "dependencies": { "whatwg-encoding": "^2.0.0" } }, "sha512-oWv4T4yJ52iKrufjnyZPkrN0CH3QnrUqdB6In1g5Fe1mia8GmF36gnfNySxoZtxD5+NmYw1EElVXiBk93UeskA=="],
 

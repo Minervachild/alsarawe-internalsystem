@@ -809,7 +809,7 @@ export function SalesDashboard() {
 
             {/* Bot Register */}
             <div>
-              <BotRegister entry={selectedEntry} branchName={(selectedEntry as any)?.branches?.name} />
+              <BotRegister entry={selectedEntry} branchName={(selectedEntry as any)?.branches?.name} branchReference={getBranchReference((selectedEntry as any)?.branches?.name || '')} />
             </div>
           </div>
         </TabsContent>
