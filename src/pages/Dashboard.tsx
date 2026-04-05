@@ -43,6 +43,13 @@ const workspaces: WorkspaceItem[] = [
     color: '#3B82F6',
   },
   {
+    title: 'Clients',
+    description: 'B2B customers',
+    icon: Users,
+    href: '/clients',
+    color: '#8B5CF6',
+  },
+  {
     title: 'Inventory',
     description: 'Stock management',
     icon: Warehouse,
