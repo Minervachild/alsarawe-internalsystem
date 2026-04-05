@@ -414,6 +414,8 @@ export function SalesDashboard() {
         const branchName = (entry as any).branches?.name || '';
         const employeeName = (entry as any).employees?.name || '';
         const total = Number(entry.cash_amount) + Number(entry.card_amount);
+        const netSales = +(total / 1.15).toFixed(2);
+        const vatAmount = +(total - netSales).toFixed(2);
 
         const shiftLabel = entry.shift === 'morning' ? 'صباحية' : 'مسائية';
         const reference = getBranchReference(branchName);
@@ -429,9 +431,13 @@ export function SalesDashboard() {
             cash_amount: entry.cash_amount,
             card_amount: entry.card_amount,
             total,
+            net_sales: netSales,
+            vat_amount: vatAmount,
+            sales_account_id: '4337397000000034003',
+            vat_account_id: '4337397000000077046',
             transaction_count: entry.transaction_count,
             employee: employeeName,
-            prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${shiftLabel} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}، المرجع: ${reference}`,
+            prompt: `سجل مبيعات ${branchName} بتاريخ ${entry.date} وردية ${shiftLabel} - كاش: ${entry.cash_amount} ريال، شبكة: ${entry.card_amount} ريال، الإجمالي: ${total} ريال (صافي: ${netSales} + ضريبة: ${vatAmount})، عدد العمليات: ${entry.transaction_count}، الموظف: ${employeeName}، المرجع: ${reference}`,
           },
         });
         await markPosted(entry.id, true);
