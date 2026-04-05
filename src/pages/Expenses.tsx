@@ -715,7 +715,7 @@ export default function Expenses() {
               )}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Purchased By</Label>
+              <Label className="text-xs">Purchased By *</Label>
               <Select value={employeeId} onValueChange={setEmployeeId}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Select employee..." /></SelectTrigger>
                 <SelectContent>{employees.map(emp => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}</SelectContent>
