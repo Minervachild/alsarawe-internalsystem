@@ -1,18 +1,44 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Send in-app + ntfy notifications when a B2B order is created or moved.
- * Message format: "طلب جديد من [Client] — [Status]"
- * Fire-and-forget – errors are logged but never thrown.
+ * Resolve a client name from a relation cell value (could be UUID or plain text).
  */
-export async function notifyNewOrder(clientName: string, statusName?: string) {
+export async function resolveClientName(cellValue: any): Promise<string> {
+  if (!cellValue) return 'غير معروف';
+  const val = String(cellValue).trim();
+  if (!val) return 'غير معروف';
+
+  // Check if it looks like a UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(val)) {
+    const { data } = await supabase
+      .from('clients')
+      .select('name')
+      .eq('id', val)
+      .maybeSingle();
+    return data?.name || 'غير معروف';
+  }
+
+  return val;
+}
+
+/**
+ * Send in-app + ntfy notifications when a B2B order is created or moved.
+ * Message: "[Client] — [Items summary]"
+ */
+export async function notifyNewOrder(
+  clientName: string,
+  statusName?: string,
+  itemsSummary?: string
+) {
   try {
     const title = 'طلب B2B جديد';
     const client = clientName || 'غير معروف';
-    const status = statusName || '';
-    const message = status
-      ? `طلب جديد من ${client} — ${status}`
-      : `طلب جديد من ${client}`;
+    const items = itemsSummary || '';
+
+    let message = `طلب جديد من ${client}`;
+    if (statusName) message += ` — ${statusName}`;
+    if (items) message += `\n${items}`;
 
     // In-app notifications for every user
     const { data: allProfiles } = await supabase.from('profiles_public').select('id');

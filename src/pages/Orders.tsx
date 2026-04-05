@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 import { SmartQuickAdd } from '@/components/orders/SmartQuickAdd';
 import { DeliveryProofDialog } from '@/components/orders/DeliveryProofDialog';
-import { notifyNewOrder } from '@/lib/orderNotifications';
+import { notifyNewOrder, resolveClientName } from '@/lib/orderNotifications';
 import { ProductsDialog } from '@/components/orders/ProductsDialog';
 import { ClientsDialog } from '@/components/orders/ClientsDialog';
 
@@ -196,7 +196,7 @@ export default function Orders() {
 
       setRows(prev => [...prev, { ...newRow, cells: {} }]);
       const group = groups.find(g => g.id === groupId);
-      notifyNewOrder('Unknown', group?.name);
+      notifyNewOrder('غير معروف', group?.name);
       toast({ title: 'New order added' });
     } catch (error: any) {
       toast({
@@ -779,9 +779,17 @@ export default function Orders() {
 
             await fetchData();
             const clientCol2 = columns.find(c => c.type === 'relation' || c.name.toLowerCase().includes('client'));
-            const clientName2 = clientCol2 ? (cells[clientCol2.id] as string) || 'Unknown' : 'Unknown';
+            const clientRaw2 = clientCol2 ? cells[clientCol2.id] : '';
+            const resolvedClient2 = await resolveClientName(clientRaw2);
+
+            const itemsCol2 = columns.find(c => c.name.toLowerCase().includes('item') || c.type === 'items_qty');
+            const itemsRaw2 = itemsCol2 ? cells[itemsCol2.id] : '';
+            const itemsSummary2 = Array.isArray(itemsRaw2)
+              ? itemsRaw2.map((i: any) => typeof i === 'object' ? `${i.name || i.product} x${i.qty || i.quantity || ''}` : String(i)).join(', ')
+              : itemsRaw2 ? String(itemsRaw2) : '';
+
             const targetGroup = groups.find(g => g.id === newRow.group_id);
-            notifyNewOrder(clientName2, targetGroup?.name);
+            notifyNewOrder(resolvedClient2, targetGroup?.name, itemsSummary2);
             toast({ title: 'Order added via Smart Add!' });
           } catch (error: any) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
